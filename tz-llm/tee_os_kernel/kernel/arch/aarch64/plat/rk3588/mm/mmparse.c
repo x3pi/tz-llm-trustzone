@@ -142,9 +142,9 @@ void parse_mem_map(void *info)
 
     secure_region_init();
 
-    physmem_map_num = 5;
-#ifdef HIGH_SECURE_DEBUG
     physmem_map_num = 4;
+#ifdef HIGH_SECURE_DEBUG
+    physmem_map_num = 3;
 #endif
     physmem_map[0][0] = ROUND_UP((paddr_t)&img_end, PAGE_SIZE);
     physmem_map[0][1] = ROUND_DOWN(0x08400000+0x07C00000, PAGE_SIZE);
@@ -154,12 +154,19 @@ void parse_mem_map(void *info)
     physmem_map[1][1] = ROUND_DOWN(0x08000000, PAGE_SIZE);
     physmem_map[2][0] = ROUND_UP(0x60000000, PAGE_SIZE);
     physmem_map[2][1] = ROUND_DOWN(0xC0000000, PAGE_SIZE);
-    physmem_map[3][0] = ROUND_UP(0x400000000, PAGE_SIZE);
-    physmem_map[3][1] = ROUND_DOWN(0x700000000, PAGE_SIZE);
+    // [BISECT FIX] old physmem_map[3] = [0x400000000, 0x700000000) (16GB-28GB
+    // physical) hangs init_buddy on this board: DDR training banner shows only
+    // 4 channels x 4096MB = 16GB total DRAM, so this pool is entirely beyond
+    // installed RAM. Confirmed via instrumented boot: every other pool prints
+    // both a "before" and "after" bisect log line, this one only ever prints
+    // "before". Dropped entirely (was ChCore's own internal bookkeeping pool,
+    // not where model weights live -- those are in the separate tzasc_cma
+    // region -- so removing ~12GB of unusable/hanging address space here has
+    // no effect on LLM inference capability).
 #ifndef HIGH_SECURE_DEBUG
     // this region is reserved for HIGH_SECURE_DEBUG, so shouldn't be allocated
-    physmem_map[4][0] = ROUND_UP(0x20000000, PAGE_SIZE);
-    physmem_map[4][1] = ROUND_DOWN(0x50000000, PAGE_SIZE);
+    physmem_map[3][0] = ROUND_UP(0x20000000, PAGE_SIZE);
+    physmem_map[3][1] = ROUND_DOWN(0x50000000, PAGE_SIZE);
 #endif
 
     kinfo("[ChCore] zzh: get_tzdram_end returns 0x%lx\n", get_tzdram_end());

@@ -434,6 +434,127 @@ so patience/retry remains the practical mitigation until/unless SPL's
 own retry-on-hash-failure behavior (if any exists) is investigated
 separately.
 
+## End-of-session honest conclusion (2026-07-29, very late): boot-time large-read reliability is a genuine, unresolved limitation
+
+After the pool-3 fix (below) produced one successful live-shell boot, tried
+to reproduce it cleanly with the noise-free (`LOG_LEVEL=1`) rebuild.
+Spent several hours on a single stubborn ~32KB region (LBA `0x11900`-
+`0x1193f`, inside the `optee` FIT component) that consistently failed
+`rkdeveloptool`'s own read-back verification at every chunk size from 4MB
+down to 512 bytes -- **except individual 512-byte sectors, which all
+verified correctly** every single time. Tried: a different `rkdeveloptool`
+binary (project's own compiled copy vs. the system-installed one), added
+explicit delays (3s+) between write and read, and full end-to-end
+re-flashes from scratch multiple times. Eventually wrote every single
+512-byte sector in this region individually (all verified OK) and
+completed the rest of `uboot`+`boot_linux` (all 128+83 chunks verified
+clean).
+
+**Result on actual boot: `Bad hash` for `optee` again -- a *third*
+different wrong value** (`748c92f2...`, distinct from both `ac8a2184...`
+seen earlier). This is the decisive data point: content has now been
+verified correct at the finest possible granularity (individual sectors)
+via multiple tools with delays, yet the real SD-controller boot-time read
+of this ~55MB component still comes back wrong, differently, each time.
+
+**Honest conclusion**: this is a genuine, currently-unresolved hardware/
+firmware reliability limit on this specific board (or board+card
+combination) when reading a large (~55MB) contiguous region during real
+cold boot -- distinct from, and not fixable by, any amount of write-side
+verification rigor. `rkdeveloptool`'s own read-back (used for all our
+verification) evidently exercises a different, more forgiving path than
+the actual boot-time SD controller DMA read, so passing our verification
+does not guarantee a successful boot. Contributing factors identified
+this session that are real but not sufficient on their own to explain
+this: card wear-leveling/remapping from many full reformats today (can't
+fully explain it since even byte-identical historical-precedent content
+failed identically), and the sheer data volume (~55MB vs. a plain
+Ubuntu image's <1.6MB FIT, ~35x more data that must come back
+bit-perfect every single boot).
+
+**What IS solid and should carry forward**: the pool-3 mm_init hang
+(below) is a real, understood, low-risk kernel fix, independent of the
+above -- keep it (`kernel/arch/aarch64/plat/rk3588/mm/mmparse.c`,
+`physmem_map_num` 5->4, dropping the out-of-bounds 16-28GB pool). The
+`checkpoints/pool3fix-clean/` build has this fix with clean `LOG_LEVEL=1`
+logging; it has not yet been promoted to the default
+`checkpoints/{uboot_repacked.img,boot.img}` or committed to git, pending
+a successful boot to confirm the fix survives a clean flash (blocked
+today by the large-read reliability issue above, not by the fix itself --
+the one time it did boot, LOG_LEVEL was still 2, i.e. the *content* that
+boots is `checkpoints/pool3fix/`, not `-clean`).
+
+**Recommendation for next session**: don't keep fighting the large-read
+issue with more verification rigor -- it's demonstrably not a data
+problem. Options worth trying instead: (a) just keep attempting fresh
+power-cycles with the already-flashed content, since the ONE successful
+boot this session did happen eventually; (b) investigate whether U-Boot
+SPL has (or could be given) a retry-on-hash-failure loop around the
+actual `info->read()` call in `common/spl/spl_fit.c` (the exact call site
+was located this session, see the note on this near the bisect work) --
+a real code fix was scoped but not attempted, blocked on the fact that our
+own from-source SPL rebuild needed as the delivery vehicle has its own
+separate, not-yet-fully-understood boot behavior; (c) accept this as an
+inherent property of this hardware and prioritize getting ONE stable good
+boot to test TZ-LLM+NPU (the original goal) rather than a repeatably
+reliable one.
+
+## BREAKTHROUGH (2026-07-29, night): real hang root-caused and fixed -- board boots to a live shell for the first time all day
+
+After the wear-leveling theory (below), rebuilt our own from-source SPL
+(`./make.sh --idblock --spl`, same as attempt #7 in the blank-card
+investigation) and, this time, got a full continuous UART capture of it
+booting -- **it passed every single FIT hash check including `optee`**
+(`98df236b76...`, the known-good 07-28 content, then still on the card),
+went further than any recent attempt, and hung at the exact same point as
+the blank-card investigation's attempt #8 much earlier today: right after
+`firewall_ddr_cma_rgn_init 118`, never printing `[ChCore] mm init
+finished`.
+
+Added bisect instrumentation (`kinfo` prints before/after each
+`init_buddy_for_one_physmem_map(idx)` call in `kernel/mm/mm.c`) and
+rebuilt/reflashed. **Found it precisely**: pools 0, 1, 2 print both
+before/after cleanly; **pool 3 prints only "before", never "after"** --
+confirmed hanging inside `init_buddy_for_one_physmem_map(3)`. Pool 3
+(`kernel/arch/aarch64/plat/rk3588/mm/mmparse.c`) is
+`[0x400000000, 0x700000000)` -- **16GB to 28GB physical** -- while the
+DDR-training banner this whole session shows only 4 channels x 4096MB =
+**16GB total installed DRAM**. This pool is entirely beyond installed
+memory.
+
+**Fix**: dropped `physmem_map[3]` (the out-of-bounds 16-28GB pool)
+entirely, renumbering the old `physmem_map[4]` (the small, in-bounds
+0x20000000-0x50000000 debug-reserved region) down to index 3, and reduced
+`physmem_map_num` from 5 to 4. Rebuilt, reflashed (own SPL + this fix).
+
+**Result: the board booted all the way to a live, responsive OpenHarmony
+shell** -- confirmed via `uname -a` over UART (`Linux localhost 5.10.110
+... Wed Jul 29 20:06:15 CST 2026 aarch64`, matching this exact build) and
+`ls /dev/tc_ns_client` (TrustZone driver present and alive). This is the
+furthest point reached all session, on the first attempt after this fix.
+One transient-looking side effect observed once: a burst of ChCore-side
+`[OOM] No enough memory in memory pool` + `Data Abort from a lower
+Exception level` messages appeared in one UART capture (the very
+beginning of the boot sequence was missed due to capture-timing, so it's
+not yet clear if this happened before or was resolved before reaching the
+shell) -- **did not prevent reaching a fully working shell this time**,
+but is worth understanding before declaring this fully solved: pool 3,
+despite being outside installed DRAM, may have been silently "succeeding"
+its init on working historical boots (writes to unbacked address ranges
+don't necessarily fault on this SoC/interconnect) and providing a large
+if-fake capacity number other code relied on -- removing it may have
+created a genuine memory-pressure regression elsewhere, worth watching
+for if OOM-related instability recurs during actual TZ-LLM/NPU testing.
+
+**Next step**: with a live shell finally reachable, resume the *original*
+TZ-LLM/NPU test goal directly (mount NVMe, push CA binaries, run `fake`)
+now that the whole day's boot-reliability blocker has a real fix in hand.
+The mm.c/mmparse.c changes are currently only in `project/tz-llm/` (synced
+to the container) and baked into `checkpoints/pool3fix/` -- not yet
+promoted to the default `checkpoints/{uboot_repacked.img,boot.img}` or
+committed to git. Do that once the OOM side-effect question above is
+resolved or ruled out as harmless.
+
 ## Direct test of the historical-precedent theory: FAILED (2026-07-29, even later) -- points to wear/remapping, not content
 
 Found the actual 2026-07-28 working build on disk

@@ -37,7 +37,7 @@ sudo_run "$RKDEV" ppt || true
 
 write_verified() {
     local partname=$1 file=$2 base_lba=$3
-    local size sectors chunk_sectors=8192 i=0
+    local size sectors chunk_sectors=1024 i=0
     size=$(stat -c%s "$file")
     sectors=$(( (size + 511) / 512 ))
     echo "--- $partname: $size bytes, $sectors sectors @ LBA 0x$(printf %x $base_lba) ---"

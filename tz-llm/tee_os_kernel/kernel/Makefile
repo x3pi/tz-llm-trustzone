@@ -23,7 +23,7 @@ CFLAGS += -Iinclude -Iinclude/arch/${CHCORE_ARCH} \
 		  -Iinclude/arch/${CHCORE_ARCH}/arch/trustzone/spd/${CHCORE_SPD} \
 		  -Iarch/${CHCORE_ARCH}/boot/${CHCORE_PLAT}/include
 CFLAGS += $(CONFIG_FLAGS)
-CFLAGS += -DLOG_LEVEL=2
+CFLAGS += -DLOG_LEVEL=1
 
 LDFLAGS =-target $(CHCORE_CROSS_COMPILE)  -no-pie -nostdlib -nostartfiles \
 		 -Wl,--build-id=none,--no-dynamic-linker -fuse-ld=lld
