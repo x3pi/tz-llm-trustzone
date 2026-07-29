@@ -404,7 +404,37 @@ Also: disk usage on the host is critical (99% full, ~5.7GB free as of this
 backup) -- do not create further multi-GB image files without first
 clearing space or moving this backup off-disk.
 
-## Old card: physical bad block found in the `uboot` partition (2026-07-29)
+## CORRECTION (2026-07-29, later same day): not a bad SD card -- likely the board's own SD slot/controller
+
+The "physical bad block" conclusion below turned out to be wrong in its
+attribution (the diagnostic steps and symptoms are all accurate, just
+mis-attributed). **Decisive test**: read the exact same LBA region (the one
+`rkdeveloptool` consistently read back wrong, `239fd6f2...`) directly via
+`dd` over a plain USB SD card reader (`dd if=/dev/sdb bs=512 skip=65536
+count=8192`) -- **3/3 reads came back matching the file's real content
+exactly** (`4402afbf...`). The data on the card is correct and stable. It
+is specifically reads *through the board* -- both `rkdeveloptool`'s
+MaskROM-protocol reads and U-Boot SPL's real boot-time SD-controller
+reads -- that return wrong data at this location, consistently. Both of
+those paths share the board's own physical SD slot; the USB reader is a
+completely independent slot/controller and reads it fine.
+
+**Revised conclusion: the SD card itself is very likely healthy. The
+unreliable component is the Orange Pi board's own SD card slot or its
+on-board SD controller**, not any specific card. This reframes the whole
+day's flaky-boot saga: since the underlying data is provably correct and
+stable (verified via an independent read path), board-side read failures
+are plausibly a signal-integrity/timing issue on the board's SD interface
+-- not a permanent, unrecoverable defect. This means **repeated power-cycle
+retries are not just superstition** -- they may genuinely succeed
+eventually, since the data being read is actually fine. Physically
+inspecting/cleaning the board's own SD slot (not the card) is the next
+thing worth trying if this recurs. The original bad-block diagnostic
+sequence is preserved below for the record, since the individual test
+results are all real and useful -- only the final attribution (card vs.
+board) was wrong.
+
+## Old card: physical bad block found in the `uboot` partition (2026-07-29) -- SUPERSEDED, see correction above
 
 **Root cause finally found for the whole day's flaky MaskROM-fallback /
 silent-hang / bad-hash boot failures on the old card**: a real, localized,
