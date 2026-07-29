@@ -7,9 +7,26 @@ below are 5-Max-specific.
 
 ## Current furthest state (checkpoint in this project)
 
-`checkpoints/uboot_repacked.img` + `checkpoints/boot.img` is the latest build,
-byte-verified as flashed correctly (see `SHA256SUMS`). Boot sequence on this
-checkpoint, confirmed live:
+`checkpoints/uboot_repacked.img` + `checkpoints/boot.img` is the latest build
+(sha256 `98b15c08...`/`9d8a4495...`, see `checkpoints/SHA256SUMS`) --
+**identical to `checkpoints/20260729-tzfix5-verified/`**, the actual most
+recent verified-working build from the morning of 2026-07-29 (built via the
+`flash_tzfix5.sh` iteration, `tz-llm-ae/scripts/kick-the-tires/
+share_tzfix5/images/`). **Correction (2026-07-29, later same day)**: during
+the blank-SD-card investigation later this same day, `checkpoints/
+uboot_repacked.img`/`boot.img` got overwritten with an *older* build (sha256
+`736bc4c4...`/`7b1ffc29...`, from git commit `36968bfe4`, predating the
+tzfix5 fix) and that older pair was mistakenly used for several blank-card
+and old-card flash tests. The mistake was caught by comparing hashes against
+the old card's own actual content (verified via direct block-device read
+over a USB card reader) and the dedicated `20260729-tzfix5-verified/`
+backup copy -- the top-level `checkpoints/{uboot_repacked.img,boot.img}`
+have been restored to match `20260729-tzfix5-verified/` again. **If these
+two ever diverge in the future, `20260729-tzfix5-verified/` is the one to
+trust** -- it's the dedicated, deliberately-preserved reference copy;
+the top-level files are the "current default" that flash scripts read by
+default and are more likely to get clobbered by an in-progress experiment.
+Boot sequence on this checkpoint, confirmed live:
 
 1. TEE-OS boots clean, no FIT/hash errors.
 2. `chanmgr` launches `llama-cli` directly from `main()` (correct, matches

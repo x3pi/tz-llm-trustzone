@@ -124,7 +124,15 @@ write_verified uboot "$UBOOT" "$UBOOT_LBA"
 write_verified boot_linux "$BOOT" "$BOOT_LBA"
 write_spotcheck system "$SYSTEM" "$SYSTEM_LBA"
 write_spotcheck vendor "$VENDOR" "$VENDOR_LBA"
-write_spotcheck userdata "$USERDATA" "$USERDATA_LBA"
+if [ "${SKIP_USERDATA:-}" = "1" ]; then
+    echo "--- userdata: SKIPPED (SKIP_USERDATA=1) -- existing userdata on the"
+    echo "    card (e.g. real GGUF model files) is left untouched. Use this"
+    echo "    when reprovisioning a card that already has real user data you"
+    echo "    don't want to overwrite with assets/full-flash/userdata.img"
+    echo "    (which is just a small empty F2FS template, not real data). ---"
+else
+    write_spotcheck userdata "$USERDATA" "$USERDATA_LBA"
+fi
 
 echo "=== resetting board ==="
 sudo_run "$RKDEV" rd
