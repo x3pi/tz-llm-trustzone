@@ -1,0 +1,2 @@
+#!/bin/sh
+exec "${REALSTRIP:-/home/vectorxj/openharmony/base/tee/tee_os_kernel/build/../../../../prebuilts/clang/ohos/linux-x86_64/llvm//bin/llvm-strip}"  "$@"

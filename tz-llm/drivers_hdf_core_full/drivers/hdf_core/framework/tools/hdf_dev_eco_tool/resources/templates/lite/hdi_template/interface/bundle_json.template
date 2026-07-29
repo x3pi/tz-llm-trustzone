@@ -1,0 +1,45 @@
+{
+    "name": "drivers_interface_${interface_name}",
+    "description": "${interface_name} drivers interface",
+    "version": "3.2",
+    "license": "Apache License 2.0",
+    "component": {
+        "name": "drivers_interface_${interface_name}",
+        "subsystem": "hdf",
+        "syscap": [""],
+        "adapter_system_type": ["standard"],
+        "rom": "675KB",
+        "ram": "1024KB",
+        "deps": {
+            "components": [
+                "ipc",
+                "hdf_core",
+                "hiviewdfx_hilog_native",
+                "utils_base"
+            ],
+            "third_part": [
+                "bounds_checking_function"
+            ]
+        },
+        "build": {
+            "sub_component": [
+                "//drivers/interface/${interface_name}/v1_0:${interface_name}_idl_target"
+            ],
+            "test": [],
+            "inner_kits": [
+            {
+                "name": "//drivers/interface/${interface_name}/v1_0:lib${interface_name}_proxy_1.0",
+                "header": {
+                    "header_files": [],
+                    "header_base": "//drivers/interface/${interface_name}"
+                }
+            },{
+                "name": "//drivers/interface/${interface_name}/v1_0:${interface_name}_idl_headers",
+                "header": {
+                    "header_files": [],
+                    "header_base": "//drivers/interface/${interface_name}"
+                }
+            }]
+        }
+    }
+}

@@ -1,0 +1,16 @@
+!<thin>
+//                                              104       `
+rknpu_drv.o/
+rknpu_reset.o/
+rknpu_job.o/
+rknpu_debugger.o/
+rknpu_iommu.o/
+rknpu_devfreq.o/
+rknpu_gem.o/
+/0              0           0     0     644     35976     `
+/13             0           0     0     644     4352      `
+/28             0           0     0     644     19888     `
+/41             0           0     0     644     17480     `
+/59             0           0     0     644     10080     `
+/74             0           0     0     644     23592     `
+/91             0           0     0     644     22552     `

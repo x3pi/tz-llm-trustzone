@@ -1,0 +1,68 @@
+#!/bin/sh
+cc="/home/vectorxj/openharmony/base/tee/tee_os_kernel/build/../../../../prebuilts/clang/ohos/linux-x86_64/llvm//bin/clang"
+libc_lib="/home/vectorxj/openharmony/base/tee/tee_os_kernel/user/system-services/chcore-libc/musl-libc/install/lib"
+ldso="/home/vectorxj/openharmony/base/tee/tee_os_kernel/user/system-services/chcore-libc/musl-libc/lib/ld-musl-aarch64.so.1"
+cleared=
+shared=
+userlinkdir=
+userlink=
+target="aarch64-linux-ohos- "
+compiler_dir="/home/vectorxj/openharmony/base/tee/tee_os_kernel/build/../../../../prebuilts/clang/ohos/linux-x86_64/llvm/"
+
+for x ; do
+    test "$cleared" || set -- ; cleared=1
+
+    case "$x" in
+        -L-user-start)
+            userlinkdir=1
+            ;;
+        -L-user-end)
+            userlinkdir=
+            ;;
+        -L*)
+            test "$userlinkdir" && set -- "$@" "$x"
+            ;;
+        -l-user-start)
+            userlink=1
+            ;;
+        -l-user-end)
+            userlink=
+            ;;
+        crtbegin*.o)
+            set -- "$@" $(dirname $0)/../../lib/crt1.o $(dirname $0)/../../lib/crti.o $compiler_dir/../lib/aarch64-linux-ohos/clang_rt.crtbegin.o
+            ;;
+        crti.o)
+            set -- "$@" $(dirname $0)/../../lib/crti.o
+            ;;
+        crtn.o)
+            set -- "$@" $(dirname $0)/../../lib/crtn.o
+            ;;
+        crt1.o)
+            set -- "$@" $(dirname $0)/../../lib/crt1.o
+            ;;
+        Scrt1.o)
+            set -- "$@" $(dirname $0)/../../lib/Scrt1.o
+            ;;
+        crtend*.o)
+            set -- "$@" $compiler_dir/../lib/aarch64-linux-ohos/clang_rt.crtend.o $(dirname $0)/../../lib/crtn.o
+            ;;
+        -lgcc|-lgcc_eh)
+            file=lib${x#-l}.a
+            set -- "$@" -lclang_rt.builtins -L$compiler_dir/../lib/aarch64-linux-ohos
+            ;;
+        -l*)
+            test "$userlink" && set -- "$@" "$x"
+            ;;
+        -shared)
+            shared=1
+            set -- "$@" -shared
+            ;;
+        -sysroot=*|--sysroot=*)
+            ;;
+        *)
+            set -- "$@" "$x"
+            ;;
+    esac
+done
+
+$($cc -print-prog-name=ld.lld) -nostdlib "$@" -lc -dynamic-linker "$ldso"

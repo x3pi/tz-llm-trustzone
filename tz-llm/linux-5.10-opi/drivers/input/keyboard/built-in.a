@@ -1,0 +1,9 @@
+!<thin>
+//                                              46        `
+adc-keys.o/
+gpio_keys.o/
+gpio_keys_polled.o/
+
+/0              0           0     0     644     9072      `
+/12             0           0     0     644     25576     `
+/25             0           0     0     644     12984     `

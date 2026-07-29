@@ -1,0 +1,30 @@
+# Copyright (c) 2021-2022 opintelink Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+import("//build/ohos.gni")
+
+ohos_executable("vsynctest") {
+
+  sources = [
+    "vsynctest.c",
+  ]
+
+  cflags_c = [
+    "-Wno-unused-variable",
+  ]
+
+  include_dirs = [
+    "//third_party/libdrm",
+  ]
+
+  deps = [
+    "//third_party/libdrm:libdrm",
+  ]
+
+  part_name = "device_opi5plus"
+  install_images = [ "system" ]
+  install_enable = true
+}

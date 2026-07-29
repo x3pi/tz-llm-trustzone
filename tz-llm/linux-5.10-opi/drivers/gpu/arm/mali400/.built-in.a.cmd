@@ -1,0 +1,1 @@
+cmd_drivers/gpu/arm/mali400/built-in.a := echo >/dev/null; rm -f drivers/gpu/arm/mali400/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/gpu/arm/mali400/built-in.a drivers/gpu/arm/mali400/mali/built-in.a

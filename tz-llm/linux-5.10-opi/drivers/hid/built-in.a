@@ -1,0 +1,25 @@
+!<thin>
+//                                              176       `
+hid-core.o/
+hid-input.o/
+hid-quirks.o/
+hid-debug.o/
+hidraw.o/
+uhid.o/
+hid-generic.o/
+usbhid/hid-core.o/
+usbhid/hiddev.o/
+i2c-hid/i2c-hid-core.o/
+i2c-hid/i2c-hid-dmi-quirks.o/
+
+/0              0           0     0     644     68512     `
+/12             0           0     0     644     38984     `
+/25             0           0     0     644     22424     `
+/39             0           0     0     644     68520     `
+/52             0           0     0     644     18256     `
+/62             0           0     0     644     19768     `
+/70             0           0     0     644     5888      `
+/85             0           0     0     644     42136     `
+/104            0           0     0     644     17808     `
+/121            0           0     0     644     28464     `
+/145            0           0     0     644     9480      `

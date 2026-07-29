@@ -1,0 +1,25 @@
+!<thin>
+//                                              224       `
+devfreq.o/
+devfreq-event.o/
+governor_simpleondemand.o/
+governor_performance.o/
+governor_powersave.o/
+governor_userspace.o/
+rockchip_bus.o/
+rockchip_dmc.o/
+rockchip_dmc_common.o/
+event/rockchip-dfi.o/
+event/rockchip-nocp.o/
+
+/0              0           0     0     644     74016     `
+/11             0           0     0     644     22856     `
+/28             0           0     0     644     5488      `
+/55             0           0     0     644     4984      `
+/79             0           0     0     644     4952      `
+/101            0           0     0     644     7224      `
+/123            0           0     0     644     17712     `
+/139            0           0     0     644     92288     `
+/155            0           0     0     644     15344     `
+/178            0           0     0     644     14632     `
+/200            0           0     0     644     8872      `

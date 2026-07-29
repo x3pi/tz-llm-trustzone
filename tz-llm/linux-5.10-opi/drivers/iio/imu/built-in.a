@@ -1,0 +1,18 @@
+!<thin>
+//                                              278       `
+inv_icm42600/inv_icm42600_core.o/
+inv_icm42600/inv_icm42600_gyro.o/
+inv_icm42600/inv_icm42600_accel.o/
+inv_icm42600/inv_icm42600_temp.o/
+inv_icm42600/inv_icm42600_buffer.o/
+inv_icm42600/inv_icm42600_timestamp.o/
+inv_icm42600/inv_icm42600_i2c.o/
+inv_icm42600/inv_icm42600_spi.o/
+/0              0           0     0     644     17392     `
+/34             0           0     0     644     13288     `
+/68             0           0     0     644     13296     `
+/103            0           0     0     644     2520      `
+/137            0           0     0     644     9560      `
+/173            0           0     0     644     3592      `
+/212            0           0     0     644     6792      `
+/245            0           0     0     644     6688      `

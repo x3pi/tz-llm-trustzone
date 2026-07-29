@@ -1,0 +1,16 @@
+import("//drivers/hdf_core/adapter/uhdf2/hdi.gni")
+
+
+hdi("${interface_name}") {
+  module_name = "${interface_name}"
+
+  sources = [
+    "I${interface_name_capital_letters}.idl",
+    "I${interface_name_capital_letters}Callback.idl",
+    "Types.idl",
+  ]
+
+  language = "cpp"
+  subsystem_name = "hdf"
+  part_name = "drivers_interface_${interface_name}"
+}

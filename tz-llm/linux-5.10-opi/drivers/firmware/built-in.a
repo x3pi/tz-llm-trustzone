@@ -1,0 +1,72 @@
+!<thin>
+//                                              578       `
+dmi_scan.o/
+dmi-id.o/
+rockchip_sip.o/
+arm_scmi/bus.o/
+arm_scmi/driver.o/
+arm_scmi/notify.o/
+arm_scmi/base.o/
+arm_scmi/clock.o/
+arm_scmi/perf.o/
+arm_scmi/power.o/
+arm_scmi/reset.o/
+arm_scmi/sensors.o/
+arm_scmi/system.o/
+arm_scmi/voltage.o/
+arm_scmi/shmem.o/
+arm_scmi/mailbox.o/
+arm_scmi/smc.o/
+arm_scmi/scmi_pm_domain.o/
+efi/efi.o/
+efi/vars.o/
+efi/reboot.o/
+efi/memattr.o/
+efi/tpm.o/
+efi/capsule.o/
+efi/memmap.o/
+efi/fdtparams.o/
+efi/esrt.o/
+efi/efi-pstore.o/
+efi/runtime-wrappers.o/
+efi/efi-init.o/
+efi/arm-runtime.o/
+efi/earlycon.o/
+psci/psci.o/
+smccc/smccc.o/
+smccc/soc_id.o/
+/0              0           0     0     644     32528     `
+/12             0           0     0     644     11704     `
+/22             0           0     0     644     39488     `
+/38             0           0     0     644     15968     `
+/54             0           0     0     644     53496     `
+/73             0           0     0     644     21960     `
+/92             0           0     0     644     7712      `
+/109            0           0     0     644     9040      `
+/127            0           0     0     644     16448     `
+/144            0           0     0     644     8272      `
+/162            0           0     0     644     9120      `
+/180            0           0     0     644     13008     `
+/200            0           0     0     644     5648      `
+/219            0           0     0     644     8600      `
+/239            0           0     0     644     3784      `
+/257            0           0     0     644     7712      `
+/277            0           0     0     644     7056      `
+/293            0           0     0     644     7256      `
+/320            0           0     0     644     26688     `
+/331            0           0     0     644     35864     `
+/343            0           0     0     644     4936      `
+/357            0           0     0     644     5856      `
+/372            0           0     0     644     5120      `
+/383            0           0     0     644     7944      `
+/398            0           0     0     644     7808      `
+/412            0           0     0     644     3464      `
+/429            0           0     0     644     17472     `
+/441            0           0     0     644     14336     `
+/459            0           0     0     644     23560     `
+/483            0           0     0     644     9008      `
+/499            0           0     0     644     6400      `
+/518            0           0     0     644     8848      `
+/534            0           0     0     644     22032     `
+/547            0           0     0     644     4584      `
+/562            0           0     0     644     5576      `

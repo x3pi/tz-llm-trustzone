@@ -1,0 +1,45 @@
+!<thin>
+//                                              278       `
+core.o/
+bbt.o/
+bbt_store.o/
+spi/core.o/
+spi/gigadevice.o/
+spi/macronix.o/
+spi/micron.o/
+spi/paragon.o/
+spi/toshiba.o/
+spi/winbond.o/
+spi/biwin.o/
+spi/dosilicon.o/
+spi/esmt.o/
+spi/etron.o/
+spi/fmsh.o/
+spi/foresee.o/
+spi/hyf.o/
+spi/jsc.o/
+spi/silicongo.o/
+spi/unim.o/
+spi/xtx.o/
+
+/0              0           0     0     644     12376     `
+/8              0           0     0     644     7136      `
+/15             0           0     0     644     7648      `
+/28             0           0     0     644     31328     `
+/40             0           0     0     644     14272     `
+/58             0           0     0     644     12712     `
+/74             0           0     0     644     10088     `
+/88             0           0     0     644     4544      `
+/103            0           0     0     644     10048     `
+/118            0           0     0     644     8536      `
+/133            0           0     0     644     4144      `
+/146            0           0     0     644     7328      `
+/163            0           0     0     644     3792      `
+/175            0           0     0     644     4184      `
+/188            0           0     0     644     5464      `
+/200            0           0     0     644     5824      `
+/215            0           0     0     644     7432      `
+/226            0           0     0     644     4160      `
+/237            0           0     0     644     3800      `
+/254            0           0     0     644     4120      `
+/266            0           0     0     644     9664      `

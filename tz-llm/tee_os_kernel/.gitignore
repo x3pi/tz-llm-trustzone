@@ -1,0 +1,10 @@
+*.d
+*.o
+*.srv
+*.a
+*.bin
+*.cpio
+*.img
+ramdisk-dir/
+oh_tee
+oh_tee_bak

@@ -1,0 +1,12 @@
+package ohos.hdi.${interface_name}.v1_0;
+
+enum ${interface_name_capital_letters}Type {
+    ${interface_name_upper}_TYPE_ONE = 1,
+    ${interface_name_upper}_TYPE_TWO = 2,
+};
+
+struct ${interface_name_capital_letters}Info {
+    unsigned int id;
+    String name;
+    enum ${interface_name_capital_letters}Type type;
+};

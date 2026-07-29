@@ -1,0 +1,1 @@
+cmd_drivers/firmware/smccc/built-in.a := echo >/dev/null; rm -f drivers/firmware/smccc/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/firmware/smccc/built-in.a drivers/firmware/smccc/smccc.o drivers/firmware/smccc/soc_id.o

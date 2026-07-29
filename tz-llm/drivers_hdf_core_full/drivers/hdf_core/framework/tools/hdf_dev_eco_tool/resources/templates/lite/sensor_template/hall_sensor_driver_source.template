@@ -1,0 +1,130 @@
+#include "${include_file}"
+#include <securec.h>
+#include "osal_mem.h"
+#include "osal_time.h"
+#include "sensor_${device_lower_camel_case}_driver.h"
+#include "sensor_config_controller.h"
+#include "sensor_device_manager.h"
+
+
+#define HDF_LOG_TAG    hdf_sensor_${device_lower_camel_case}
+
+static struct ${driver_upper_camel_case}DrvData *g_${driver_lower_case}DrvData = NULL;
+struct ${driver_upper_camel_case}DrvData *${driver_upper_camel_case}GetDrvData(void)
+{
+    return g_${driver_lower_case}DrvData;
+}
+
+int32_t Read${driver_upper_camel_case}Data(struct SensorCfgData *cfg, struct SensorReportEvent *event)
+{
+    int32_t ret;
+    static int32_t tmp[] = { 0 };
+
+    CHECK_NULL_PTR_RETURN_VALUE(cfg, HDF_ERR_INVALID_PARAM);
+    CHECK_NULL_PTR_RETURN_VALUE(event, HDF_ERR_INVALID_PARAM);
+
+    ret = SensorRawDataToRemapData(cfg->direction, tmp, sizeof(tmp) / sizeof(tmp[0]));
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGE("%s: ${driver_upper_case} convert raw data failed", __func__);
+        return HDF_FAILURE;
+    }
+
+    return ret;
+}
+
+static int32_t Init${driver_upper_camel_case}(struct SensorCfgData *data)
+{
+    int32_t ret;
+
+    CHECK_NULL_PTR_RETURN_VALUE(data, HDF_ERR_INVALID_PARAM);
+    ret = SetSensorRegCfgArray(&data->busCfg, data->regCfgGroup[SENSOR_INIT_GROUP]);
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGE("%s: ${driver_upper_case} sensor init config failed", __func__);
+        return HDF_FAILURE;
+    }
+    return HDF_SUCCESS;
+}
+
+static int32_t Dispatch${driver_upper_camel_case}(struct HdfDeviceIoClient *client,
+    int cmd, struct HdfSBuf *data, struct HdfSBuf *reply)
+{
+    (void)client;
+    (void)cmd;
+    (void)data;
+    (void)reply;
+
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}BindDriver(struct HdfDeviceObject *device)
+{
+    CHECK_NULL_PTR_RETURN_VALUE(device, HDF_ERR_INVALID_PARAM);
+
+    struct ${driver_upper_camel_case}DrvData *drvData = (struct ${driver_upper_camel_case}DrvData *)OsalMemCalloc(sizeof(*drvData));
+    if (drvData == NULL) {
+        HDF_LOGE("%s: Malloc ${driver_upper_camel_case} drv data fail", __func__);
+        return HDF_ERR_MALLOC_FAIL;
+    }
+
+    drvData->ioService.Dispatch = Dispatch${driver_upper_camel_case};
+    drvData->device = device;
+    device->service = &drvData->ioService;
+    g_${driver_lower_case}DrvData = drvData;
+
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}InitDriver(struct HdfDeviceObject *device)
+{
+    int32_t ret;
+    struct ${device_upper_camel_case}OpsCall ops;
+
+    CHECK_NULL_PTR_RETURN_VALUE(device, HDF_ERR_INVALID_PARAM);
+    struct ${driver_upper_camel_case}DrvData *drvData = (struct ${driver_upper_camel_case}DrvData *)device->service;
+    CHECK_NULL_PTR_RETURN_VALUE(drvData, HDF_ERR_INVALID_PARAM);
+
+    drvData->sensorCfg = ${device_upper_camel_case}CreateCfgData(device->property);
+    if (drvData->sensorCfg == NULL || drvData->sensorCfg->root == NULL) {
+        HDF_LOGD("%s: Creating ${device_lower_camel_case}cfg failed because detection failed", __func__);
+        return HDF_ERR_NOT_SUPPORT;
+    }
+
+    ops.Init = NULL;
+    ret = ${device_upper_camel_case}RegisterChipOps(&ops);
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGE("%s: Register ${driver_upper_case} ${device_lower_camel_case} failed", __func__);
+        return HDF_FAILURE;
+    }
+
+    ret = Init${driver_upper_camel_case}(drvData->sensorCfg);
+    if (ret != HDF_SUCCESS) {
+        HDF_LOGE("%s: Init ${driver_upper_case} ${device_lower_camel_case} failed", __func__);
+        return HDF_FAILURE;
+    }
+
+    return HDF_SUCCESS;
+}
+
+void ${driver_upper_camel_case}ReleaseDriver(struct HdfDeviceObject *device)
+{
+    CHECK_NULL_PTR_RETURN(device);
+
+    struct ${driver_upper_camel_case}DrvData *drvData = (struct ${driver_upper_camel_case}DrvData *)device->service;
+    CHECK_NULL_PTR_RETURN(drvData);
+
+    if (drvData->sensorCfg != NULL) {
+        ${device_upper_camel_case}ReleaseCfgData(drvData->sensorCfg);
+        drvData->sensorCfg = NULL;
+    }
+    OsalMemFree(drvData);
+}
+
+struct HdfDriverEntry g_${device_lower_camel_case}${driver_upper_camel_case}DevEntry = {
+    .moduleVersion = 1,
+    .moduleName = "${device_upper_case}_${driver_upper_case}",
+    .Bind = ${driver_upper_camel_case}BindDriver,
+    .Init = ${driver_upper_camel_case}InitDriver,
+    .Release = ${driver_upper_camel_case}ReleaseDriver,
+};
+
+HDF_INIT(g_${device_lower_camel_case}${driver_upper_camel_case}DevEntry);

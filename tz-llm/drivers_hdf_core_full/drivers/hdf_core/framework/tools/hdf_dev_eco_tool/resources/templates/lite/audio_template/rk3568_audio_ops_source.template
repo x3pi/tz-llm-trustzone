@@ -1,0 +1,73 @@
+#include <linux/regmap.h>
+#include "gpio_if.h"
+#include "linux/of_gpio.h"
+#include "audio_driver_log.h"
+#include "audio_stream_dispatch.h"
+#include "audio_codec_base.h"
+#include "audio_sapm.h"
+#include "rk817_codec.h"
+#include "${device_lower_case}_${driver_lower_case}_ops.h"
+
+#define HDF_LOG_TAG rk3568_${driver_lower_case}_ops
+
+int32_t ${driver_upper_camel_case}DaiStartup(const struct AudioCard *card, const struct DaiDevice *device)
+{
+    (void)card;
+    (void)device;
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}DaiHwParams(const struct AudioCard *card, const struct AudioPcmHwParams *param)
+{
+    (void)card;
+    (void)param;
+    AUDIO_DRIVER_LOG_DEBUG("success.");
+    return HDF_SUCCESS;
+}
+
+
+int32_t ${driver_upper_camel_case}DeviceInit(struct AudioCard *audioCard, const struct CodecDevice *device)
+{
+    (void)device;
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}DaiDeviceInit(struct AudioCard *card, const struct DaiDevice *device)
+{
+    (void)card;
+    (void)device;
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}NormalTrigger(const struct AudioCard *card, int cmd, const struct DaiDevice *device)
+{
+    (void)card;
+    (void)device;
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}DeviceRegRead(uint32_t reg, uint32_t *val)
+{
+    (void)val;
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}DeviceRegWrite(uint32_t reg, uint32_t value)
+{
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}CodecReadReg(const struct CodecDevice *codec, uint32_t reg, uint32_t *val)
+{
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}CodecWriteReg(const struct CodecDevice *codec, uint32_t reg, uint32_t value)
+{
+    return HDF_SUCCESS;
+}
+
+int32_t ${driver_upper_camel_case}RegBitsUpdate(struct AudioMixerControl regAttr)
+{
+    return HDF_SUCCESS;
+}

@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2023 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+adapter/ @time_zhang
+framework/ @time_zhang
+framework/model/input/ @time_zhang
+framework/model/audio/ @whoselettlelion
+framework/include/audio/ @whoselettlelion
+framework/model/sensor/ @whoselettlelion
+framework/model/misc/ @whoselettlelion
+framework/model/display/ @whoselettlelion
+framework/model/camera/ @Danny_liuXu
+framework/include/camera/ @Danny_liuXu
+framework/model/wifi/ @Danny_liuXu
+framework/model/network/ @Danny_liuXu
+framework/model/usb/ @danny_liuxu
+framework/include/wifi/ @danny_liuxu
+framework/include/bluetooth/ @danny_liuxu
+framework/include/ethernet/ @danny_liuxu
+framework/include/net/ @danny_liuxu
+
+# any change to interfaces/inner_api/hdi/hdf_device_manager_interface_code.h needs to be reviewed by @leonchan5
+interfaces/inner_api/hdi/hdf_device_manager_interface_code.h @leonchan5

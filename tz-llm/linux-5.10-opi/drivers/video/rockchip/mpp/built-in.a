@@ -1,0 +1,36 @@
+!<thin>
+//                                              252       `
+mpp_service.o/
+mpp_common.o/
+mpp_iommu.o/
+mpp_rkvdec.o/
+mpp_rkvdec2.o/
+mpp_rkvdec2_link.o/
+mpp_rkvenc.o/
+mpp_rkvenc2.o/
+mpp_vdpu1.o/
+mpp_vepu1.o/
+mpp_vdpu2.o/
+mpp_vepu2.o/
+mpp_iep2.o/
+mpp_jpgdec.o/
+mpp_av1dec.o/
+mpp_iommu_av1d.o/
+hack/mpp_hack_px30.o/
+/0              0           0     0     644     21968     `
+/15             0           0     0     644     74824     `
+/29             0           0     0     644     15312     `
+/42             0           0     0     644     45176     `
+/56             0           0     0     644     58664     `
+/71             0           0     0     644     48904     `
+/91             0           0     0     644     44048     `
+/105            0           0     0     644     121144    `
+/120            0           0     0     644     22152     `
+/133            0           0     0     644     24712     `
+/146            0           0     0     644     22248     `
+/159            0           0     0     644     32456     `
+/172            0           0     0     644     21856     `
+/184            0           0     0     644     19920     `
+/198            0           0     0     644     33936     `
+/212            0           0     0     644     26112     `
+/230            0           0     0     644     5120      `

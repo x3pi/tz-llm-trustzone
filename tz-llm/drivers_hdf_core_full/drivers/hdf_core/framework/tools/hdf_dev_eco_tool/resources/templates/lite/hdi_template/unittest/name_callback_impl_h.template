@@ -1,0 +1,26 @@
+#ifndef OHOS_HDI_${peripheral_name_upper}_V1_0_${peripheral_name_upper}CALLBACKIMPL_H
+#define OHOS_HDI_${peripheral_name_upper}_V1_0_${peripheral_name_upper}CALLBACKIMPL_H
+
+#include <hdf_base.h>
+#include "v1_0/i${peripheral_name}_callback.h"
+
+namespace OHOS {
+namespace HDI {
+namespace ${peripheral_name_capital_letters} {
+namespace V1_0 {
+
+using namespace OHOS;
+using namespace OHOS::HDI;
+
+class ${peripheral_name_capital_letters}CallbackImpl : public I${peripheral_name_capital_letters}Callback {
+public:
+    virtual ~${peripheral_name_capital_letters}CallbackImpl() {}
+
+    int32_t PushData(const std::string& message) override;
+};
+}
+}
+}
+}
+
+#endif

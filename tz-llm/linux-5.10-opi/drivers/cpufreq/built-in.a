@@ -1,0 +1,31 @@
+!<thin>
+//                                              274       `
+cpufreq.o/
+freq_table.o/
+cpufreq_stats.o/
+cpufreq_times.o/
+cpufreq_performance.o/
+cpufreq_powersave.o/
+cpufreq_userspace.o/
+cpufreq_ondemand.o/
+cpufreq_conservative.o/
+cpufreq_governor.o/
+cpufreq_governor_attr_set.o/
+cpufreq-dt.o/
+cpufreq-dt-platdev.o/
+rockchip-cpufreq.o/
+
+/0              0           0     0     644     118896    `
+/11             0           0     0     644     18448     `
+/25             0           0     0     644     9096      `
+/42             0           0     0     644     6432      `
+/59             0           0     0     644     5640      `
+/82             0           0     0     644     5264      `
+/103            0           0     0     644     11240     `
+/124            0           0     0     644     17296     `
+/144            0           0     0     644     13664     `
+/168            0           0     0     644     18512     `
+/188            0           0     0     644     6944      `
+/217            0           0     0     644     14296     `
+/231            0           0     0     644     27424     `
+/253            0           0     0     644     31488     `

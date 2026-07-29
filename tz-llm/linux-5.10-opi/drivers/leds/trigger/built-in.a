@@ -1,0 +1,30 @@
+!<thin>
+//                                              256       `
+ledtrig-timer.o/
+ledtrig-oneshot.o/
+ledtrig-disk.o/
+ledtrig-mtd.o/
+ledtrig-heartbeat.o/
+ledtrig-backlight.o/
+ledtrig-gpio.o/
+ledtrig-cpu.o/
+ledtrig-activity.o/
+ledtrig-default-on.o/
+ledtrig-transient.o/
+ledtrig-camera.o/
+ledtrig-panic.o/
+ledtrig-netdev.o/
+/0              0           0     0     644     7976      `
+/17             0           0     0     644     9768      `
+/36             0           0     0     644     4768      `
+/52             0           0     0     644     4408      `
+/67             0           0     0     644     9328      `
+/88             0           0     0     644     7440      `
+/109            0           0     0     644     10352     `
+/125            0           0     0     644     7376      `
+/140            0           0     0     644     9888      `
+/160            0           0     0     644     4392      `
+/182            0           0     0     644     9736      `
+/203            0           0     0     644     6464      `
+/221            0           0     0     644     4496      `
+/238            0           0     0     644     15152     `

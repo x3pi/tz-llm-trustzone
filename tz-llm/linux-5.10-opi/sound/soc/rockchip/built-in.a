@@ -1,0 +1,21 @@
+!<thin>
+//                                              172       `
+rockchip_i2s.o/
+rockchip_i2s_tdm.o/
+rockchip_pdm.o/
+rockchip_spdif.o/
+rockchip_spdifrx.o/
+rockchip_hdmi.o/
+rockchip_max98090.o/
+rockchip_multicodecs.o/
+rockchip_rt5645.o/
+
+/0              0           0     0     644     20064     `
+/16             0           0     0     644     42608     `
+/36             0           0     0     644     23240     `
+/52             0           0     0     644     16008     `
+/70             0           0     0     644     16064     `
+/90             0           0     0     644     10088     `
+/107            0           0     0     644     25240     `
+/128            0           0     0     644     25624     `
+/152            0           0     0     644     14176     `

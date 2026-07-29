@@ -1,0 +1,22 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+import("../../../../../adapter/khdf/liteos/hdf.gni")
+
+module_switch = defined(LOSCFG_DRIVERS_HDF_PLATFORM_UART_SAMPLE)
+module_name = "hdf_uart_sample"
+hdf_driver(module_name) {
+  framework_uart_path = "."
+  sources = [
+    "$framework_uart_path/buf_fifo.c",
+    "$framework_uart_path/uart_dev_sample.c",
+    "$framework_uart_path/uart_dispatch_sample.c",
+    "$framework_uart_path/uart_pl011_sample.c",
+    "$framework_uart_path/uart_sample.c",
+  ]
+
+  include_dirs = [ "../include/" ]
+}

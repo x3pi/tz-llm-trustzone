@@ -1,0 +1,82 @@
+/*
+ * Copyright (C) 2021 Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: GPL-2.0
+ */
+
+/dts-v1/;
+/ {
+    description = "FIT image with Linux kernel, FDT blob and resource";
+
+    images {
+        fdt {
+            data = /incbin/("boot_linux/extlinux/toybrick.dtb");
+            description = "toybrick.dtb";
+            type = "flat_dt";
+            arch = "arm64";
+            compression = "none";
+            load = <0x08300000>;
+
+            hash {
+                algo = "sha256";
+            };
+        };
+
+        kernel {
+            data = /incbin/("boot_linux/extlinux/Image");
+            description = "kernel Image";
+            type = "kernel";
+            arch = "arm64";
+            os = "linux";
+            compression = "none";
+            entry = <0x00400000>;
+            load = <0x00400000>;
+
+            hash {
+                algo = "sha256";
+            };
+        };
+
+        /*resource {
+            data = /incbin/("resource");
+            description = "resource";
+            type = "multi";
+            arch = "arm64";
+            compression = "none";
+
+            hash {
+                algo = "sha256";
+            };
+        };*/
+        ramdisk {
+            data = /incbin/("../../../opi5plus/packages/phone/images/ramdisk.img");
+            os = "linux";
+            type = "ramdisk";
+            compression = "none";
+            load = <0x08000000>;
+            arch = "arm64";
+            hash {
+                algo = "sha256";
+            };
+        };
+    };
+
+    configurations {
+        default = "conf";
+
+        conf {
+            rollback-index = <0x00>;
+            fdt = "fdt";
+            kernel = "kernel";
+            /*multi = "resource";*/
+            ramdisk = "ramdisk";
+
+            signature {
+                algo = "sha256,rsa2048";
+                padding = "pss";
+                key-name-hint = "dev";
+                sign-images = "fdt", "kernel", "ramdisk"/*, "multi"*/;
+            };
+        };
+    };
+};

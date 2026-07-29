@@ -1,0 +1,43 @@
+!<thin>
+//                                              374       `
+dw_hdcp2.o/
+rockchip_drm_drv.o/
+rockchip_drm_fb.o/
+rockchip_drm_gem.o/
+rockchip_drm_logo.o/
+rockchip_drm_vop.o/
+rockchip_vop_reg.o/
+rockchip_drm_vop2.o/
+rockchip_vop2_reg.o/
+rockchip_drm_fbdev.o/
+analogix_dp-rockchip.o/
+cdn-dp-core.o/
+cdn-dp-reg.o/
+dw_hdmi-rockchip.o/
+dw-mipi-dsi-rockchip.o/
+dw-mipi-dsi2-rockchip.o/
+dw-dp.o/
+inno_hdmi.o/
+rockchip_lvds.o/
+rockchip_rgb.o/
+
+/0              0           0     0     644     15272     `
+/12             0           0     0     644     55304     `
+/32             0           0     0     644     10360     `
+/51             0           0     0     644     22112     `
+/71             0           0     0     644     25664     `
+/92             0           0     0     644     191688    `
+/112            0           0     0     644     23704     `
+/132            0           0     0     644     154640    `
+/153            0           0     0     644     43648     `
+/174            0           0     0     644     6832      `
+/196            0           0     0     644     22248     `
+/220            0           0     0     644     34736     `
+/235            0           0     0     644     19400     `
+/249            0           0     0     644     61744     `
+/269            0           0     0     644     25920     `
+/293            0           0     0     644     34624     `
+/318            0           0     0     644     64280     `
+/327            0           0     0     644     17200     `
+/340            0           0     0     644     18088     `
+/357            0           0     0     644     28728     `

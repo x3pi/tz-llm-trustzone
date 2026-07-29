@@ -1,0 +1,1 @@
+cmd_arch/arm64/boot/dts/rockchip/overlay/rk3588-fixup.scr := mkimage -C none -A arm64 -T script -d arch/arm64/boot/dts/rockchip/overlay/rk3588-fixup.scr-cmd arch/arm64/boot/dts/rockchip/overlay/rk3588-fixup.scr

@@ -1,0 +1,33 @@
+!<thin>
+//                                              212       `
+vhe/timer-sr.o/
+vhe/sysreg-sr.o/
+vhe/debug-sr.o/
+vhe/switch.o/
+vhe/tlb.o/
+vgic-v3-sr.o/
+aarch32.o/
+vgic-v2-cpuif-proxy.o/
+entry.o/
+fpsimd.o/
+hyp-entry.o/
+exception.o/
+nvhe/kvm_nvhe.o/
+pgtable.o/
+reserved_mem.o/
+
+/0              0           0     0     644     1464      `
+/16             0           0     0     644     7544      `
+/33             0           0     0     644     5880      `
+/49             0           0     0     644     15968     `
+/63             0           0     0     644     6192      `
+/74             0           0     0     644     23864     `
+/88             0           0     0     644     2240      `
+/99             0           0     0     644     3064      `
+/122            0           0     0     644     3120      `
+/131            0           0     0     644     1496      `
+/141            0           0     0     644     23792     `
+/154            0           0     0     644     3128      `
+/167            0           0     0     644     118088    `
+/184            0           0     0     644     19288     `
+/195            0           0     0     644     4840      `

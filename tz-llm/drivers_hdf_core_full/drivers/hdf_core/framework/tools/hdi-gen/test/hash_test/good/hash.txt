@@ -1,0 +1,3 @@
+ohos.hdi.foo.v1_0.IFoo:15064670044675915969
+ohos.hdi.foo.v1_0.IFooCallback:10399405452479262628
+ohos.hdi.foo.v1_0.Types:14447782919825845926

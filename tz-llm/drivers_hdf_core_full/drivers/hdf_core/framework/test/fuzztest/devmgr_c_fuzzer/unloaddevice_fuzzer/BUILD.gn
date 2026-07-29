@@ -1,0 +1,40 @@
+# Copyright (c) 2022-2023 Huawei Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+import("//build/config/features.gni")
+import("//build/ohos.gni")
+import("//build/test.gni")
+module_output_path = "hdf_core/hdf_core/devmgr_c"
+
+hdf_framework_path = "./../../../../../framework"
+hdf_adapter_path = "./../../../../../adapter"
+
+ohos_fuzztest("UnloadDeviceFuzzTest") {
+  module_out_path = module_output_path
+
+  fuzz_config_file = "$hdf_framework_path/test/fuzztest/devmgr_c_fuzzer"
+
+  include_dirs = [ "$hdf_adapter_path/uhdf2/hdi/include/hdi" ]
+
+  sources = [ "unloaddevice_fuzzer.cpp" ]
+
+  deps = [
+    "../../../../../adapter/uhdf2/hdi:libhdi",
+    "../../../../../adapter/uhdf2/ipc:libhdf_ipc_adapter",
+    "../../../../../adapter/uhdf2/utils:libhdf_utils",
+  ]
+
+  external_deps = [
+    "c_utils:utils",
+    "hilog:libhilog",
+    "ipc:ipc_single",
+  ]
+}
+
+group("fuzztest") {
+  testonly = true
+  deps = [ ":UnloadDeviceFuzzTest" ]
+}

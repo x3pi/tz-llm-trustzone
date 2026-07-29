@@ -1,0 +1,41 @@
+!<thin>
+//                                              496       `
+phy-rockchip-csi2-dphy-hw.o/
+phy-rockchip-csi2-dphy.o/
+phy-rockchip-dp.o/
+phy-rockchip-emmc.o/
+phy-rockchip-inno-dsidphy.o/
+phy-rockchip-inno-hdmi-phy.o/
+phy-rockchip-inno-usb2.o/
+phy-rockchip-inno-usb3.o/
+phy-rockchip-mipi-rx.o/
+phy-rockchip-naneng-combphy.o/
+phy-rockchip-naneng-edp.o/
+phy-rockchip-pcie.o/
+phy-rockchip-samsung-dcphy.o/
+phy-rockchip-samsung-hdptx.o/
+phy-rockchip-samsung-hdptx-hdmi.o/
+phy-rockchip-snps-pcie3.o/
+phy-rockchip-typec.o/
+phy-rockchip-usb.o/
+phy-rockchip-usbdp.o/
+
+/0              0           0     0     644     19672     `
+/29             0           0     0     644     22928     `
+/55             0           0     0     644     7984      `
+/74             0           0     0     644     10688     `
+/95             0           0     0     644     16264     `
+/124            0           0     0     644     29664     `
+/154            0           0     0     644     87776     `
+/180            0           0     0     644     33808     `
+/206            0           0     0     644     36016     `
+/230            0           0     0     644     21224     `
+/261            0           0     0     644     10896     `
+/288            0           0     0     644     14512     `
+/309            0           0     0     644     45624     `
+/339            0           0     0     644     18064     `
+/369            0           0     0     644     51624     `
+/404            0           0     0     644     12488     `
+/431            0           0     0     644     31160     `
+/453            0           0     0     644     32056     `
+/473            0           0     0     644     34952     `

@@ -1,0 +1,98 @@
+!<thin>
+//                                              1204      `
+rockchip/rga/rga.o/
+rockchip/rga/rga-hw.o/
+rockchip/rga/rga-buf.o/
+rockchip/cif/dev.o/
+rockchip/cif/capture.o/
+rockchip/cif/mipi-csi2.o/
+rockchip/cif/cif-luma.o/
+rockchip/cif/hw.o/
+rockchip/cif/subdev-itf.o/
+rockchip/cif/procfs.o/
+rockchip/cif/cif-scale.o/
+rockchip/cif/common.o/
+rockchip/cif/cif-tools.o/
+rockchip/isp/hw.o/
+rockchip/isp/dev.o/
+rockchip/isp/rkisp.o/
+rockchip/isp/regs.o/
+rockchip/isp/common.o/
+rockchip/isp/isp_stats.o/
+rockchip/isp/isp_params.o/
+rockchip/isp/capture.o/
+rockchip/isp/dmarx.o/
+rockchip/isp/csi.o/
+rockchip/isp/procfs.o/
+rockchip/isp/isp_stats_v1x.o/
+rockchip/isp/isp_params_v1x.o/
+rockchip/isp/capture_v1x.o/
+rockchip/isp/isp_stats_v21.o/
+rockchip/isp/isp_params_v21.o/
+rockchip/isp/capture_v21.o/
+rockchip/isp/capture_v30.o/
+rockchip/isp/isp_stats_v3x.o/
+rockchip/isp/isp_params_v3x.o/
+rockchip/isp/bridge.o/
+rockchip/isp/bridge_v30.o/
+rockchip/ispp/hw.o/
+rockchip/ispp/dev.o/
+rockchip/ispp/common.o/
+rockchip/ispp/ispp.o/
+rockchip/ispp/stream.o/
+rockchip/ispp/params.o/
+rockchip/ispp/stats.o/
+rockchip/ispp/procfs.o/
+rockchip/ispp/stream_v20.o/
+rockchip/ispp/params_v20.o/
+rockchip/hdmirx/rk_hdmirx.o/
+rockchip/hdmirx/rk_hdmirx_cec.o/
+rockchip/hdmirx/rk_hdmirx_hdcp.o/
+/0              0           0     0     644     27896     `
+/20             0           0     0     644     4120      `
+/43             0           0     0     644     5456      `
+/67             0           0     0     644     47640     `
+/87             0           0     0     644     130368    `
+/111            0           0     0     644     32040     `
+/137            0           0     0     644     15112     `
+/162            0           0     0     644     21424     `
+/181            0           0     0     644     25008     `
+/208            0           0     0     644     18848     `
+/231            0           0     0     644     25536     `
+/257            0           0     0     644     13136     `
+/280            0           0     0     644     20816     `
+/306            0           0     0     644     28144     `
+/325            0           0     0     644     32336     `
+/345            0           0     0     644     68696     `
+/367            0           0     0     644     9560      `
+/388            0           0     0     644     14768     `
+/411            0           0     0     644     15144     `
+/437            0           0     0     644     17144     `
+/464            0           0     0     644     34568     `
+/488            0           0     0     644     27424     `
+/510            0           0     0     644     16144     `
+/530            0           0     0     644     38808     `
+/553            0           0     0     644     12424     `
+/583            0           0     0     644     32736     `
+/614            0           0     0     644     25120     `
+/642            0           0     0     644     21832     `
+/672            0           0     0     644     59872     `
+/703            0           0     0     644     38800     `
+/731            0           0     0     644     33808     `
+/759            0           0     0     644     26784     `
+/789            0           0     0     644     72568     `
+/820            0           0     0     644     15008     `
+/843            0           0     0     644     8544      `
+/870            0           0     0     644     15144     `
+/890            0           0     0     644     17848     `
+/911            0           0     0     644     15240     `
+/935            0           0     0     644     14856     `
+/957            0           0     0     644     49208     `
+/981            0           0     0     644     15160     `
+/1005           0           0     0     644     13992     `
+/1028           0           0     0     644     7656      `
+/1052           0           0     0     644     12056     `
+/1080           0           0     0     644     4920      `
+/1108           0           0     0     644     116304    `
+/1137           0           0     0     644     8272      `
+/1170           0           0     0     644     14144     `

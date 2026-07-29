@@ -1,0 +1,29 @@
+!<thin>
+//                                              326       `
+display-connector.o/
+sii902x.o/
+analogix/analogix_dp_core.o/
+analogix/analogix_dp_reg.o/
+analogix/analogix-i2c-dptx.o/
+synopsys/dw-hdmi.o/
+synopsys/dw-hdmi-hdcp.o/
+synopsys/dw-hdmi-qp.o/
+synopsys/dw-hdmi-i2s-audio.o/
+synopsys/dw-hdmi-qp-i2s-audio.o/
+synopsys/dw-hdmi-cec.o/
+synopsys/dw-hdmi-qp-cec.o/
+synopsys/dw-mipi-dsi.o/
+
+/0              0           0     0     644     15408     `
+/21             0           0     0     644     30952     `
+/32             0           0     0     644     61944     `
+/61             0           0     0     644     32408     `
+/89             0           0     0     644     5072      `
+/119            0           0     0     644     103432    `
+/139            0           0     0     644     19856     `
+/164            0           0     0     644     77552     `
+/187            0           0     0     644     9080      `
+/217            0           0     0     644     9224      `
+/250            0           0     0     644     9840      `
+/274            0           0     0     644     10688     `
+/301            0           0     0     644     27456     `

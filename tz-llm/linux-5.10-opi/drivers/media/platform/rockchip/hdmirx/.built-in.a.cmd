@@ -1,0 +1,1 @@
+cmd_drivers/media/platform/rockchip/hdmirx/built-in.a := echo >/dev/null; rm -f drivers/media/platform/rockchip/hdmirx/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/media/platform/rockchip/hdmirx/built-in.a drivers/media/platform/rockchip/hdmirx/rk_hdmirx.o drivers/media/platform/rockchip/hdmirx/rk_hdmirx_cec.o drivers/media/platform/rockchip/hdmirx/rk_hdmirx_hdcp.o

@@ -1,0 +1,1 @@
+cmd_drivers/media/cec/core/built-in.a := echo >/dev/null; rm -f drivers/media/cec/core/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/media/cec/core/built-in.a drivers/media/cec/core/cec-core.o drivers/media/cec/core/cec-adap.o drivers/media/cec/core/cec-api.o drivers/media/cec/core/cec-notifier.o

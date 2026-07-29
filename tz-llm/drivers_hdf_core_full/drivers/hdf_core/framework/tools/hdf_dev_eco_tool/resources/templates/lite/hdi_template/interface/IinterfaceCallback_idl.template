@@ -1,0 +1,5 @@
+package ohos.hdi.${interface_name}.v1_0;
+
+[callback] interface I${interface_name_capital_letters}Callback {
+    PushData([in] String message);
+}

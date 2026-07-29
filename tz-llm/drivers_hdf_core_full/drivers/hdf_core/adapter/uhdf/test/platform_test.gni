@@ -1,0 +1,12 @@
+#
+# Copyright (c) 2023 Huawei Device Co., Ltd.
+#
+# This file is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+#
+
+declare_args() {
+  hdf_core_platform_test_support = false
+  hdf_core_platform_rtc_test_support = false
+}

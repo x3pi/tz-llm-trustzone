@@ -1,0 +1,44 @@
+!<thin>
+//                                              378       `
+mem.o/
+random.o/
+misc.o/
+hw_random/core.o/
+hw_random/optee-rng.o/
+hw_random/rockchip-rng.o/
+tpm/tpm-chip.o/
+tpm/tpm-dev-common.o/
+tpm/tpm-dev.o/
+tpm/tpm-interface.o/
+tpm/tpm1-cmd.o/
+tpm/tpm2-cmd.o/
+tpm/tpmrm-dev.o/
+tpm/tpm2-space.o/
+tpm/tpm-sysfs.o/
+tpm/eventlog/common.o/
+tpm/eventlog/tpm1.o/
+tpm/eventlog/tpm2.o/
+tpm/eventlog/efi.o/
+tpm/eventlog/of.o/
+tpm/tpm_i2c_infineon.o/
+/0              0           0     0     644     20656     `
+/7              0           0     0     644     98928     `
+/17             0           0     0     644     10416     `
+/25             0           0     0     644     23368     `
+/43             0           0     0     644     9864      `
+/66             0           0     0     644     14960     `
+/92             0           0     0     644     18912     `
+/108            0           0     0     644     10608     `
+/130            0           0     0     644     3936      `
+/145            0           0     0     644     21728     `
+/166            0           0     0     644     12736     `
+/182            0           0     0     644     14160     `
+/198            0           0     0     644     3256      `
+/215            0           0     0     644     13520     `
+/233            0           0     0     644     13840     `
+/250            0           0     0     644     5768      `
+/273            0           0     0     644     7344      `
+/294            0           0     0     644     4168      `
+/315            0           0     0     644     3080      `
+/335            0           0     0     644     3080      `
+/354            0           0     0     644     17744     `

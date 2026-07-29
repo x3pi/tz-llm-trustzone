@@ -1,0 +1,1 @@
+cmd_drivers/net/usb/built-in.a := echo >/dev/null; rm -f drivers/net/usb/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/net/usb/built-in.a drivers/net/usb/asix_devices.o drivers/net/usb/asix_common.o drivers/net/usb/ax88172a.o drivers/net/usb/cdc_ether.o drivers/net/usb/rndis_host.o drivers/net/usb/usbnet.o drivers/net/usb/cdc_ncm.o

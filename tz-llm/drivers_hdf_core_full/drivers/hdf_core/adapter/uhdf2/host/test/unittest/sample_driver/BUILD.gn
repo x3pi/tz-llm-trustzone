@@ -1,0 +1,48 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("./../../../../uhdf.gni")
+group("sample_driver") {
+  deps = [ ":libsample_driver" ]
+}
+
+ohos_shared_library("libsample_driver") {
+  sources = [
+    "sample_driver.cpp",
+    "sample_hdi_service.cpp",
+    "sample_hdi_service_stub.cpp",
+  ]
+  include_dirs = [
+    "$hdf_uhdf_path/host/include",
+    "$hdf_framework_path/core/shared/include",
+    "$hdf_framework_path/core/host/include",
+    "$hdf_framework_path/utils/include",
+  ]
+  deps = [
+    "./../../../../hdi:libhdi",
+    "./../../../../host:libhdf_host",
+    "./../../../../ipc:libhdf_ipc_adapter",
+    "./../../../../utils:libhdf_utils",
+  ]
+  external_deps = [
+    "c_utils:utils",
+    "hilog:libhilog",
+    "ipc:ipc_single",
+  ]
+
+  shlib_type = "hdi"
+  install_images = [ chipset_base_dir ]
+  subsystem_name = "hdf"
+  part_name = "hdf_core"
+}

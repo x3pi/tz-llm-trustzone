@@ -1,0 +1,1 @@
+cmd_drivers/media/platform/rockchip/rga/built-in.a := echo >/dev/null; rm -f drivers/media/platform/rockchip/rga/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/media/platform/rockchip/rga/built-in.a drivers/media/platform/rockchip/rga/rga.o drivers/media/platform/rockchip/rga/rga-hw.o drivers/media/platform/rockchip/rga/rga-buf.o

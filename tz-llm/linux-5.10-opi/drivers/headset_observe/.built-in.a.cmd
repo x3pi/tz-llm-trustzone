@@ -1,0 +1,1 @@
+cmd_drivers/headset_observe/built-in.a := echo >/dev/null; rm -f drivers/headset_observe/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/headset_observe/built-in.a drivers/headset_observe/rockchip_headset_core.o drivers/headset_observe/rk_headset.o drivers/headset_observe/rk_headset_irq_hook_adc.o

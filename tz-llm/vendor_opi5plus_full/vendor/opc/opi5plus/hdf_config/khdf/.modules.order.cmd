@@ -1,0 +1,1 @@
+cmd_drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/modules.order := {  :; } | awk '!x[$$0]++' - > drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/modules.order

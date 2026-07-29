@@ -1,0 +1,392 @@
+[
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -std=gnu11 -o CMakeFiles/ggml.dir/ggml.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -std=gnu11 -o CMakeFiles/ggml.dir/ggml-alloc.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-alloc.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-alloc.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -std=gnu11 -o CMakeFiles/ggml.dir/ggml-backend.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-backend.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-backend.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -std=gnu11 -o CMakeFiles/ggml.dir/ggml-quants.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-quants.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-quants.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wmissing-declarations -Wmissing-noreturn -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wno-array-bounds -Wno-format-truncation -Wextra-semi -std=gnu++11 -o CMakeFiles/ggml.dir/llamafile/sgemm.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/llamafile/sgemm.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/llamafile/sgemm.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/ggml/src",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc -DGGML_BUILD -DGGML_SCHED_MAX_COPIES=4 -DGGML_SHARED -DGGML_USE_LLAMAFILE -D_GNU_SOURCE -D_XOPEN_SOURCE=600 -Dggml_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/. -O3 -DNDEBUG -fPIC -Wshadow -Wstrict-prototypes -Wpointer-arith -Wmissing-prototypes -Werror=implicit-int -Werror=implicit-function-declaration -Wall -Wextra -Wpedantic -Wcast-qual -Wno-unused-function -Wdouble-promotion -std=gnu11 -o CMakeFiles/ggml.dir/ggml-aarch64.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-aarch64.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/ggml-aarch64.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/llama.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/llama-vocab.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-vocab.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-vocab.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/llama-grammar.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-grammar.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-grammar.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/llama-sampling.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-sampling.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/llama-sampling.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/unicode.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/unicode.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/unicode.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/unicode-data.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/unicode-data.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/unicode-data.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/prefetch.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/prefetch.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/prefetch.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/io-frontend.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-frontend.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-frontend.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/pipeline.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/pipeline.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/pipeline.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/layer-sched.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/layer-sched.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/layer-sched.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/io-stage.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-stage.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-stage.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/decrypt-stage.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/decrypt-stage.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/decrypt-stage.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/alloc-stage.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/alloc-stage.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/alloc-stage.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -Dllama_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama.dir/io-backend.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-backend.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-backend.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -Dremoting_backend_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -O3 -DNDEBUG -fPIC -o CMakeFiles/remoting_backend.dir/io-backend.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-backend.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/io-backend.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/src",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -Dremoting_backend_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -O3 -DNDEBUG -fPIC -o CMakeFiles/remoting_backend.dir/ca-backend.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/ca-backend.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/ca-backend.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++   -O3 -DNDEBUG -fPIC -o CMakeFiles/build_info.dir/build-info.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/build-info.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/build-info.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/arg.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/arg.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/arg.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/common.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/common.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/common.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/console.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/console.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/console.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/json-schema-to-grammar.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/json-schema-to-grammar.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/json-schema-to-grammar.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/log.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/log.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/log.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/ngram-cache.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/ngram-cache.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/ngram-cache.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/sampling.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/sampling.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/sampling.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/common",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/common.dir/train.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/train.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/train.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/cvector-generator",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-cvector-generator.dir/cvector-generator.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/cvector-generator/cvector-generator.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/cvector-generator/cvector-generator.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/baby-llama",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-baby-llama.dir/baby-llama.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/baby-llama/baby-llama.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/baby-llama/baby-llama.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/batched-bench",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-batched-bench.dir/batched-bench.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/batched-bench/batched-bench.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/batched-bench/batched-bench.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/batched",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-batched.dir/batched.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/batched/batched.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/batched/batched.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/benchmark",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/benchmark/../../common -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-bench-matmult.dir/benchmark-matmult.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/benchmark/benchmark-matmult.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/benchmark/benchmark-matmult.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/convert-llama2c-to-ggml",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-convert-llama2c-to-ggml.dir/convert-llama2c-to-ggml.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/convert-llama2c-to-ggml/convert-llama2c-to-ggml.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/convert-llama2c-to-ggml/convert-llama2c-to-ggml.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/embedding",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-embedding.dir/embedding.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/embedding/embedding.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/embedding/embedding.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/eval-callback",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-eval-callback.dir/eval-callback.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/eval-callback/eval-callback.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/eval-callback/eval-callback.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/export-lora",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-export-lora.dir/export-lora.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/export-lora/export-lora.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/export-lora/export-lora.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gbnf-validator",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-gbnf-validator.dir/gbnf-validator.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gbnf-validator/gbnf-validator.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gbnf-validator/gbnf-validator.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf-hash",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -o CMakeFiles/xxhash.dir/deps/xxhash/xxhash.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/xxhash/xxhash.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/xxhash/xxhash.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf-hash",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -o CMakeFiles/sha1.dir/deps/sha1/sha1.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/sha1/sha1.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/sha1/sha1.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf-hash",
+  "command": "/usr/bin/aarch64-linux-gnu-gcc  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps -O3 -DNDEBUG -o CMakeFiles/sha256.dir/deps/sha256/sha256.c.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/sha256/sha256.c",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps/sha256/sha256.c"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf-hash",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/deps -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-gguf-hash.dir/gguf-hash.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/gguf-hash.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-hash/gguf-hash.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf-split",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-gguf-split.dir/gguf-split.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-split/gguf-split.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf-split/gguf-split.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gguf",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-gguf.dir/gguf.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf/gguf.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gguf/gguf.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/gritlm",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-gritlm.dir/gritlm.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gritlm/gritlm.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/gritlm/gritlm.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/imatrix",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-imatrix.dir/imatrix.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/imatrix/imatrix.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/imatrix/imatrix.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/infill",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-infill.dir/infill.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/infill/infill.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/infill/infill.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/llama-bench",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-bench.dir/llama-bench.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llama-bench/llama-bench.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llama-bench/llama-bench.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/llava",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../.. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../../common -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -O3 -DNDEBUG -fPIC -Wno-cast-qual -o CMakeFiles/llava.dir/llava.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/llava.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/llava.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/llava",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -DLLAMA_BUILD -DLLAMA_SHARED -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../.. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../../common -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -O3 -DNDEBUG -fPIC -Wno-cast-qual -o CMakeFiles/llava.dir/clip.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/clip.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/clip.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/llava",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../.. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../../common -O3 -DNDEBUG -o CMakeFiles/llama-llava-cli.dir/llava-cli.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/llava-cli.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/llava-cli.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/llava",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../.. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/../../common -O3 -DNDEBUG -o CMakeFiles/llama-minicpmv-cli.dir/minicpmv-cli.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/minicpmv-cli.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/llava/minicpmv-cli.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/lookahead",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-lookahead.dir/lookahead.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookahead/lookahead.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookahead/lookahead.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/lookup",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-lookup.dir/lookup.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/lookup",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-lookup-create.dir/lookup-create.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-create.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-create.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/lookup",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-lookup-merge.dir/lookup-merge.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-merge.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-merge.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/lookup",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-lookup-stats.dir/lookup-stats.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-stats.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/lookup/lookup-stats.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/main",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-cli.dir/main.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/main.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/main.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/main",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -Dinfer_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/infer.dir/infer.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/infer.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/infer.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/main",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/fake.dir/fake_ca.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/fake_ca.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/fake_ca.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/parallel",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-parallel.dir/parallel.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/parallel/parallel.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/parallel/parallel.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/passkey",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-passkey.dir/passkey.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/passkey/passkey.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/passkey/passkey.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/perplexity",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-perplexity.dir/perplexity.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/perplexity/perplexity.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/perplexity/perplexity.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/quantize-stats",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize-stats/../../common -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-quantize-stats.dir/quantize-stats.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize-stats/quantize-stats.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize-stats/quantize-stats.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/quantize",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize/../../common -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-quantize.dir/quantize.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize/quantize.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/quantize/quantize.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/retrieval",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-retrieval.dir/retrieval.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/retrieval/retrieval.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/retrieval/retrieval.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/server",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/server -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/server -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-server.dir/server.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/server/server.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/server/server.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/save-load-state",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-save-load-state.dir/save-load-state.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/save-load-state/save-load-state.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/save-load-state/save-load-state.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/simple",
+  "command": "/usr/bin/aarch64-linux-gnu-g++ -Dllama_simple_so_EXPORTS -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -fPIC -o CMakeFiles/llama-simple-so.dir/simple.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/simple/simple.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/simple/simple.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/speculative",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-speculative.dir/speculative.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/speculative/speculative.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/speculative/speculative.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/examples/tokenize",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-tokenize.dir/tokenize.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/tokenize/tokenize.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/tokenize/tokenize.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/pocs/vdot",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-vdot.dir/vdot.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs/vdot/vdot.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs/vdot/vdot.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/pocs/vdot",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/llama-q8dot.dir/q8dot.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs/vdot/q8dot.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/pocs/vdot/q8dot.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/infer_calling_test",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/infer_test.dir/main.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/infer_calling_test/main.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/infer_calling_test/main.cpp"
+},
+{
+  "directory": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/build-vanilla/infer_calling_test",
+  "command": "/usr/bin/aarch64-linux-gnu-g++  -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/common/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/. -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/src/../include -I/home/vectorxj/openharmony/third_party/openssl/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install/include -I/home/vectorxj/chcore/opentrustee_llm/rknn-toolkit2-2.3.0/rknpu2/runtime/Linux/librknn_api/include -I/home/vectorxj/chcore/opentrustee_llm/libaio-0.3.113/install-glibc/include -I/home/vectorxj/chcore/opentrustee_llm/llama.cpp/ggml/src/../include -O3 -DNDEBUG -o CMakeFiles/infer_test.dir/__/examples/main/infer.cpp.o -c /home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/infer.cpp",
+  "file": "/home/vectorxj/chcore/opentrustee_llm/llama.cpp/examples/main/infer.cpp"
+}
+]

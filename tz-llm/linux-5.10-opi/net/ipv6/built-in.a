@@ -1,0 +1,24 @@
+!<thin>
+//                                              174       `
+addrconf_core.o/
+exthdrs_core.o/
+ip6_checksum.o/
+ip6_icmp.o/
+output_core.o/
+protocol.o/
+ip6_offload.o/
+tcpv6_offload.o/
+exthdrs_offload.o/
+inet6_hashtables.o/
+mcast_snoop.o/
+/0              0           0     0     644     23968     `
+/17             0           0     0     644     6736      `
+/33             0           0     0     644     5968      `
+/49             0           0     0     644     6744      `
+/61             0           0     0     644     8792      `
+/76             0           0     0     644     11960     `
+/88             0           0     0     644     11520     `
+/103            0           0     0     644     4216      `
+/120            0           0     0     644     2176      `
+/139            0           0     0     644     14192     `
+/159            0           0     0     644     4568      `

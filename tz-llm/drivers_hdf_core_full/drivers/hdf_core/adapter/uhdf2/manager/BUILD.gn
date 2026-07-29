@@ -1,0 +1,110 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("./../uhdf.gni")
+
+hdf_framework_path = "./../../../framework"
+hdf_interfaces_path = "./../../../interfaces"
+hdf_uhdf_path = "./.."
+
+ohos_executable("hdf_devmgr") {
+  branch_protector_ret = "pac_ret"
+  sanitize = {
+    cfi = true
+    cfi_cross_dso = true
+    debug = false
+  }
+  defines = [ "__USER__" ]
+  include_dirs = [
+    "$hdf_framework_path/core/manager/include",
+    "$hdf_framework_path/core/common/include/manager/",
+    "$hdf_framework_path/core/host/include",
+    "$hdf_framework_path/core/shared/include",
+    "$hdf_framework_path/utils/include",
+    "$hdf_uhdf_path/include/host",
+    "$hdf_uhdf_path/shared/include",
+    "$hdf_uhdf_path/manager/include",
+    "$hdf_uhdf_path/host/include",
+    "$hdf_uhdf_path/security/include",
+    "$hdf_uhdf_path/utils/include",
+    "include",
+    "$hdf_interfaces_path/inner_api/core",
+    "$hdf_interfaces_path/inner_api/host/shared",
+    "$hdf_interfaces_path/inner_api/host/uhdf",
+  ]
+
+  sources = [
+    "$hdf_framework_path/core/common/src/hdf_attribute.c",
+    "$hdf_framework_path/core/manager/src/devhost_service_clnt.c",
+    "$hdf_framework_path/core/manager/src/device_token_clnt.c",
+    "$hdf_framework_path/core/manager/src/devmgr_service.c",
+    "$hdf_framework_path/core/manager/src/devsvc_manager.c",
+    "$hdf_framework_path/core/manager/src/hdf_driver_installer.c",
+    "$hdf_framework_path/core/manager/src/hdf_host_info.c",
+    "$hdf_framework_path/core/shared/src/hdf_device_info.c",
+    "$hdf_framework_path/core/shared/src/hdf_object_manager.c",
+    "$hdf_framework_path/core/shared/src/hdf_service_record.c",
+    "$hdf_uhdf_path/shared/src/dev_attribute_serialize.c",
+    "$hdf_uhdf_path/shared/src/hcb_config_entry.c",
+    "device_manager.c",
+    "src/devhost_service_proxy.c",
+    "src/device_token_proxy.c",
+    "src/devmgr_dump.c",
+    "src/devmgr_object_config.c",
+    "src/devmgr_query_device.c",
+    "src/devmgr_service_full.c",
+    "src/devmgr_service_stub.c",
+    "src/devmgr_uevent.c",
+    "src/devsvc_manager_stub.c",
+    "src/driver_installer_full.c",
+    "src/servstat_listener_holder.c",
+  ]
+
+  deps = [
+    "../ipc:libhdf_ipc_adapter",
+    "../utils:libhdf_utils",
+  ]
+
+  external_deps = [
+    "c_utils:utils",
+    "hilog:libhilog",
+    "init:libbegetutil",
+  ]
+
+  if (build_selinux) {
+    external_deps += [ "selinux_adapter:libservice_checker" ]
+    cflags = [ "-DWITH_SELINUX" ]
+  }
+
+  install_enable = true
+  install_images = [ chipset_base_dir ]
+  subsystem_name = "hdf"
+  part_name = "hdf_core"
+}
+
+ohos_prebuilt_etc("hdf_devmgr.cfg") {
+  source = "hdf_devmgr.cfg"
+  relative_install_dir = "init"
+  install_images = [ chipset_base_dir ]
+  subsystem_name = "hdf"
+  part_name = "hdf_core"
+}
+
+ohos_prebuilt_etc("hdf_pnp.cfg") {
+  source = "hdf_pnp.cfg"
+  relative_install_dir = "hdfconfig"
+  install_images = [ chipset_base_dir ]
+  subsystem_name = "hdf"
+  part_name = "hdf_core"
+}

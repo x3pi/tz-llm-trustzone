@@ -1,0 +1,14 @@
+!<thin>
+//                                              112       `
+pcie-designware.o/
+pcie-designware-host.o/
+pcie-dw-rockchip.o/
+pcie-al.o/
+pcie-dw-rockchip-acpi.o/
+pcie-hisi.o/
+/0              0           0     0     644     18872     `
+/19             0           0     0     644     21816     `
+/43             0           0     0     644     51224     `
+/63             0           0     0     644     1104      `
+/74             0           0     0     644     1120      `
+/99             0           0     0     644     1104      `

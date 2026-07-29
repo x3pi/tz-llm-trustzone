@@ -1,0 +1,42 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/lite/config/test.gni")
+
+hdf_core_path = "./../../../../.."
+
+unittest("hdf_adapter_uhdf_test_config") {
+  output_extension = "bin"
+  output_dir = "$root_out_dir/test/unittest/hdf"
+  include_dirs = [
+    "//third_party/googletest/googletest/include",
+    "//third_party/bounds_checking_function/include",
+    "$hdf_core_path/framework/include/platform",
+    "$hdf_core_path/framework/include/core",
+    "$hdf_core_path/framework/include/osal",
+    "$hdf_core_path/adapter/uhdf/posix/include",
+    "$hdf_core_path/framework/include/utils",
+    "$hdf_core_path/framework/include",
+    "$hdf_core_path/framework/test/unittest/include",
+    "//base/hiviewdfx/hilog_lite/interfaces/native/innerkits",
+  ]
+
+  sources = [ "$hdf_core_path/framework/utils/src/hcs_parser/test/unittest/common/hdf_config_test.cpp" ]
+  deps = [
+    "$hdf_core_path/adapter/build/test_common:libhdf_test_common",
+    "$hdf_core_path/adapter/uhdf/manager:hdf_core",
+    "$hdf_core_path/adapter/uhdf/posix:hdf_posix_osal",
+    "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
+  ]
+  public_deps = [ "//third_party/bounds_checking_function:libsec_shared" ]
+}

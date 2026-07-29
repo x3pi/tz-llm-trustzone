@@ -1,0 +1,45 @@
+!<thin>
+//                                              540       `
+of_touchscreen.o/
+atmel_mxt_ts.o/
+elants_i2c.o/
+focaltech_touch/focaltech_core.o/
+focaltech_touch/focaltech_ex_fun.o/
+focaltech_touch/focaltech_ex_mode.o/
+focaltech_touch/focaltech_flash.o/
+focaltech_touch/focaltech_gesture.o/
+focaltech_touch/focaltech_esdcheck.o/
+focaltech_touch/focaltech_i2c.o/
+focaltech_touch/focaltech_point_report_check.o/
+focaltech_touch/focaltech_upgrade_ft8201.o/
+goodix.o/
+gsl3673.o/
+gsl_point_id.o/
+gt1x/gt1x_extents.o/
+gt1x/gt1x_generic.o/
+gt1x/gt1x_tools.o/
+gt1x/gt1x.o/
+gt1x/gt1x_update.o/
+usbtouchscreen.o/
+
+/0              0           0     0     644     8168      `
+/18             0           0     0     644     52392     `
+/34             0           0     0     644     37368     `
+/48             0           0     0     644     28104     `
+/82             0           0     0     644     1112      `
+/118            0           0     0     644     3072      `
+/155            0           0     0     644     31112     `
+/190            0           0     0     644     1112      `
+/227            0           0     0     644     1120      `
+/265            0           0     0     644     6000      `
+/298            0           0     0     644     1128      `
+/346            0           0     0     644     24968     `
+/390            0           0     0     644     31416     `
+/400            0           0     0     644     67728     `
+/411            0           0     0     644     33408     `
+/427            0           0     0     644     1728      `
+/448            0           0     0     644     30720     `
+/469            0           0     0     644     12144     `
+/488            0           0     0     644     22712     `
+/501            0           0     0     644     38472     `
+/521            0           0     0     644     42296     `

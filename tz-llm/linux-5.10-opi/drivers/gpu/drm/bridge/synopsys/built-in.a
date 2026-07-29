@@ -1,0 +1,18 @@
+!<thin>
+//                                              134       `
+dw-hdmi.o/
+dw-hdmi-hdcp.o/
+dw-hdmi-qp.o/
+dw-hdmi-i2s-audio.o/
+dw-hdmi-qp-i2s-audio.o/
+dw-hdmi-cec.o/
+dw-hdmi-qp-cec.o/
+dw-mipi-dsi.o/
+/0              0           0     0     644     103432    `
+/11             0           0     0     644     19856     `
+/27             0           0     0     644     77552     `
+/41             0           0     0     644     9080      `
+/62             0           0     0     644     9224      `
+/86             0           0     0     644     9840      `
+/101            0           0     0     644     10688     `
+/119            0           0     0     644     27456     `

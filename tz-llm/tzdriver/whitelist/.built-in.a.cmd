@@ -1,0 +1,1 @@
+cmd_drivers/tzdriver/whitelist/built-in.a := echo >/dev/null; rm -f drivers/tzdriver/whitelist/built-in.a; llvm-ar cDPrST drivers/tzdriver/whitelist/built-in.a drivers/tzdriver/whitelist/agent_allowed_ca.o

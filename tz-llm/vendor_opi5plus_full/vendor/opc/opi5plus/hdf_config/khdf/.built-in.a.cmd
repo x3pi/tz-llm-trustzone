@@ -1,0 +1,1 @@
+cmd_drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/built-in.a := echo >/dev/null; rm -f drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/built-in.a; llvm-ar cDPrST drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/built-in.a drivers/hdf/khdf/../../../../../vendor/opc/opi5plus/hdf_config/khdf/hdf_hcs_hex.o

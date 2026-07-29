@@ -1,0 +1,1 @@
+cmd_drivers/usb/typec/built-in.a := echo >/dev/null; rm -f drivers/usb/typec/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/usb/typec/built-in.a drivers/usb/typec/class.o drivers/usb/typec/mux.o drivers/usb/typec/bus.o drivers/usb/typec/altmodes/built-in.a drivers/usb/typec/tcpm/built-in.a drivers/usb/typec/mux/built-in.a

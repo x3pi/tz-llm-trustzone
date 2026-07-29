@@ -1,0 +1,133 @@
+# Copyright (c) 2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License..
+
+import("//build/ohos.gni")
+import("//drivers/hdf_core/adapter/khdf/liteos_m/hdf.gni")
+
+template("hdi_mini") {
+  assert(defined(invoker.sources), "sources must be set")
+  assert(defined(invoker.language), "language must be set")
+
+  # system type
+  system = "mini"
+
+  # generate mode, the default value is low
+  mode = "low"
+
+  # generate language, the default value is c
+  language = "c"
+  if (defined(invoker.language)) {
+    assert(invoker.language == "c", "the language must be set to 'c'")
+    language = invoker.language
+  }
+
+  # the path of root package
+  root_package = "ohos.hdi"
+  root_path = rebase_path("//drivers/interface")
+  if (defined(invoker.root)) {
+    package_path_map = string_split(invoker.root, ":")
+    root_package = package_path_map[0]
+    root_path = rebase_path(package_path_map[1])
+  }
+  root_package_path = "${root_package}:${root_path}"
+
+  # the path of generate code file
+  sources_gen_dir = get_path_info("${root_path}/", "gen_dir")
+
+  # analysis idl file
+  get_build_info_args = [
+    "--system",
+    system,
+    "--mode",
+    mode,
+    "--language",
+    language,
+    "-o",
+    sources_gen_dir,
+    "-r",
+    root_package_path,
+  ]
+
+  foreach(idl_file, invoker.sources) {
+    get_build_info_args += [ "-f" ]
+    get_build_info_args += [ rebase_path(idl_file) ]
+  }
+
+  hdi_build_info =
+      exec_script("$HDF_FRAMEWORKS_PATH/tools/hdi-gen/build_hdi_files_info.py",
+                  get_build_info_args,
+                  "json")
+  print("============================================")
+  print(hdi_build_info)
+  assert(defined(hdi_build_info.include_dirs), "missing include_dirs")
+  assert(defined(hdi_build_info.out_dir), "out_dir")
+  assert(defined(hdi_build_info.version), "missing version")
+  assert(defined(hdi_build_info.sources), "missing sources")
+
+  idl_headers_config = "$target_name" + "_idl_headers_config"
+  config("$idl_headers_config") {
+    include_dirs = [
+      "$HDF_FRAMEWORKS_PATH/include/osal",
+      "$HDF_FRAMEWORKS_PATH/include/util",
+    ]
+    include_dirs += hdi_build_info.include_dirs
+  }
+
+  action("hdi_gen") {
+    deps = [ "$HDF_FRAMEWORKS_PATH/tools/hdi-gen:build_hdi_gen" ]
+    script = "/usr/bin/env"
+    if (defined(ohos_lite)) {
+      script = "//build/lite/run_shell_cmd.py"
+    }
+
+    idl_sources = invoker.sources
+    inputs = invoker.sources
+    outputs = hdi_build_info.sources
+
+    args = [
+      rebase_path(get_path_info("$HDF_FRAMEWORKS_PATH/tools/hdi-gen/",
+                                "out_dir") + "/hdi-gen"),
+      "--system",
+      system,
+      "--mode",
+      mode,
+      "--language",
+      language,
+      "-d",
+      rebase_path(hdi_build_info.out_dir),
+    ]
+
+    foreach(idl_file, idl_sources) {
+      args += [ "-c" ]
+      args += [ rebase_path(idl_file) ]
+    }
+
+    args += [
+      "-r",
+      root_package_path,
+    ]
+  }
+
+  # only generate code and provide header file path
+  header_target_name = "${target_name}_idl_headers"
+  group(header_target_name) {
+    public_configs = [ ":$idl_headers_config" ]
+    deps = [ ":hdi_gen" ]
+  }
+
+  # only generate code
+  idl_target_name = "${target_name}_idl_target"
+  group(idl_target_name) {
+    deps = [ ":${header_target_name}" ]
+  }
+}

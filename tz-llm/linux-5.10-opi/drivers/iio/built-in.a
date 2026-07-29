@@ -1,0 +1,43 @@
+!<thin>
+//                                              572       `
+industrialio-core.o/
+industrialio-event.o/
+inkern.o/
+industrialio-buffer.o/
+industrialio-trigger.o/
+adc/rockchip_saradc.o/
+buffer/industrialio-triggered-buffer.o/
+buffer/kfifo_buf.o/
+imu/inv_icm42600/inv_icm42600_core.o/
+imu/inv_icm42600/inv_icm42600_gyro.o/
+imu/inv_icm42600/inv_icm42600_accel.o/
+imu/inv_icm42600/inv_icm42600_temp.o/
+imu/inv_icm42600/inv_icm42600_buffer.o/
+imu/inv_icm42600/inv_icm42600_timestamp.o/
+imu/inv_icm42600/inv_icm42600_i2c.o/
+imu/inv_icm42600/inv_icm42600_spi.o/
+light/isl29018.o/
+light/tsl2563.o/
+light/tsl2583.o/
+trigger/iio-trig-sysfs.o/
+
+/0              0           0     0     644     58104     `
+/21             0           0     0     644     11968     `
+/43             0           0     0     644     36264     `
+/53             0           0     0     644     29992     `
+/76             0           0     0     644     29864     `
+/100            0           0     0     644     25552     `
+/123            0           0     0     644     6808      `
+/163            0           0     0     644     8816      `
+/183            0           0     0     644     17392     `
+/221            0           0     0     644     13288     `
+/259            0           0     0     644     13296     `
+/298            0           0     0     644     2520      `
+/336            0           0     0     644     9560      `
+/376            0           0     0     644     3592      `
+/419            0           0     0     644     6792      `
+/456            0           0     0     644     6688      `
+/493            0           0     0     644     20888     `
+/511            0           0     0     644     18328     `
+/528            0           0     0     644     23432     `
+/545            0           0     0     644     10240     `

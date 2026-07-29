@@ -1,0 +1,1 @@
+cmd_drivers/rknpu/built-in.a := echo >/dev/null; rm -f drivers/rknpu/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/rknpu/built-in.a drivers/rknpu/rknpu_drv.o drivers/rknpu/rknpu_reset.o drivers/rknpu/rknpu_job.o drivers/rknpu/rknpu_debugger.o drivers/rknpu/rknpu_iommu.o drivers/rknpu/rknpu_devfreq.o drivers/rknpu/rknpu_gem.o

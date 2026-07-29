@@ -1,0 +1,1 @@
+cmd_drivers/misc/lkdtm/rodata_objcopy.o := aarch64-linux-gnu-objcopy  --rename-section .noinstr.text=.rodata,alloc,readonly,load,contents drivers/misc/lkdtm/rodata.o drivers/misc/lkdtm/rodata_objcopy.o

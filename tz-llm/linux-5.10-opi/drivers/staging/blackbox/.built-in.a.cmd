@@ -1,0 +1,1 @@
+cmd_drivers/staging/blackbox/built-in.a := echo >/dev/null; rm -f drivers/staging/blackbox/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/staging/blackbox/built-in.a drivers/staging/blackbox/blackbox_core.o drivers/staging/blackbox/blackbox_storage.o drivers/staging/blackbox/blackbox_common.o

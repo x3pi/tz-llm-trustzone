@@ -1,0 +1,1 @@
+cmd_drivers/tee/built-in.a := echo >/dev/null; rm -f drivers/tee/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/tee/built-in.a drivers/tee/tee_core.o drivers/tee/tee_shm.o drivers/tee/tee_shm_pool.o drivers/tee/optee/built-in.a

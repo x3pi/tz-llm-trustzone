@@ -1,0 +1,21 @@
+#include <cmath>
+#include "osal_mem.h"
+#include "${peripheral_name}_callback_impl.h"
+
+namespace OHOS {
+namespace HDI {
+namespace ${peripheral_name_capital_letters} {
+namespace V1_0 {
+
+using namespace OHOS;
+using namespace OHOS::HDI;
+
+int32_t ${peripheral_name_capital_letters}CallbackImpl::PushData(const std::string& message)
+{
+    return HDF_SUCCESS;
+}
+
+}
+}
+}
+}

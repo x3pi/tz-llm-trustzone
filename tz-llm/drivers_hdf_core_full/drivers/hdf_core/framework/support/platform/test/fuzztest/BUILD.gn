@@ -1,0 +1,19 @@
+# Copyright (c) 2022 Huawei Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+group("hdf_platform_fuzztest") {
+  testonly = true
+  deps = []
+  deps += [
+    "gpio_fuzzer:fuzztest",
+    "i2c_fuzzer:fuzztest",
+    "pwm_fuzzer:fuzztest",
+    "rtc_fuzzer:fuzztest",
+    "spi_fuzzer:fuzztest",
+    "uart_fuzzer:fuzztest",
+    "watchdog_fuzzer:fuzztest",
+  ]
+}

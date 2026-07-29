@@ -1,0 +1,168 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/lite/config/test.gni")
+import("../../platform_test.gni")
+
+hdf_framework_path = "../../../../../framework"
+hdf_adapter_path = "../../../../../adapter"
+
+if (hdf_core_platform_test_support) {
+  unittest("hdf_adapter_uhdf_test_platform") {
+    output_extension = "bin"
+    output_dir = "$root_out_dir/test/unittest/hdf"
+    include_dirs = [
+      "//third_party/googletest/googletest/include",
+      "//third_party/bounds_checking_function/include",
+      "$hdf_framework_path/include/platform",
+      "$hdf_framework_path/include/core",
+      "$hdf_framework_path/include/osal",
+      "$hdf_framework_path/uhdf/posix/include",
+      "$hdf_framework_path/include/utils",
+      "$hdf_framework_path/include",
+      "$hdf_framework_path/include/wifi",
+      "$hdf_framework_path/model/network/wifi/include",
+      "$hdf_framework_path/test/unittest/include",
+      "$hdf_framework_path/test/unittest/platform/common",
+      "//base/hiviewdfx/hilog_lite/interfaces/native/innerkits",
+    ]
+
+    defines = [ "__USER__" ]
+    if (ohos_kernel_type == "liteos_a") {
+      defines += [ "HDF_LITEOS_TEST" ]
+    }
+    if (ohos_kernel_type == "linux") {
+      defines += [ "_LINUX_USER_" ]
+    }
+    sources = [
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_adc_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_can_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_gpio_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_device_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_dumper_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_event_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_manager_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_queue_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_trace_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_pwm_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_regulator_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_rtc_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_spi_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_uart_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_watchdog_mini_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_watchdog_test.cpp",
+      "$hdf_framework_path/test/unittest/platform/common/adc_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/gpio_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/pwm_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/rtc_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/spi_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/uart_test.c",
+      "$hdf_framework_path/test/unittest/platform/common/watchdog_test.c",
+      "$hdf_framework_path/test/unittest/platform/virtual/mini/watchdog_mini_virtual.c",
+    ]
+    if (ohos_kernel_type == "liteos_a") {
+      sources += [
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_dac_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_i2s_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_i3c_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_mipi_csi_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_pcie_bus_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_pcie_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_pin_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_timer_test.cpp",
+        "$hdf_framework_path/test/unittest/platform/common/dac_test.c",
+        "$hdf_framework_path/test/unittest/platform/common/pcie_test.c",
+        "$hdf_framework_path/test/unittest/platform/common/pin_test.c",
+        "$hdf_framework_path/test/unittest/platform/common/timer_test.c",
+      ]
+    }
+    if (storage_type == "emmc") {
+      sources += [
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_emmc_mini_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_emmc_test.cpp",
+        "$hdf_framework_path/support/platform/test/unittest/common/hdf_i2c_test.cpp",
+        "$hdf_framework_path/test/unittest/platform/common/i2c_test.c",
+        "$hdf_framework_path/test/unittest/platform/virtual/mini/emmc_mini_virtual.c",
+      ]
+    }
+    deps = [
+      "$hdf_adapter_path/build/test_common:libhdf_test_common",
+      "$hdf_adapter_path/uhdf/manager:hdf_core",
+      "$hdf_adapter_path/uhdf/platform:hdf_platform",
+      "$hdf_adapter_path/uhdf/posix:hdf_posix_osal",
+      "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
+    ]
+    public_deps = [ "//third_party/bounds_checking_function:libsec_shared" ]
+    cflags = [
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsigned-char",
+      "-fno-common",
+      "-fno-strict-aliasing",
+    ]
+  }
+} else if (hdf_core_platform_rtc_test_support) {
+  unittest("hdf_adapter_uhdf_test_platform") {
+    output_extension = "bin"
+    output_dir = "$root_out_dir/test/unittest/hdf"
+    include_dirs = [
+      "//third_party/googletest/googletest/include",
+      "//third_party/bounds_checking_function/include",
+      "$hdf_framework_path/include/platform",
+      "$hdf_framework_path/include/core",
+      "$hdf_framework_path/include/osal",
+      "$hdf_framework_path/uhdf/posix/include",
+      "$hdf_framework_path/include/utils",
+      "$hdf_framework_path/include",
+      "$hdf_framework_path/test/unittest/include",
+      "$hdf_framework_path/test/unittest/platform/common",
+      "//base/hiviewdfx/hilog_lite/interfaces/native/innerkits",
+    ]
+
+    defines = [ "__USER__" ]
+    sources = [
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_device_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_dumper_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_event_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_manager_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_platform_queue_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_spi_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_uart_test.cpp",
+      "$hdf_framework_path/support/platform/test/unittest/common/hdf_watchdog_test.cpp",
+      "$hdf_framework_path/test/unittest/platform/common/spi_test.c",
+    ]
+    if (storage_type == "emmc") {
+      sources += [
+        "hdf_framework_path/support/platform/test/unittest/common/hdf_gpio_test.cpp",
+        "hdf_framework_path/support/platform/test/unittest/common/hdf_sdio_test.cpp",
+      ]
+    }
+    deps = [
+      "$hdf_adapter_path/build/test_common:libhdf_test_common",
+      "$hdf_adapter_path/uhdf/manager:hdf_core",
+      "$hdf_adapter_path/uhdf/platform:hdf_platform",
+      "$hdf_adapter_path/uhdf/posix:hdf_posix_osal",
+      "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
+    ]
+    public_deps = [ "//third_party/bounds_checking_function:libsec_shared" ]
+    cflags = [
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsigned-char",
+      "-fno-common",
+      "-fno-strict-aliasing",
+    ]
+  }
+}

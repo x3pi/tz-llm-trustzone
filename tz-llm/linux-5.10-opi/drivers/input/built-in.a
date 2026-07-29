@@ -1,0 +1,88 @@
+!<thin>
+//                                              1196      `
+input.o/
+input-compat.o/
+input-mt.o/
+input-poller.o/
+ff-core.o/
+ff-memless.o/
+input-leds.o/
+evdev.o/
+keyboard/adc-keys.o/
+keyboard/gpio_keys.o/
+keyboard/gpio_keys_polled.o/
+mouse/cyapa.o/
+mouse/cyapa_gen3.o/
+mouse/cyapa_gen5.o/
+mouse/cyapa_gen6.o/
+mouse/elan_i2c_core.o/
+mouse/elan_i2c_i2c.o/
+joystick/psxpad-spi.o/
+joystick/xpad.o/
+touchscreen/of_touchscreen.o/
+touchscreen/atmel_mxt_ts.o/
+touchscreen/elants_i2c.o/
+touchscreen/focaltech_touch/focaltech_core.o/
+touchscreen/focaltech_touch/focaltech_ex_fun.o/
+touchscreen/focaltech_touch/focaltech_ex_mode.o/
+touchscreen/focaltech_touch/focaltech_flash.o/
+touchscreen/focaltech_touch/focaltech_gesture.o/
+touchscreen/focaltech_touch/focaltech_esdcheck.o/
+touchscreen/focaltech_touch/focaltech_i2c.o/
+touchscreen/focaltech_touch/focaltech_point_report_check.o/
+touchscreen/focaltech_touch/focaltech_upgrade_ft8201.o/
+touchscreen/goodix.o/
+touchscreen/gsl3673.o/
+touchscreen/gsl_point_id.o/
+touchscreen/gt1x/gt1x_extents.o/
+touchscreen/gt1x/gt1x_generic.o/
+touchscreen/gt1x/gt1x_tools.o/
+touchscreen/gt1x/gt1x.o/
+touchscreen/gt1x/gt1x_update.o/
+touchscreen/usbtouchscreen.o/
+remotectl/rockchip_pwm_remotectl.o/
+misc/rk805-pwrkey.o/
+misc/uinput.o/
+/0              0           0     0     644     78704     `
+/9              0           0     0     644     6352      `
+/25             0           0     0     644     14360     `
+/37             0           0     0     644     11672     `
+/53             0           0     0     644     12064     `
+/64             0           0     0     644     14320     `
+/78             0           0     0     644     9160      `
+/92             0           0     0     644     29040     `
+/101            0           0     0     644     9072      `
+/122            0           0     0     644     25576     `
+/144            0           0     0     644     12984     `
+/173            0           0     0     644     34352     `
+/188            0           0     0     644     19048     `
+/208            0           0     0     644     34776     `
+/228            0           0     0     644     13072     `
+/248            0           0     0     644     33440     `
+/271            0           0     0     644     20512     `
+/293            0           0     0     644     11688     `
+/316            0           0     0     644     44784     `
+/333            0           0     0     644     8168      `
+/363            0           0     0     644     52392     `
+/391            0           0     0     644     37368     `
+/417            0           0     0     644     28104     `
+/463            0           0     0     644     1112      `
+/511            0           0     0     644     3072      `
+/560            0           0     0     644     31112     `
+/607            0           0     0     644     1112      `
+/656            0           0     0     644     1120      `
+/706            0           0     0     644     6000      `
+/751            0           0     0     644     1128      `
+/811            0           0     0     644     24968     `
+/867            0           0     0     644     31416     `
+/889            0           0     0     644     67728     `
+/912            0           0     0     644     33408     `
+/940            0           0     0     644     1728      `
+/973            0           0     0     644     30720     `
+/1006           0           0     0     644     12144     `
+/1037           0           0     0     644     22712     `
+/1062           0           0     0     644     38472     `
+/1094           0           0     0     644     42296     `
+/1124           0           0     0     644     25104     `
+/1160           0           0     0     644     7152      `
+/1181           0           0     0     644     23792     `

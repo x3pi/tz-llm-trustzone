@@ -1,0 +1,37 @@
+#!/bin/sh
+cc="/home/vectorxj/openharmony/base/tee/tee_os_kernel/build/../../../../prebuilts/clang/ohos/linux-x86_64/llvm//bin/clang"
+libc="/home/vectorxj/openharmony/base/tee/tee_os_kernel/user/system-services/chcore-libc/musl-libc/install"
+libc_inc="/home/vectorxj/openharmony/base/tee/tee_os_kernel/user/system-services/chcore-libc/musl-libc/install/include"
+libc_lib="/home/vectorxj/openharmony/base/tee/tee_os_kernel/user/system-services/chcore-libc/musl-libc/install/lib"
+thisdir="`cd "$(dirname "$0")"; pwd`"
+target="aarch64-linux-ohos- "
+
+# prevent clang from running the linker (and erroring) on no input.
+sflags=
+eflags=
+for x ; do
+    case "$x" in
+        -l*) input=1 ;;
+        *) input= ;;
+    esac
+    if test "$input" ; then
+        sflags="-l-user-start"
+        eflags="-l-user-end"
+        break
+    fi
+done
+
+exec $cc \
+    -target "$target" \
+    -B"$thisdir" \
+    -fuse-ld="$libc/bin/ld.musl-clang" \
+    -static-libgcc \
+    -nostdinc \
+    --sysroot "$libc" \
+    -isystem "$libc_inc" \
+    -L-user-start \
+    $sflags \
+    "$@" \
+    $eflags \
+    -L"$libc_lib" \
+    -L-user-end

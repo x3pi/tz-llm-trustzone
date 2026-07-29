@@ -1,0 +1,1 @@
+cmd_drivers/mtd/parsers/built-in.a := echo >/dev/null; rm -f drivers/mtd/parsers/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/mtd/parsers/built-in.a drivers/mtd/parsers/cmdlinepart.o drivers/mtd/parsers/ofpart.o

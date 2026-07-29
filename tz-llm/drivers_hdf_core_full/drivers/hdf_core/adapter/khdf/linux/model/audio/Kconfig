@@ -1,0 +1,102 @@
+config DRIVERS_HDF_AUDIO
+    bool "Enable HDF Audio driver"
+    default n
+    depends on DRIVERS_HDF
+    help
+        Answer Y to choice HDF Audio driver.
+
+config DRIVERS_HDF_AUDIO_HDMI
+    bool "Enable HDF Audio HDMI driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio HDMI driver.
+
+config DRIVERS_HDF_AUDIO_USB
+    bool "Enable HDF Audio USB driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio USB driver.
+
+config DRIVERS_HDF_AUDIO_HI3516CODEC
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver.
+
+config DRIVERS_HDF_AUDIO_RK3568
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver.
+
+config DRIVERS_HDF_AUDIO_RK3566
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver.
+
+config DRIVERS_HDF_AUDIO_ANA_HEADSET
+    bool "Audio Headset support"
+    default n
+    depends on DRIVERS_HDF_AUDIO_RK3568
+    help
+        Audio Headset support:
+            support hook interrupt mode.
+            support hook adc mode.
+
+config DRIVERS_HDF_AUDIO_RK3588
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver For RK3588.
+
+config DRIVERS_HDF_AUDIO_ANA_HEADSET_RK3566
+    bool "Audio Headset support"
+    default n
+    depends on DRIVERS_HDF_AUDIO_RK3566
+    help
+        Audio Headset support:
+            support hook interrupt mode.
+            support hook adc mode.
+	    
+config DRIVERS_HDF_AUDIO_CAP_REPORT
+    bool "Audio capture event report"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice capture event report.
+
+config DRIVERS_HDF_AUDIO_TEST
+    bool "Enable HDF Audio driver Test"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio driver Test.
+
+config DRIVERS_HDF_AUDIO_A311D
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver.
+
+config DRIVERS_HDF_AUDIO_IMX8MM
+    bool "Enable HDF Audio Codec driver"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Answer Y to choice HDF Audio Codec driver.
+
+config DRM_DW_HDMI_I2S_AUDIO
+    bool "Synopsys Designware I2S Audio interface"
+    default n
+    depends on DRIVERS_HDF_AUDIO
+    help
+        Support the I2S Audio interface which is part of the Synopsys
+        Designware HDMI block.

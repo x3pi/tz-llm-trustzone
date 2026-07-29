@@ -1,0 +1,1 @@
+cmd_drivers/input/keyboard/built-in.a := echo >/dev/null; rm -f drivers/input/keyboard/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/input/keyboard/built-in.a drivers/input/keyboard/adc-keys.o drivers/input/keyboard/gpio_keys.o drivers/input/keyboard/gpio_keys_polled.o

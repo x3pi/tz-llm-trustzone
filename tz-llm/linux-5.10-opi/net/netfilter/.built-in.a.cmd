@@ -1,0 +1,1 @@
+cmd_net/netfilter/built-in.a := echo >/dev/null; rm -f net/netfilter/built-in.a; aarch64-linux-gnu-ar cDPrST net/netfilter/built-in.a net/netfilter/core.o net/netfilter/nf_log.o net/netfilter/nf_queue.o net/netfilter/nf_sockopt.o net/netfilter/utils.o net/netfilter/x_tables.o net/netfilter/xt_tcpudp.o

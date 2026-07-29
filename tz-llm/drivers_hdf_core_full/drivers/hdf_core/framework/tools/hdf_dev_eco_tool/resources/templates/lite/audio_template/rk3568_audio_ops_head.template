@@ -1,0 +1,44 @@
+#ifndef ${device_upper_case}_${driver_upper_case}_OPS_H
+#define ${device_upper_case}_${driver_upper_case}_OPS_H
+
+#include <linux/platform_device.h>
+#include <linux/types.h>
+#include "audio_dai_if.h"
+#include "audio_codec_if.h"
+#include "osal_mem.h"
+#include "osal_time.h"
+#include "osal_io.h"
+#include "securec.h"
+
+#ifdef __cplusplus
+#if __cplusplus
+extern "C" {
+#endif
+#endif /* __cplusplus */
+
+struct ${driver_upper_camel_case}ChipData {
+    struct CodecData codec;
+    struct DaiData dai;
+    struct HdfDeviceObject *hdev;
+    struct platform_device *pdev;
+    struct regmap *regmap;
+};
+
+struct ${driver_upper_camel_case}ChipData* GetCodecDevice(void);
+int32_t ${driver_upper_camel_case}DeviceInit(struct AudioCard *audioCard, const struct CodecDevice *device);
+int32_t ${driver_upper_camel_case}DeviceRegRead(uint32_t reg, uint32_t *val);
+int32_t ${driver_upper_camel_case}DeviceRegWrite(uint32_t reg, uint32_t value);
+int32_t ${driver_upper_camel_case}CodecReadReg(const struct CodecDevice *codec, uint32_t reg, uint32_t *val);
+int32_t ${driver_upper_camel_case}CodecWriteReg(const struct CodecDevice *codec, uint32_t reg, uint32_t value);
+int32_t ${driver_upper_camel_case}RegBitsUpdate(struct AudioMixerControl regAttr);
+int32_t ${driver_upper_camel_case}DaiDeviceInit(struct AudioCard *card, const struct DaiDevice *device);
+int32_t ${driver_upper_camel_case}DaiStartup(const struct AudioCard *card, const struct DaiDevice *device);
+int32_t ${driver_upper_camel_case}DaiHwParams(const struct AudioCard *card, const struct AudioPcmHwParams *param);
+int32_t ${driver_upper_camel_case}NormalTrigger(const struct AudioCard *card, int cmd, const struct DaiDevice *device);
+#ifdef __cplusplus
+#if __cplusplus
+}
+#endif
+#endif
+
+#endif

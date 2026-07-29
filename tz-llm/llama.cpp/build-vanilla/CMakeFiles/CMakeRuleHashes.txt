@@ -1,0 +1,18 @@
+# Hashes of file build rules.
+0b212aa52175f2356e850d0ec98bc74a ../common/build-info.cpp
+3ac6e7ffa43411ae92097f8d88ad7819 examples/server/colorthemes.css.hpp
+50bc3ba2c4ab66f71f78d7012bbae5d8 examples/server/completion.js.hpp
+ff05e6fb0ff6faaa7b4b8a47e6bf79f6 examples/server/index-new.html.hpp
+3eab220889d77ebb2fd7ba49a02de1bc examples/server/index.html.hpp
+b110bd18e5ae305845214389ed451b7a examples/server/index.js.hpp
+6c1f0e37dea4d0d7c81a6d8ab359c40a examples/server/json-schema-to-grammar.mjs.hpp
+16996286933974cec05d8f045aef13c3 examples/server/loading.html.hpp
+5832acb006107479c241c57c7c10b7b0 examples/server/prompt-formats.js.hpp
+9b03eb28e28fbd6684c398f433e30bd3 examples/server/style.css.hpp
+8d5e0c42023d80bf9e6b5baebb94042b examples/server/system-prompts.js.hpp
+281fe523b79b00e75a5fc1c42ea4e0aa examples/server/theme-beeninorder.css.hpp
+39b99ecb5c129890db2499371fb54ce8 examples/server/theme-ketivah.css.hpp
+ad22cf49347d7909a282671c6f090221 examples/server/theme-mangotango.css.hpp
+574f83d2c9e229b5d2bd6ab14288de10 examples/server/theme-playground.css.hpp
+4f516b10735db13ab3de921f93d1bb4e examples/server/theme-polarnight.css.hpp
+7331bf86a161714f0d99994a64739efe examples/server/theme-snowstorm.css.hpp

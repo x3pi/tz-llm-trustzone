@@ -1,0 +1,37 @@
+{
+    "name": "@ohos/device_opi5plus",
+    "version": "3.1",
+    "license": "Apache License 2.0",
+    "private": false,
+    "scripts": {},
+    "dirs": [""],
+    "component": {
+      "name": "device_opi5plus",
+      "subsystem": "device_opi5plus",
+      "syscap": [],
+      "features": [],
+      "deps": {
+        "components": [
+          "c_utils",
+          "hilog",
+          "hdf_core",
+          "drivers_interface_display",
+          "drivers_interface_camera",
+          "hitrace",
+          "ipc",
+          "graphic_surface",
+          "window_manager",
+          "graphic_2d"
+        ],
+        "third_party": [
+          "libdrm"
+        ]
+      },
+      "build": {
+        "sub_component": [
+          "//device/board/opc/opi5plus:opi5plus_group",
+          "//third_party/alsa-utils:alsa-utils"
+        ]
+      }
+    }
+  }

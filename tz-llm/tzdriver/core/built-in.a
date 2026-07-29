@@ -1,0 +1,38 @@
+!<thin>
+//                                              266       `
+teek_client_api.o/
+smc_smp.o/
+tc_client_driver.o/
+session_manager.o/
+mailbox_mempool.o/
+teek_app_load.o/
+agent.o/
+gp_ops.o/
+mem.o/
+cmdmonitor.o/
+tzdebug.o/
+tz_spi_notify.o/
+tz_pm.o/
+tee_compat_check.o/
+reserved_mempool.o/
+teek_client_ext.o/
+shared_mem.o/
+smc_abi.o/
+/0              0           0     0     644     186696    `
+/19             0           0     0     644     419448    `
+/30             0           0     0     644     410536    `
+/50             0           0     0     644     346304    `
+/69             0           0     0     644     243504    `
+/88             0           0     0     644     182024    `
+/105            0           0     0     644     328960    `
+/114            0           0     0     644     214880    `
+/124            0           0     0     644     122192    `
+/131            0           0     0     644     162408    `
+/145            0           0     0     644     163232    `
+/156            0           0     0     644     202152    `
+/173            0           0     0     644     151656    `
+/182            0           0     0     644     52656     `
+/202            0           0     0     644     178768    `
+/222            0           0     0     644     912       `
+/241            0           0     0     644     191552    `
+/255            0           0     0     644     8152      `

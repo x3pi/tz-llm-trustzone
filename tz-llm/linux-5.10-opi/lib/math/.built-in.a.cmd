@@ -1,0 +1,1 @@
+cmd_lib/math/built-in.a := echo >/dev/null; rm -f lib/math/built-in.a; aarch64-linux-gnu-ar cDPrST lib/math/built-in.a lib/math/div64.o lib/math/gcd.o lib/math/lcm.o lib/math/int_pow.o lib/math/int_sqrt.o lib/math/reciprocal_div.o lib/math/rational.o

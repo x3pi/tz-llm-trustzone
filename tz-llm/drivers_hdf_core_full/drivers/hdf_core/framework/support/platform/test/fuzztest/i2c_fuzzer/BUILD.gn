@@ -1,0 +1,25 @@
+# Copyright (c) 2022-2023 Huawei Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+import("../fuzz.gni")
+
+ohos_fuzztest("I2cFuzzTest") {
+  module_out_path = module_output_path
+
+  fuzz_config_file = "."
+
+  include_dirs += [ "." ]
+
+  sources = [ "i2c_fuzzer.cpp" ]
+
+  external_deps = platform_fuzzexternal_deps
+}
+
+group("fuzztest") {
+  testonly = true
+  deps = []
+  deps += [ ":I2cFuzzTest" ]
+}

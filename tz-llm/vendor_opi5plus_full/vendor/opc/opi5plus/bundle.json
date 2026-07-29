@@ -1,0 +1,30 @@
+{
+  "name": "@ohos/product_opi5plus",
+  "version": "3.1",
+  "license": "Apache License 2.0",
+  "private": false,
+  "scripts": {},
+  "dirs": [""],
+  "component": {
+    "name": "product_opi5plus",
+    "subsystem": "product_opi5plus",
+    "syscap": [],
+    "features": [],
+    "deps": {
+      "components": [],
+      "third_party": []
+    },
+    "build": {
+      "sub_component": [
+        "//vendor/opc/opi5plus/preinstall-config:preinstall-config",
+        "//vendor/opc/opi5plus/resourceschedule:resourceschedule",
+        "//vendor/opc/opi5plus/etc:product_etc_conf",
+        "//vendor/opc/opi5plus/hals/audio:hdf_audio_config",
+        "//vendor/opc/opi5plus/hals/codec:hdf_codec_config",
+        "//vendor/opc/opi5plus/hdf_config/uhdf:hdf_config",
+        "//vendor/opc/opi5plus/custom_conf:custom_config",
+        "//vendor/opc/common:common_app_group"
+      ]
+    }
+  }
+}

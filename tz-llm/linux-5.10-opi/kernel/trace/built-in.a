@@ -1,0 +1,55 @@
+!<thin>
+//                                              424       `
+trace_clock.o/
+ftrace.o/
+ring_buffer.o/
+trace.o/
+trace_output.o/
+trace_seq.o/
+trace_stat.o/
+trace_printk.o/
+trace_sched_switch.o/
+trace_functions.o/
+trace_nop.o/
+trace_functions_graph.o/
+blktrace.o/
+fgraph.o/
+trace_events.o/
+trace_export.o/
+trace_event_perf.o/
+trace_events_filter.o/
+trace_events_trigger.o/
+bpf_trace.o/
+error_report-traces.o/
+power-traces.o/
+rpm-traces.o/
+trace_dynevent.o/
+trace_probe.o/
+trace_uprobe.o/
+
+/0              0           0     0     644     6768      `
+/15             0           0     0     644     100192    `
+/25             0           0     0     644     82248     `
+/40             0           0     0     644     209984    `
+/49             0           0     0     644     37568     `
+/65             0           0     0     644     13616     `
+/78             0           0     0     644     6792      `
+/92             0           0     0     644     12200     `
+/108            0           0     0     644     5240      `
+/130            0           0     0     644     14280     `
+/149            0           0     0     644     2736      `
+/162            0           0     0     644     26912     `
+/187            0           0     0     644     49232     `
+/199            0           0     0     644     10664     `
+/209            0           0     0     644     70896     `
+/225            0           0     0     644     18280     `
+/241            0           0     0     644     10176     `
+/261            0           0     0     644     27400     `
+/284            0           0     0     644     26264     `
+/308            0           0     0     644     64320     `
+/321            0           0     0     644     11008     `
+/344            0           0     0     644     81624     `
+/360            0           0     0     644     25584     `
+/374            0           0     0     644     9288      `
+/392            0           0     0     644     26728     `
+/407            0           0     0     644     31704     `

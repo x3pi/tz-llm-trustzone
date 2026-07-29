@@ -1,0 +1,1 @@
+cmd_drivers/staging/fbtft/built-in.a := echo >/dev/null; rm -f drivers/staging/fbtft/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/staging/fbtft/built-in.a drivers/staging/fbtft/fbtft-core.o drivers/staging/fbtft/fbtft-sysfs.o drivers/staging/fbtft/fbtft-bus.o drivers/staging/fbtft/fbtft-io.o

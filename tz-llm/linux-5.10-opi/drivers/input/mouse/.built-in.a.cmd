@@ -1,0 +1,1 @@
+cmd_drivers/input/mouse/built-in.a := echo >/dev/null; rm -f drivers/input/mouse/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/input/mouse/built-in.a drivers/input/mouse/cyapa.o drivers/input/mouse/cyapa_gen3.o drivers/input/mouse/cyapa_gen5.o drivers/input/mouse/cyapa_gen6.o drivers/input/mouse/elan_i2c_core.o drivers/input/mouse/elan_i2c_i2c.o

@@ -1,0 +1,87 @@
+# Copyright (c) 2021-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/test.gni")
+
+hdf_framework_path = "./../../../../../framework"
+hdf_adapter_path = "./../../../../../adapter"
+
+module_output_path = "hdf_core/osal"
+ohos_unittest("hdf_adapter_uhdf_test_osal") {
+  module_out_path = module_output_path
+
+  include_dirs = [
+    "$hdf_framework_path/include/platform",
+    "$hdf_framework_path/include/core",
+    "$hdf_framework_path/include/osal",
+    "$hdf_adapter_path/uhdf/posix/include",
+    "$hdf_framework_path/include/utils",
+    "$hdf_framework_path/include",
+    "$hdf_framework_path/test/unittest/include",
+    "$hdf_framework_path/test/unittest/osal",
+  ]
+  if (build_selinux) {
+    cflags = [ "-DWITH_SELINUX" ]
+  }
+  defines = [ "__USER__" ]
+  sources = [
+    "$hdf_framework_path/support/posix/test/unittest/common/hdf_osal_test.cpp",
+  ]
+  deps = [
+    "$hdf_adapter_path/build/test_common:libhdf_test_common",
+    "$hdf_adapter_path/uhdf2/utils:libhdf_utils",
+  ]
+  resource_config_file =
+      "$hdf_adapter_path/uhdf2/test/resource/osal/ohos_test.xml"
+  if (is_standard_system) {
+    external_deps = [
+      "c_utils:utils",
+      "hilog:libhilog",
+    ]
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+}
+
+ohos_unittest("hdf_adapter_uhdf_test_osal_posix") {
+  module_out_path = module_output_path
+
+  include_dirs = [
+    "$hdf_framework_path/include/platform",
+    "$hdf_framework_path/include/core",
+    "$hdf_framework_path/include/osal",
+    "$hdf_adapter_path/uhdf/posix/include",
+    "$hdf_framework_path/include/utils",
+    "$hdf_framework_path/include",
+    "$hdf_framework_path/test/unittest/include",
+    "$hdf_framework_path/test/unittest/osal",
+  ]
+
+  defines = [ "__USER__" ]
+  sources = [
+    "$hdf_framework_path/support/posix/test/unittest/common/hdf_osal_test_posix.cpp",
+    "$hdf_framework_path/test/unittest/osal/osal_all_test.c",
+    "$hdf_framework_path/test/unittest/osal/osal_get_case_test.c",
+    "$hdf_framework_path/test/unittest/osal/osal_list_test.c",
+  ]
+  deps = [ "$hdf_adapter_path/uhdf2/utils:libhdf_utils" ]
+
+  if (is_standard_system) {
+    external_deps = [
+      "c_utils:utils",
+      "hilog:libhilog",
+    ]
+  } else {
+    external_deps = [ "hilog:libhilog" ]
+  }
+}

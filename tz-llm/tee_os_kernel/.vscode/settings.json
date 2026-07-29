@@ -1,0 +1,27 @@
+{
+    "files.associations": {
+        "aio_impl.h": "c",
+        "proc.h": "c",
+        "launcher.h": "c",
+        "mmu.h": "c",
+        "context.h": "c",
+        "irq.h": "c",
+        "ranges": "c",
+        "defs.h": "c",
+        "bitset": "c",
+        "chrono": "c",
+        "poweroff.h": "c",
+        "machine.h": "c",
+        "kprint.h": "c",
+        "syscall.h": "c",
+        "set": "c",
+        "pthread.h": "c",
+        "rknpu-driver.h": "c",
+        "npu_hw.h": "c",
+        "npu_interface.h": "c",
+        "rknpu-ioctl.h": "c",
+        "sched.h": "c",
+        "channel.h": "c",
+        "util.h": "c"
+    }
+}

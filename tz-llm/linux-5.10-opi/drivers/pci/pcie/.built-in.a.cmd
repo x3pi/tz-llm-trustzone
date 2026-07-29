@@ -1,0 +1,1 @@
+cmd_drivers/pci/pcie/built-in.a := echo >/dev/null; rm -f drivers/pci/pcie/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/pci/pcie/built-in.a drivers/pci/pcie/portdrv_core.o drivers/pci/pcie/portdrv_pci.o drivers/pci/pcie/err.o drivers/pci/pcie/aspm.o drivers/pci/pcie/pme.o

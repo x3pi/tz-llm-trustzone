@@ -1,0 +1,104 @@
+#include <gtest/gtest.h>
+#include <osal_mem.h>
+#include <unistd.h>
+#include "hdf_log.h"
+#include "v1_0/i${peripheral_name}.h"
+#include "v1_0/types.h"
+#include "${peripheral_name}_callback_impl.h"
+
+using namespace OHOS::HDI::${peripheral_name_capital_letters}::V1_0;
+using namespace testing::ext;
+
+namespace {
+    sptr<I${peripheral_name_capital_letters}> g_${peripheral_name}Interface = nullptr;
+    std::string sMsg = "Hello";
+    std::string rMsg = "World";
+    ${peripheral_name_capital_letters}Info ${peripheral_name}Info;
+    sptr<I${peripheral_name_capital_letters}Callback> g_${peripheral_name}Callback = new ${peripheral_name_capital_letters}CallbackImpl();
+}
+
+class Hdf${peripheral_name_capital_letters}HdiTest : public testing::Test {
+public:
+    static void SetUpTestCase();
+    static void TearDownTestCase();
+    void SetUp();
+    void TearDown();
+};
+
+void Hdf${peripheral_name_capital_letters}HdiTest::SetUpTestCase()
+{
+    g_${peripheral_name}Interface = I${peripheral_name_capital_letters}::Get();
+}
+
+void Hdf${peripheral_name_capital_letters}HdiTest::TearDownTestCase()
+{
+}
+
+void Hdf${peripheral_name_capital_letters}HdiTest::SetUp()
+{
+}
+
+void Hdf${peripheral_name_capital_letters}HdiTest::TearDown()
+{
+}
+
+/**
+  * @tc.name: GetHdf${peripheral_name_capital_letters}Test_001
+  * @tc.desc: Get a client and check whether the client is empty.
+  * @tc.type: FUNC
+  * @tc.require: #I4L3LF
+  */
+HWTEST_F(Hdf${peripheral_name_capital_letters}HdiTest, GetHdf${peripheral_name_capital_letters}Test, TestSize.Level1)
+{
+    ASSERT_NE(nullptr, g_${peripheral_name}Interface);
+}
+
+/**
+  * @tc.name: PingHdf${peripheral_name_capital_letters}Test
+  * @tc.desc: Obtains information about all ${peripheral_name}s in the system.
+  * @tc.type: FUNC
+  * @tc.require: #I4L3LF
+  */
+HWTEST_F(Hdf${peripheral_name_capital_letters}HdiTest, PingHdf${peripheral_name_capital_letters}Test, TestSize.Level1)
+{
+    if (g_${peripheral_name}Interface == nullptr) {
+        ASSERT_NE(nullptr, g_${peripheral_name}Interface);
+        return;
+    }
+    int32_t ret = g_${peripheral_name}Interface->Ping(sMsg, rMsg);
+    EXPECT_EQ(HDF_SUCCESS, ret);
+}
+
+/**
+  * @tc.name: SetCallbackHdf${peripheral_name_capital_letters}Test
+  * @tc.desc: Returns 0 if the callback is successfully registered; returns a negative value otherwise.
+  * @tc.type: FUNC
+  * @tc.require: SR000F869M, AR000F869P, AR000F8QNL
+  */
+HWTEST_F(Hdf${peripheral_name_capital_letters}HdiTest, SetCallbackHdf${peripheral_name_capital_letters}Test, TestSize.Level1)
+{
+    if (g_${peripheral_name}Interface == nullptr) {
+        ASSERT_NE(nullptr, g_${peripheral_name}Interface);
+        return;
+    }
+    int32_t ret = g_${peripheral_name}Interface->SetCallback(g_${peripheral_name}Callback);
+    EXPECT_EQ(HDF_SUCCESS, ret);
+}
+
+/**
+  * @tc.name: GetDataHdf${peripheral_name_capital_letters}Test
+  * @tc.desc: Returns 0 if the callback is successfully registered; returns a negative value otherwise.
+  * @tc.type: FUNC
+  * @tc.require: SR000F869M, AR000F869P, AR000F8QNL
+  */
+HWTEST_F(Hdf${peripheral_name_capital_letters}HdiTest, GetDataHdf${peripheral_name_capital_letters}Test, TestSize.Level1)
+{
+    if (g_${peripheral_name}Interface == nullptr) {
+        ASSERT_NE(nullptr, g_${peripheral_name}Interface);
+        return;
+    }
+    int32_t ret = g_${peripheral_name}Interface->GetData(${peripheral_name}Info);
+    EXPECT_EQ(HDF_SUCCESS, ret);
+}
+
+

@@ -1,0 +1,1 @@
+cmd_drivers/staging/built-in.a := echo >/dev/null; rm -f drivers/staging/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/staging/built-in.a drivers/staging/media/built-in.a drivers/staging/iio/built-in.a drivers/staging/android/built-in.a drivers/staging/fbtft/built-in.a drivers/staging/hikey9xx/built-in.a drivers/staging/blackbox/built-in.a

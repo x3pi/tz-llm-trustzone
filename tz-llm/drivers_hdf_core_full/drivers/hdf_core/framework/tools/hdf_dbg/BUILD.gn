@@ -1,0 +1,28 @@
+# Copyright (c) 2022-2023 Huawei Device Co., Ltd.
+#
+# HDF is dual licensed: you can use it either under the terms of
+# the GPL, or the BSD license, at your option.
+# See the LICENSE file in the root of this repository for complete details.
+
+import("//build/ohos.gni")
+import("./../../../adapter/uhdf2/uhdf.gni")
+
+ohos_executable("hdf_dbg") {
+  sources = [ "hdf_dbg.cpp" ]
+
+  if (is_standard_system) {
+    deps = [
+      "../../../adapter/uhdf2/hdi:libhdi",
+      "../../../adapter/uhdf2/utils/:libhdf_utils",
+    ]
+    external_deps = [
+      "c_utils:utils",
+      "ipc:ipc_single",
+    ]
+  }
+
+  install_enable = false
+  install_images = [ chipset_base_dir ]
+  subsystem_name = "hdf"
+  part_name = "hdf_core"
+}

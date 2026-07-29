@@ -1,0 +1,112 @@
+{
+    "passwd": {
+        "path": "base/startup/init/services/etc/passwd",
+        "info_temp": "${peripheral_name}_host:x:${uid}:${uid}:::/bin/false\n"
+        },
+    "group": {
+        "path": "base/startup/init/services/etc/group",
+        "info_temp": "${peripheral_name}_host:x:${gid}:\n"
+        },
+    "selinux":{
+        "pre_path": "base/security/selinux_adapter/sepolicy/",
+        "type.te": {
+            "path": "ohos_policy/drivers/adapter/vendor",
+            "info_temp": "type ${peripheral_name}_host, hdfdomain, domain;\n",
+            "file_name": "type.te"
+            },
+        "hdf_service.te": {
+            "path": "base/public",
+            "info_temp": "type hdf_${peripheral_name}_service, hdf_service_attr;\n",
+            "file_name": "hdf_service.te"
+            },
+        "hdf_service_contexts": {
+            "path": "base/public",
+            "info_temp": "${peripheral_name}_service u:object_r:hdf_${peripheral_name}_service:s0\n",
+            "space_len": 40,
+            "file_name": "hdf_service_contexts"
+            },
+        "hdf_host.te": {
+            "path": "ohos_policy/drivers/adapter/vendor",
+            "info_temp": [
+                "#avc: denied { get } for service=hdf_device_manager pid=${pid_num} scontext=u:r:${peripheral_name}_host:s0 tcontext=u:object_r:hdf_device_manager:s0 tclass=hdf_devmgr_class permissive=1\n",
+                "#avc: denied { add } for service=audio_hdi_service pid=${pid_num} scontext=u:r:${peripheral_name}_host:s0 tcontext=u:object_r:hdf_${peripheral_name}_service:s0 tclass=hdf_devmgr_class permissive=1\n",
+                "allow ${peripheral_name}_host hdf_device_manager:hdf_devmgr_class { get };\n",
+                "allow ${peripheral_name}_host hdf_${peripheral_name}_service:hdf_devmgr_class { add };\n",
+                "allow ${peripheral_name}_host sa_device_service_manager:samgr_class { get };\n"
+            ],
+            "file_name": "hdf_host.te"
+            },
+        "peripheral_config": {
+            "path": "ohos_policy/drivers/peripheral/${peripheral_name}/vendor",
+            "peripheral_file_list": {
+                "first_index_info": "${peripheral_name}_host.te",
+                "second_index_info": "hdf_devmgr.te",
+                "third_index_info": "init.te",
+                "fourth_index_info": "sh.te"
+            },
+            "first_index_info": [
+                "allow ${peripheral_name}_host bootevent_param:file { map open read };\n",
+                "allow ${peripheral_name}_host bootevent_samgr_param:file { map open read };\n",
+                "allow ${peripheral_name}_host build_version_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_allow_mock_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_allow_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_build_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_display_brightness_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_postinstall_fstab_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_postinstall_param:file { map open read };\n",
+                "allow ${peripheral_name}_host const_product_param:file { map open read };\n",
+                "allow ${peripheral_name}_host debug_param:file { map open read };\n",
+                "allow ${peripheral_name}_host default_param:file { map open read };\n",
+                "allow ${peripheral_name}_host dev_block_file:dir { search };\n",
+                "allow ${peripheral_name}_host dev_block_file:lnk_file { read };\n",
+                "allow ${peripheral_name}_host dev_block_volfile:dir { search };\n",
+                "allow ${peripheral_name}_host dev_hdf_kevent:chr_file { getattr ioctl open read write };\n",
+                "allow ${peripheral_name}_host dev_mgr_file:chr_file { getattr };\n",
+                "allow ${peripheral_name}_host dev_unix_socket:dir { search };\n",
+                "allow ${peripheral_name}_host distributedsche_param:file { map open read };\n",
+                "allow ${peripheral_name}_host hdf_devmgr:binder { call transfer };\n",
+                "allow ${peripheral_name}_host hilog_param:file { map open read };\n",
+                "allow ${peripheral_name}_host hw_sc_build_os_param:file { map open read };\n",
+                "allow ${peripheral_name}_host hw_sc_build_param:file { map open read };\n",
+                "allow ${peripheral_name}_host hw_sc_param:file { map open read };\n",
+                "allow ${peripheral_name}_host init_param:file { map open read };\n",
+                "allow ${peripheral_name}_host init_svc_param:file { map open read };\n",
+                "allow ${peripheral_name}_host input_pointer_device_param:file { map open read };\n",
+                "allow ${peripheral_name}_host net_param:file { map open read };\n",
+                "allow ${peripheral_name}_host net_tcp_param:file { map open read };\n",
+                "allow ${peripheral_name}_host ohos_boot_param:file { map open read };\n",
+                "allow ${peripheral_name}_host ohos_param:file { map open read };\n",
+                "allow ${peripheral_name}_host persist_param:file { map open read };\n",
+                "allow ${peripheral_name}_host persist_sys_param:file { map open read };\n",
+                "allow ${peripheral_name}_host proc_cmdline_file:file { open read };\n",
+                "allow ${peripheral_name}_host samgr:binder { call };\n",
+                "allow ${peripheral_name}_host security_param:file { map open read };\n",
+                "allow ${peripheral_name}_host startup_param:file { map open read };\n",
+                "allow ${peripheral_name}_host sys_param:file { map open read };\n",
+                "allow ${peripheral_name}_host sys_usb_param:file { map open read };\n",
+                "allow ${peripheral_name}_host system_bin_file:dir { search };\n",
+                "allow ${peripheral_name}_host vendor_etc_file:dir { search };\n",
+                "allow ${peripheral_name}_host vendor_etc_file:file { getattr open read };\n",
+                "allow ${peripheral_name}_host ohos_boot_param:file { map open read };\n",
+                "allowxperm ${peripheral_name}_host dev_hdf_kevent:chr_file ioctl { 0x6201 0x6202 0x6203 };\n"
+            ],
+            "second_index_info": [
+                "allow hdf_devmgr ${peripheral_name}_host:binder { call transfer };\n",
+                "allow hdf_devmgr ${peripheral_name}_host:dir { search };\n",
+                "allow hdf_devmgr ${peripheral_name}_host:file { open read };\n",
+                "allow hdf_devmgr ${peripheral_name}_host:process { getattr };\n"
+            ],
+            "third_index_info": [
+                "allow init ${peripheral_name}_host:process { rlimitinh siginh transition };\n"
+            ],
+            "fourth_index_info": [
+                "allow sh ${peripheral_name}_host:dir { getattr search };\n",
+                "allow sh ${peripheral_name}_host:file { open read };\n"
+            ]
+        }
+    }
+}
+
+
+

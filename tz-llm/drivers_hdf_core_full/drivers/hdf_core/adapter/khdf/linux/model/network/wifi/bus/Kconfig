@@ -1,0 +1,37 @@
+# Copyright (c) 2022 Huawei Device Co., Ltd.
+#
+# This software is licensed under the terms of the GNU General Public
+# License version 2, as published by the Free Software Foundation, and
+# may be copied, distributed, and modified under those terms.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+config DRIVERS_HDF_WIFI_BUS
+    bool "Enable HDF WiFi Bus Host driver"
+    default n
+    help
+      Answer Y to enable HDF WiFi Bus Host driver.
+
+if DRIVERS_HDF_WIFI_BUS
+choice
+  prompt "Select wlan sdio or usb source"
+  default DRIVERS_HDF_WLAN_SDIO
+
+  config DRIVERS_HDF_WLAN_SDIO
+    bool "Enable HDF wlan sdio bus"
+    default n
+    depends on DRIVERS_HDF_PLATFORM_SDIO
+    help
+      Answer Y to support HDF wlan sdio bus.
+
+  config DRIVERS_HDF_WLAN_USB
+    bool "Enable HDF Wlan usb bus"
+    default n
+    depends on DRIVERS_HDF_USB_PNP_NOTIFY
+    help
+      Answer Y to support HDF wlan usb bus.
+endchoice
+endif

@@ -1,0 +1,1 @@
+cmd_drivers/tzdriver/tlogger/built-in.a := echo >/dev/null; rm -f drivers/tzdriver/tlogger/built-in.a; llvm-ar cDPrST drivers/tzdriver/tlogger/built-in.a drivers/tzdriver/tlogger/tlogger.o drivers/tzdriver/tlogger/log_pages_cfg.o

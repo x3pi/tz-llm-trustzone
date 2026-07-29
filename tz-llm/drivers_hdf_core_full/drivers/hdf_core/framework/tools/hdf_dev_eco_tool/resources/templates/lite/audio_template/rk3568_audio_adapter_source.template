@@ -1,0 +1,175 @@
+#include <linux/device.h>
+#include <linux/module.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
+#include <linux/mfd/rk808.h>
+#include "${device_lower_case}_${driver_lower_case}_ops.h"
+#include "audio_codec_if.h"
+#include "audio_codec_base.h"
+#include "audio_driver_log.h"
+#include "rk817_codec.h"
+
+#define HDF_LOG_TAG "${driver_lower_case}_codec_adapter"
+
+struct CodecData g_${driver_lower_case}Data = {
+    .Init = ${driver_upper_camel_case}DeviceInit,
+    .Read = ${driver_upper_camel_case}CodecReadReg,
+    .Write = ${driver_upper_camel_case}CodecWriteReg,
+};
+
+struct AudioDaiOps g_${driver_lower_case}DaiDeviceOps = {
+    .Startup = ${driver_upper_camel_case}DaiStartup,
+    .HwParams = ${driver_upper_camel_case}DaiHwParams,
+    .Trigger = ${driver_upper_camel_case}NormalTrigger,
+};
+
+struct DaiData g_${driver_lower_case}DaiData = {
+    .DaiInit = ${driver_upper_camel_case}DaiDeviceInit,
+    .ops = &g_${driver_lower_case}DaiDeviceOps,
+};
+
+static struct ${driver_upper_camel_case}ChipData *g_chip;
+
+static int32_t GetServiceName(const struct HdfDeviceObject *device)
+{
+    const struct DeviceResourceNode *node = NULL;
+    struct DeviceResourceIface *drsOps = NULL;
+    int32_t ret;
+
+    if (device == NULL) {
+        AUDIO_DEVICE_LOG_ERR("input HdfDeviceObject object is nullptr.");
+        return HDF_FAILURE;
+    }
+    node = device->property;
+    if (node == NULL) {
+        AUDIO_DEVICE_LOG_ERR("get drs node is nullptr.");
+        return HDF_FAILURE;
+    }
+    drsOps = DeviceResourceGetIfaceInstance(HDF_CONFIG_SOURCE);
+    if (drsOps == NULL || drsOps->GetString == NULL) {
+        AUDIO_DEVICE_LOG_ERR("drsOps or drsOps getString is null!");
+        return HDF_FAILURE;
+    }
+    ret = drsOps->GetString(node, "serviceName", &g_chip->codec.drvCodecName, 0);
+    if (ret != HDF_SUCCESS) {
+        AUDIO_DEVICE_LOG_ERR("read serviceName failed.");
+        return ret;
+    }
+    return HDF_SUCCESS;
+}
+
+/* HdfDriverEntry implementations */
+static int32_t ${driver_upper_camel_case}DriverBind(struct HdfDeviceObject *device)
+{
+    struct CodecHost *codecHost;
+    if (device == NULL) {
+        AUDIO_DRIVER_LOG_ERR("input para is NULL.");
+        return HDF_FAILURE;
+    }
+
+    codecHost = (struct CodecHost *)OsalMemCalloc(sizeof(*codecHost));
+    if (codecHost == NULL) {
+        AUDIO_DRIVER_LOG_ERR("malloc codecHost fail!");
+        return HDF_FAILURE;
+    }
+    codecHost->device = device;
+    device->service = &codecHost->service;
+
+    return HDF_SUCCESS;
+}
+
+static void ${driver_upper_case}ChipRelease(void);
+
+static int32_t ${driver_upper_camel_case}DriverInit(struct HdfDeviceObject *device)
+{
+    int32_t ret;
+    struct regmap_config codecRegmapCfg = getCodecRegmap();
+    struct platform_device *codeDev = GetCodecPlatformDevice();
+    struct rk808 *rk808;
+    if (!codeDev) {
+        AUDIO_DEVICE_LOG_ERR("codeDev not ready");
+        return HDF_FAILURE;
+    }
+    g_chip = devm_kzalloc(&codeDev->dev, sizeof(struct ${driver_upper_camel_case}ChipData), GFP_KERNEL);
+    if (!g_chip) {
+        return HDF_ERR_MALLOC_FAIL;
+    }
+    g_chip->codec = g_${driver_lower_case}Data;
+    g_chip->dai = g_${driver_lower_case}DaiData;
+    platform_set_drvdata(codeDev, g_chip);
+    g_chip->pdev = codeDev;
+    rk808 = dev_get_drvdata(g_chip->pdev->dev.parent);
+    if (!rk808) {
+        ${driver_upper_case}ChipRelease();
+        return HDF_FAILURE;
+    }
+    g_chip->regmap = devm_regmap_init_i2c(rk808->i2c, &codecRegmapCfg);
+    if (IS_ERR(g_chip->regmap)) {
+        AUDIO_DEVICE_LOG_ERR("failed to allocate regmap: %ld\n", PTR_ERR(g_chip->regmap));
+        ${driver_upper_case}ChipRelease();
+        return ret;
+    }
+    ret = CodecGetConfigInfo(device, &(g_chip->codec));
+    if (ret !=  HDF_SUCCESS) {
+        ${driver_upper_case}ChipRelease();
+        return ret;
+    }
+    ret = GetServiceName(device);
+    if (ret !=  HDF_SUCCESS) {
+        ${driver_upper_case}ChipRelease();
+        return ret;
+    }
+    ret = CodecGetDaiName(device,  &(g_chip->dai.drvDaiName));
+    if (ret != HDF_SUCCESS) {
+        return HDF_FAILURE;
+    }
+    ret = AudioRegisterCodec(device, &(g_chip->codec), &(g_chip->dai));
+    if (ret !=  HDF_SUCCESS) {
+        ${driver_upper_case}ChipRelease();
+        return ret;
+    }
+    return HDF_SUCCESS;
+}
+
+static void ${driver_upper_case}ChipRelease(void)
+{
+    if (g_chip) {
+        platform_set_drvdata(g_chip->pdev, NULL);
+        if (g_chip->regmap) {
+            regmap_exit(g_chip->regmap);
+        }
+        devm_kfree(&g_chip->pdev->dev, g_chip);
+    }
+    AUDIO_DEVICE_LOG_ERR("success!");
+    return;
+}
+
+static void ${driver_upper_case}DriverRelease(struct HdfDeviceObject *device)
+{
+    struct CodecHost *codecHost;
+    if (device == NULL) {
+        AUDIO_DRIVER_LOG_ERR("device is NULL");
+        return;
+    }
+
+    if (device->priv != NULL) {
+        OsalMemFree(device->priv);
+    }
+    codecHost = (struct CodecHost *)device->service;
+    if (codecHost == NULL) {
+        HDF_LOGE("CodecDriverRelease: codecHost is NULL");
+        return;
+    }
+    OsalMemFree(codecHost);
+}
+
+/* HdfDriverEntry definitions */
+struct HdfDriverEntry g_${driver_upper_camel_case}DriverEntry = {
+    .moduleVersion = 1,
+    .moduleName = "CODEC_${driver_upper_case}",
+    .Bind = ${driver_upper_camel_case}DriverBind,
+    .Init = ${driver_upper_camel_case}DriverInit,
+    .Release = ${driver_upper_case}DriverRelease,
+};
+
+HDF_INIT(g_${driver_upper_camel_case}DriverEntry);

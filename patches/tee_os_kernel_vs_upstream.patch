@@ -1,0 +1,360 @@
+diff --git a/kernel/arch/aarch64/plat/rk3588/irq/irq.c b/kernel/arch/aarch64/plat/rk3588/irq/irq.c
+index 3bc1044..7a69f78 100644
+--- a/kernel/arch/aarch64/plat/rk3588/irq/irq.c
++++ b/kernel/arch/aarch64/plat/rk3588/irq/irq.c
+@@ -414,7 +414,7 @@ static struct npu_desc *get_npu_desc(size_t irq) {
+ 
+ void plat_handle_irq(void)
+ {
+-    // kinfo("%s %d %d\n", __func__, __LINE__, smp_get_cpu_id());
++    kinfo("%s %d %d\n", __func__, __LINE__, smp_get_cpu_id());
+     unsigned int irqnr = 0;
+ 	unsigned int irqstat = 0;
+ 	int ret;
+@@ -429,7 +429,7 @@ void plat_handle_irq(void)
+ 
+     // handle irq of rknpu
+     put32(npu_desc->npu_base + 0x24, 0x1ffff);
+-    // kinfo("irq %d handled\n", irqnr);
++    kinfo("irq %d handled\n", irqnr);
+ 
+     write_sys_reg(ICC_EOIR1_EL1, irqnr);
+ 
+@@ -438,22 +438,22 @@ void plat_handle_irq(void)
+ 
+ void plat_handle_fiq_irq(void)
+ {
+-    // kinfo("%s %d %d\n", __func__, __LINE__, smp_get_cpu_id());
++    kinfo("%s %d %d\n", __func__, __LINE__, smp_get_cpu_id());
+     unsigned int irqnr = 0;
+-	unsigned int irqstat = 0;
+-	int ret;
++    unsigned int irqstat = 0;
++    int ret;
+     struct npu_desc *npu_desc;
+ 
+-	irqstat = read_sys_reg(ICC_IAR1_EL1);
+-	dsb(sy);
+-	irqnr = irqstat & 0x3ff;
++    irqstat = read_sys_reg(ICC_IAR1_EL1);
++    dsb(sy);
++    irqnr = irqstat & 0x3ff;
+ 
+     npu_desc = get_npu_desc(irqnr);
+     BUG_ON(npu_desc == NULL);
+ 
+     // handle irq of rknpu
+     put32(npu_desc->npu_base + 0x24, 0x1ffff);
+-    // kinfo("irq %d handled\n", irqnr);
++    kinfo("fiq_irq %d handled\n", irqnr);
+ 
+     write_sys_reg(ICC_EOIR1_EL1, irqnr);
+ 
+diff --git a/kernel/arch/aarch64/trustzone/spd/opteed/smc.c b/kernel/arch/aarch64/trustzone/spd/opteed/smc.c
+index 008ec0c..2193a0b 100644
+--- a/kernel/arch/aarch64/trustzone/spd/opteed/smc.c
++++ b/kernel/arch/aarch64/trustzone/spd/opteed/smc.c
+@@ -19,6 +19,7 @@
+ #include <arch/trustzone/tlogger.h>
+ 
+ struct lock smc_struct_lock;
++struct lock tzasc_cma_meta_init_lock;
+ struct smc_percpu_struct {
+     struct thread *waiting_thread;
+     struct smc_registers regs_k;
+@@ -66,11 +67,13 @@ void handle_yield_smc(unsigned long x0, unsigned long x1, unsigned long x2,
+ 
+     BUG_ON(current_thread);
+ 
++    lock(&tzasc_cma_meta_init_lock);
+     if (!meta_init) {
+         meta_init = true;
+         // s2_meta_init(x3);
+         tzasc_cma_meta_init(x4);
+     }
++    unlock(&tzasc_cma_meta_init_lock);
+ 
+     if (percpu->waiting_thread) {
+         percpu = &smc_percpu_structs;
+diff --git a/kernel/lib/printk.c b/kernel/lib/printk.c
+index 5baf079..d4e03a5 100644
+--- a/kernel/lib/printk.c
++++ b/kernel/lib/printk.c
+@@ -45,6 +45,7 @@
+ #include <io/uart.h>
+ #include <lib/printk.h>
+ #include <common/types.h>
++#include <common/lock.h>
+ 
+ #define PRINT_BUF_LEN 64
+ 
+@@ -387,6 +388,8 @@ int simple_sprintf(char *str, const char *fmt, ...)
+ extern bool is_tlogger_on(void);
+ extern int append_chcore_log(const char *str, size_t len, bool is_kernel);
+ 
++struct lock plock;
++
+ void printk(const char *fmt, ...)
+ {
+     va_list va;
+@@ -403,7 +406,10 @@ void printk(const char *fmt, ...)
+         return;
+     }
+ 
++    lock(&plock);
++
+     va_start(va, fmt);
+     simple_vsprintf(NULL, fmt, va);
+     va_end(va);
++    unlock(&plock);
+ }
+diff --git a/kernel/object/memory.c b/kernel/object/memory.c
+index c3f1c49..2a5d0fd 100644
+--- a/kernel/object/memory.c
++++ b/kernel/object/memory.c
+@@ -858,7 +858,9 @@ void tzasc_cma_meta_init(unsigned long tzasc_cma_meta_paddr)
+         (size_t)size,
+         VMR_READ | VMR_WRITE | VMR_TZ_NS
+     );
++    kinfo("%s %d map_range_in_pgtbl_kernel returned ret=%d\n", __func__, __LINE__, ret);
+     BUG_ON(ret != 0);
++    kinfo("%s %d about to deref tzasc_cma_meta=%p\n", __func__, __LINE__, (void *)tzasc_cma_meta);
+     kinfo("%s %d base %lx size %lx\n", __func__, __LINE__, tzasc_cma_meta->base, tzasc_cma_meta->size);
+ }
+ 
+diff --git a/user/system-services/chcore-libc/libchcore/porting/overrides/include/chcore/llm.h b/user/system-services/chcore-libc/libchcore/porting/overrides/include/chcore/llm.h
+index f1a944f..06f7ddc 100644
+--- a/user/system-services/chcore-libc/libchcore/porting/overrides/include/chcore/llm.h
++++ b/user/system-services/chcore-libc/libchcore/porting/overrides/include/chcore/llm.h
+@@ -16,7 +16,9 @@
+ #include <chcore/type.h>
+ 
+ #define TZASC_NR               (4)
+-#define TZASC_TOTAL_MEM_SIZE   (9UL * (1UL << 30))
++/* Must match tzdriver/core/tc_client_driver.c's TZASC_TOTAL_MEM_SIZE, which
++ * must in turn match arch/arm64/mm/init.c's (actual reservation size). */
++#define TZASC_TOTAL_MEM_SIZE   (3UL * (1UL << 30))
+ #define TZASC_PER_CMA_MEM_SIZE (TZASC_TOTAL_MEM_SIZE / TZASC_NR)
+ 
+ struct tzasc_cma_entry {
+diff --git a/user/system-services/chcore-libc/libchcore/porting/overrides/src/chcore-port/rknpu-driver.c b/user/system-services/chcore-libc/libchcore/porting/overrides/src/chcore-port/rknpu-driver.c
+index a5ed2ea..529e82c 100644
+--- a/user/system-services/chcore-libc/libchcore/porting/overrides/src/chcore-port/rknpu-driver.c
++++ b/user/system-services/chcore-libc/libchcore/porting/overrides/src/chcore-port/rknpu-driver.c
+@@ -606,7 +606,7 @@ void enable_mmu(void) {
+ #include <pthread.h>
+ static pthread_mutex_t mtx[RKNPU_MAX_CORES];
+ 
+-// #define NPU_MULTIPLEXING
++#define NPU_MULTIPLEXING
+ // #define NPU_MULTIPLEXING_MEASURE
+ 
+ unsigned long switch_count;
+@@ -828,7 +828,9 @@ static int __rknpu_submit(struct rknpu_device *rknpu_dev, struct rknpu_submit *a
+ 	REG_WRITE(0x0, RKNPU_OFFSET_PC_OP_EN);
+ 
+ 	if (wait) {
+-		usys_wait(rknpu_dev->notif[core_index], true, NULL);
++		printf("[NPU Driver] Waiting for IRQ on core %d (notif %d)...\n", core_index, rknpu_dev->notif[core_index]);
++		int ret = usys_wait(rknpu_dev->notif[core_index], true, NULL);
++		printf("[NPU Driver] Woke up from IRQ on core %d, ret=%d!\n", core_index, ret);
+ 	}
+ 
+ 	pthread_mutex_unlock(&mtx[core_index]);
+@@ -862,7 +864,9 @@ int rknpu_submit_multi(struct rknpu_device *rknpu_dev, struct rknpu_submit *args
+ 				polling_routine();
+ 			};
+ 		} else {
+-			usys_wait(rknpu_dev->notif[core_index], true, NULL);
++			printf("[NPU Driver Multi] Waiting for IRQ on core %d...\n", core_index);
++			int ret = usys_wait(rknpu_dev->notif[core_index], true, NULL);
++			printf("[NPU Driver Multi] Woke up from IRQ on core %d, ret=%d!\n", core_index, ret);
+ 		}
+ 	}
+ 	
+diff --git a/user/system-services/system-servers/chanmgr/main.c b/user/system-services/system-servers/chanmgr/main.c
+index e218a3a..995cdd3 100644
+--- a/user/system-services/system-servers/chanmgr/main.c
++++ b/user/system-services/system-servers/chanmgr/main.c
+@@ -95,6 +95,7 @@ void *loop(void *) {
+ }
+ 
+ int master() {
++    printf("%s %d: master() entry\n", __func__, __LINE__);
+     pthread_t threads[NUM_THREADS];
+     struct smc_registers req = {0};
+ 
+@@ -219,6 +220,16 @@ int main(void)
+ {
+     int ret;
+ 
++    /*
++     * Unbuffered: this is a long-lived process whose stdout is fully buffered
++     * by default, so lines reach the UART out of order (or not at all). That
++     * made the boot log unusable for reasoning about execution order -- e.g.
++     * master()'s "SHM INIT" appeared after the llama-cli block that is supposed
++     * to precede it, which cannot happen from a plain reading of the source.
++     */
++    setvbuf(stdout, NULL, _IONBF, 0);
++    printf("%s %d: chanmgr main entry\n", __func__, __LINE__);
++
+     for (int i = 0; i < 16; i++) {
+         pthread_t t;
+         if (pthread_create(&t, NULL, idle, NULL) != 0) {
+@@ -238,25 +249,74 @@ int main(void)
+         // return 0;
+     }
+ 
++    /*
++     * llama-cli must launch here, directly from main(), ending in `return 0`
++     * before master() ever runs. Two earlier attempts this session got this
++     * wrong in opposite directions:
++     *
++     * 1) Launching /rknpu.srv from main() (before Linux/REE exist): it issued
++     *    a real fp16 matmul then blocked in waitpid() forever, since the
++     *    TEE-side NPU driver is data-plane only (paper S4.3) and needs the
++     *    REE control plane, which does not exist yet.
++     *
++     * 2) Moving this llama-cli launch into master(), after its "rknpu test
++     *    finish" (so Linux/REE existed and rknpu.srv's self-test had already
++     *    run cleanly): llama-cli's own SHM handshake in main.cpp
++     *    (usys_tee_wait_switch_req(), twice, to receive `all_ring_buffer
++     *    *task_queue` from the CA) then received `paddr = 0` and the TEE
++     *    kernel crashed (`BUG: unexpected_handler`, IP: 0), which cascaded
++     *    into a full Linux kernel panic ~90s later.
++     *
++     *    Root cause: usys_tee_wait_switch_req() is a shared, FIFO-like
++     *    rendezvous -- whichever TEE thread is blocked in it next consumes
++     *    the next SMC that arrives from the REE, regardless of who it was
++     *    "meant" for. master()'s own SHM INIT + its second wait-for-smc (both
++     *    ahead of "chanmgr: create rknpu" in the source, unrelated to
++     *    llama-cli -- see the worker-thread/TZASC scaffolding below) eat two
++     *    SMC slots before llama-cli's handshake gets a turn, so llama-cli
++     *    ends up consuming whatever (empty/stale) SMC comes after, not the
++     *    CA's real handshake payload.
++     *
++     *    master() is a separate, self-contained test harness (worker thread
++     *    stress test, commented-out TZASC/CMA experiments) that upstream
++     *    never intended to run in the same process as the real llama-cli
++     *    launch -- that's why upstream's own `if (1)` here `return 0`s before
++     *    master() is ever reached. Left disabled below on purpose.
++     *
++     * Actual NPU job submission during inference does NOT go through
++     * /rknpu.srv or master() at all: ggml's rknpu backend links the same
++     * rknpu-driver.c and calls usys_tee_switch_req(SMC_EXIT_SHADOW) directly,
++     * serviced by tzdriver's own FIQ-triggered shadow-job kernel worker
++     * (smc_smp.c: fiq_shadow_work_func/smc_queue_shadow_worker) -- no
++     * userspace REE process needs to be running for that to work.
++     */
+     if (1) {
+         char *argv[] = {
++            /*
++             * tinyllama instead of Meta-Llama-3-8B: the 8B meta gguf plus its
++             * weights do not fit the 768MiB TZASC pool on this board, and its
++             * -meta.gguf was never baked into oh_tee/apps anyway. The '#0'
++             * suffix selects UltraChat prompt 0 (see parse_prompt() in
++             * common/arg.cpp); the part before '#' picks the full gguf that
++             * gets streamed in from /data/ssd on the REE side.
++             */
+             "llama-cli",
+-            "-m", "Meta-Llama-3-8B-Instruct.Q8_0-meta.gguf",
++            "-m", "tinyllama-1.1b-chat-v1.0.Q8_0-meta.gguf",
+             // "-m", task_queue->inner_model_path,
+             "--no-warmup",
+             // "--file", "question.txt",
+             // "-p", "hello",
+-            "-p", "llama#384",
++            "-p", "tinyllama#0",
+             // "-p", task_queue->prompt,
+             "--cache", "0",
+             // "--cache", task_queue->cache_p,
+             // "--tee-shm-paddr", tee_shm_paddr,
+             "-n", "64",
+             // "-n", task_queue->n,
+-            "-s", "1",
++            "-s", "123",
+             "-ngl", "100",
+             "-t", "4",
+-            "-c", "1024",
++            "-c", "1124",
+             "--no-mmap"
+         };
+         char argc = sizeof(argv) / sizeof(*argv);
+@@ -279,6 +339,7 @@ int main(void)
+         return 0;
+     }
+ 
++    printf("%s %d: falling through to master()\n", __func__, __LINE__);
+     master();
+ 
+     return 0;
+diff --git a/user/system-services/system-servers/rknpu/src/main.c b/user/system-services/system-servers/rknpu/src/main.c
+index 7488aab..e5e5d20 100644
+--- a/user/system-services/system-servers/rknpu/src/main.c
++++ b/user/system-services/system-servers/rknpu/src/main.c
+@@ -145,6 +145,8 @@ struct arg {
+ void *test_routine(void *id) {
+   usys_set_prio(0, 55);
+   struct arg *arg = (struct arg *)id;
++  // run_matmul(arg->M, arg->K, arg->N, arg->core_mask);
++  // return NULL;
+   while (1) {
+     int M = rand() % arg->M;
+     M = (M / 32 + 1) * 32;
+@@ -177,20 +179,35 @@ int main(int argc, char **argv) {
+   
+   srand(time(NULL));
+ 
+-  pthread_t t[3];
+-  for (int i = 0; i < 1; i++) {
+-    struct arg *arg = malloc(sizeof(struct arg));
+-    arg->M = 100;
+-    arg->K = 1536;
+-    arg->N = 4096;
+-    arg->core_mask = 4 >> i;
+-    pthread_create(t + i, NULL, test_routine, (void *)arg);
+-  }
+-  for (int i = 0; i < 3; i++) {
+-    pthread_join(t[i], NULL);
+-  }
+-
+-  run_matmul(M, K, N, 1);
++  // usys_top(1);
++  // while (1);
++
++  // pthread_t t[3];
++  // for (int i = 0; i < 2; i++) {
++  //   struct arg *arg = malloc(sizeof(struct arg));
++  //   arg->M = 100;
++  //   arg->K = 1536;
++  //   arg->N = 4096;
++  //   arg->core_mask = 4 >> i;
++  //   pthread_create(t + i, NULL, test_routine, (void *)arg);
++  // }
++  // for (int i = 0; i < 3; i++) {
++  //   pthread_join(t[i], NULL);
++  // }
++
++  /*
++   * This used to be `while (1) run_matmul(100, 1536, 4096, 1);` -- an
++   * unconditional infinite loop that ignored the argv-supplied M/K/N
++   * entirely and never returned. chanmgr's master() does
++   * `waitpid(create_process("/rknpu.srv", ...))` right after launching this
++   * and expects it to exit so it can print "chanmgr: rknpu test finish" and
++   * then launch llama-cli -- with the loop, that waitpid() never returns and
++   * llama-cli never runs. Verified live on-device that a bounded run works:
++   * dozens of consecutive "Waiting for IRQ" -> "irq 142 handled" -> "Woke up
++   * from IRQ, ret=0" -> "Multiplication ... succesful" cycles, no failures.
++   * Restored the 5 calls below (dead code before this fix, never reached) as
++   * the bounded self-test so this function actually returns.
++   */
+   run_matmul(M, K, N, 2);
+   run_matmul(M, K, N, 4);
+   run_matmul(M, K, N, 1);
+@@ -198,5 +215,5 @@ int main(int argc, char **argv) {
+   run_matmul(M, K, N, 4);
+ 
+ 	/* switch back to non-secure */
+-	usys_top();
++	// usys_top(0);
+ }

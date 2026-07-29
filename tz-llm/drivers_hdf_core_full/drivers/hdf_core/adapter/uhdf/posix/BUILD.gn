@@ -1,0 +1,59 @@
+# Copyright (c) 2020-2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+
+inner_api_relative_path = "./../../../interfaces/inner_api"
+
+config("hdf_osal_pub_config") {
+  visibility = [ ":*" ]
+
+  include_dirs = [
+    "$inner_api_relative_path/osal/shared",
+    "$inner_api_relative_path/osal/uhdf",
+    "$inner_api_relative_path/utils",
+  ]
+}
+if (defined(ohos_lite)) {
+  ohos_shared_library("hdf_posix_osal") {
+    framework_core_relative_path = "./../../../framework/support/posix/src"
+    output_extension = "z.so"
+
+    public_configs = [ ":hdf_osal_pub_config" ]
+
+    sources = [
+      "$framework_core_relative_path/osal_mem.c",
+      "$framework_core_relative_path/osal_mutex.c",
+      "$framework_core_relative_path/osal_sem.c",
+      "$framework_core_relative_path/osal_spinlock.c",
+      "$framework_core_relative_path/osal_thread.c",
+      "$framework_core_relative_path/osal_time.c",
+    ]
+
+    deps = [
+      "//base/hiviewdfx/hilog_lite/frameworks/featured:hilog_shared",
+      "//third_party/bounds_checking_function:libsec_shared",
+    ]
+
+    defines = [ "__USER__" ]
+    ldflags = [ "-lpthread" ]
+
+    # install_images = [ chipset_base_dir ]
+    subsystem_name = "hdf"
+    part_name = "hdf_core"
+  }
+} else {
+  group("hdf_posix_osal") {
+    deps = []
+  }
+}

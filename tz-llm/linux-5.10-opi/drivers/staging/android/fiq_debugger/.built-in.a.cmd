@@ -1,0 +1,1 @@
+cmd_drivers/staging/android/fiq_debugger/built-in.a := echo >/dev/null; rm -f drivers/staging/android/fiq_debugger/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/staging/android/fiq_debugger/built-in.a drivers/staging/android/fiq_debugger/fiq_debugger.o

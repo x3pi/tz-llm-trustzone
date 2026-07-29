@@ -1,0 +1,11 @@
+if (defined(ohos_lite)) {
+  group("${peripheral_name}_entry") {
+    deps = [ ]
+  }
+} else {
+  group("${peripheral_name}_entry") {
+    deps = [
+      "./hdi_service:hdf_${peripheral_name}_service",
+    ]
+  }
+}

@@ -1,0 +1,1 @@
+cmd_drivers/devfreq/event/built-in.a := echo >/dev/null; rm -f drivers/devfreq/event/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/devfreq/event/built-in.a drivers/devfreq/event/rockchip-dfi.o drivers/devfreq/event/rockchip-nocp.o

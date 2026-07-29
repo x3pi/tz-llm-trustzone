@@ -1,0 +1,116 @@
+!<thin>
+//                                              750       `
+client.o/
+dir.o/
+file.o/
+getroot.o/
+inode.o/
+super.o/
+io.o/
+direct.o/
+pagelist.o/
+read.o/
+symlink.o/
+unlink.o/
+write.o/
+namespace.o/
+mount_clnt.o/
+nfstrace.o/
+export.o/
+sysfs.o/
+fs_context.o/
+nfsroot.o/
+sysctl.o/
+nfs2super.o/
+proc.o/
+nfs2xdr.o/
+nfs3super.o/
+nfs3client.o/
+nfs3proc.o/
+nfs3xdr.o/
+nfs3acl.o/
+nfs4proc.o/
+nfs4xdr.o/
+nfs4state.o/
+nfs4renewd.o/
+nfs4super.o/
+nfs4file.o/
+delegation.o/
+nfs4idmap.o/
+callback.o/
+callback_xdr.o/
+callback_proc.o/
+nfs4namespace.o/
+nfs4getroot.o/
+nfs4client.o/
+nfs4session.o/
+dns_resolve.o/
+nfs4trace.o/
+cache_lib.o/
+nfs4sysctl.o/
+pnfs.o/
+pnfs_dev.o/
+pnfs_nfs.o/
+nfs42proc.o/
+nfs42xattr.o/
+filelayout/filelayout.o/
+filelayout/filelayoutdev.o/
+flexfilelayout/flexfilelayout.o/
+flexfilelayout/flexfilelayoutdev.o/
+/0             /0           0     0     644     45560     `
+/10             0           0     0     644     64960     `
+/17             0           0     0     644     25112     `
+/25             0           0     0     644     3928      `
+/36             0           0     0     644     70456     `
+/45             0           0     0     644     49328     `
+/54             0           0     0     644     4112      `
+/60            /0           0     0     644     18992     `
+/70             0           0     0     644     32328     `
+/82             0           0     0     644     15408     `
+/90             0           0     0     644     3360      `
+/101           /0           0     0     644     13576     `
+/111            0           0     0     644     54152     `
+/120            0           0     0     644     13440     `
+/133            0           0     0     644     7072      `
+/147            0           0     0     644     215024    `
+/159           /0           0     0     644     4520      `
+/169            0           0     0     644     7664      `
+/178            0           0     0     644     24832     `
+/192            0           0     0     644     9760      `
+/203           /0           0     0     644     3472      `
+/213            0           0     0     644     3592      `
+/226            0           0     0     644     21480     `
+/234            0           0     0     644     19424     `
+/245            0           0     0     644     3664      `
+/258            0           0     0     644     4976      `
+/272            0           0     0     644     27904     `
+/284            0           0     0     644     33048     `
+/295            0           0     0     644     7576      `
+/306            0           0     0     644     165216    `
+/318            0           0     0     644     97208     `
+/329            0           0     0     644     47064     `
+/342            0           0     0     644     4120      `
+/356            0           0     0     644     11344     `
+/369            0           0     0     644     11960     `
+/381            0           0     0     644     23056     `
+/395            0           0     0     644     20480     `
+/408            0           0     0     644     9808      `
+/420            0           0     0     644     17832     `
+/436            0           0     0     644     12792     `
+/453            0           0     0     644     8216      `
+/470            0           0     0     644     2232      `
+/485            0           0     0     644     21696     `
+/499            0           0     0     644     12096     `
+/514            0           0     0     644     13680     `
+/529            0           0     0     644     595256    `
+/542            0           0     0     644     8920      `
+/555            0           0     0     644     3736      `
+/569            0           0     0     644     73224     `
+/577            0           0     0     644     13112     `
+/589            0           0     0     644     36808     `
+/601            0           0     0     644     27848     `
+/614            0           0     0     644     19736     `
+/628            0           0     0     644     29536     `
+/653            0           0     0     644     8632      `
+/681            0           0     0     644     58456     `
+/714            0           0     0     644     14440     `

@@ -1,0 +1,1 @@
+cmd_drivers/mtd/nand/built-in.a := echo >/dev/null; rm -f drivers/mtd/nand/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/mtd/nand/built-in.a drivers/mtd/nand/core.o drivers/mtd/nand/bbt.o drivers/mtd/nand/bbt_store.o drivers/mtd/nand/onenand/built-in.a drivers/mtd/nand/raw/built-in.a drivers/mtd/nand/spi/built-in.a

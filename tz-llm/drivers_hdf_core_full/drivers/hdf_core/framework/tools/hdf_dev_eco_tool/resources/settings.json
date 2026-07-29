@@ -1,0 +1,84 @@
+{
+    "supported_boards": {
+        "hispark_taurus": {
+            "board_parent_path": "vendor/{vendor}/{board}/hdf_config/device_info",
+            "dot_config_path": "kernel/liteos_a/tools/build/config",
+            "patch_and_config": []
+        },
+        "hispark_taurus_linux": {
+            "board_parent_path": "vendor/{vendor}/{board}/hdf_config/device_info",
+            "dot_config_path": "kernel/linux",
+            "patch_and_config": ["hispark_taurus.patch", "hispark_taurus_small_defconfig"]
+        },
+        "hispark_taurus_standard_kernel": {
+            "board_parent_path": "vendor/{vendor}/hispark_taurus_standard/hdf_config/khdf/device_info",
+            "dot_config_path": "kernel/linux",
+            "patch_and_config": ["hispark_taurus.patch", "hispark_taurus_standard_defconfig"]
+        },
+        "hispark_taurus_standard_user": {
+            "board_parent_path": "vendor/{vendor}/hispark_taurus_standard/hdf_config/uhdf",
+            "dot_config_path": "",
+            "patch_and_config": []
+        },
+        "rk3568_kernel": {
+            "board_parent_path": "vendor/{vendor}/rk3568/hdf_config/khdf/device_info",
+            "dot_config_path": "kernel/linux",
+            "patch_and_config": ["rk3568_standard_defconfig"]
+        },
+        "rk3568_user": {
+            "board_parent_path": "vendor/{vendor}/rk3568/hdf_config/uhdf",
+            "dot_config_path": "",
+            "patch_and_config": []
+        }
+    },
+    "create_driver_board_type": [
+        "hispark_taurus",
+        "hispark_taurus_linux",
+        "hispark_taurus_standard_kernel",
+        "rk3568_kernel"
+    ],
+    "passwd_group_config": {
+        "passwd": {
+            "path": "base/startup/init/services/etc/passwd",
+            "info_temp": "{peripheral_name}_host:x:{uid}:{uid}:::/bin/false\n"
+            },
+        "group": {
+            "path": "base/startup/init/services/etc/group",
+            "info_temp": "{peripheral_name}_host:x:{uid}:\n"
+            }
+    },
+    "drivers_path_relative_framework": "drivers/hdf_core/framework",
+    "drivers_path_relative_peripheral": "drivers/peripheral",
+    "drivers_path_relative_interface": "drivers/interface",
+    "drivers_path_relative_adapter": "drivers/hdf_core/adapter/khdf",
+    "user_model_path_relative_adapter": "drivers/hdf_core/adapter/uhdf2",
+    "template_file_path": "tools/hdf_dev_eco_tool/resources/templates/lite",
+    "module_save_path": "tools/hdf_dev_eco_tool/resources/create_model.config",
+    "config_setting_file_info": {
+        "config_pre_dir": "resources",
+        "model_device_config_file": "config.ini",
+        "create_driver_file": "create_driver.config",
+        "create_model_file": "create_model.config",
+        "create_hdi_file": "create_idl_hdi.config"
+    },
+    "hdi_config": {
+        "interface":"productdefine/common/inherit/rich.json",
+        "peripheral":"productdefine/common/inherit/chipset_common.json",
+        "peripheral_folder": {
+            "unittest_path": "test/unittest",
+            "hdi_path": "hdi_service"
+        },
+        "output_path": "out/{product}/gen/drivers/interface/{interface_name}",
+        "move_list": [
+            "{interface_name}_service.h",
+            "{interface_name}_driver.cpp",
+            "{interface_name}_service.cpp"
+        ],
+        "config_path": "resources/templates/lite/hdi_template/create_idl_hdi.json",
+        "out_config_name": "create_idl_hdi.config"
+    },
+    "create_file_config": {
+        "flags": 258,
+        "modes": 436
+    }
+}

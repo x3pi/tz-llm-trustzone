@@ -1,0 +1,106 @@
+!<thin>
+//                                              854       `
+../../../virt/kvm/kvm_main.o/
+../../../virt/kvm/coalesced_mmio.o/
+../../../virt/kvm/eventfd.o/
+../../../virt/kvm/vfio.o/
+../../../virt/kvm/irqchip.o/
+arm.o/
+mmu.o/
+mmio.o/
+psci.o/
+perf.o/
+hypercalls.o/
+pvtime.o/
+inject_fault.o/
+va_layout.o/
+handle_exit.o/
+guest.o/
+debug.o/
+reset.o/
+sys_regs.o/
+vgic-sys-reg-v3.o/
+fpsimd.o/
+pmu.o/
+arch_timer.o/
+trng.o/
+vgic/vgic.o/
+vgic/vgic-init.o/
+vgic/vgic-irqfd.o/
+vgic/vgic-v2.o/
+vgic/vgic-v3.o/
+vgic/vgic-v4.o/
+vgic/vgic-mmio.o/
+vgic/vgic-mmio-v2.o/
+vgic/vgic-mmio-v3.o/
+vgic/vgic-kvm-device.o/
+vgic/vgic-its.o/
+vgic/vgic-debug.o/
+pmu-emul.o/
+hyp/vhe/timer-sr.o/
+hyp/vhe/sysreg-sr.o/
+hyp/vhe/debug-sr.o/
+hyp/vhe/switch.o/
+hyp/vhe/tlb.o/
+hyp/vgic-v3-sr.o/
+hyp/aarch32.o/
+hyp/vgic-v2-cpuif-proxy.o/
+hyp/entry.o/
+hyp/fpsimd.o/
+hyp/hyp-entry.o/
+hyp/exception.o/
+hyp/nvhe/kvm_nvhe.o/
+hyp/pgtable.o/
+hyp/reserved_mem.o/
+/0              0           0     0     644     178824    `
+/30             0           0     0     644     5520      `
+/66             0           0     0     644     18464     `
+/95             0           0     0     644     8624      `
+/121            0           0     0     644     7216      `
+/150            0           0     0     644     127272    `
+/157            0           0     0     644     41976     `
+/164            0           0     0     644     5512      `
+/172            0           0     0     644     10304     `
+/180            0           0     0     644     5192      `
+/188            0           0     0     644     2976      `
+/202            0           0     0     644     6432      `
+/212            0           0     0     644     3744      `
+/228            0           0     0     644     9088      `
+/241            0           0     0     644     46760     `
+/256            0           0     0     644     21512     `
+/265            0           0     0     644     9112      `
+/274            0           0     0     644     11104     `
+/283            0           0     0     644     151424    `
+/295            0           0     0     644     9568      `
+/314            0           0     0     644     6016      `
+/324            0           0     0     644     8416      `
+/331            0           0     0     644     36232     `
+/345            0           0     0     644     2144      `
+/353            0           0     0     644     26088     `
+/366            0           0     0     644     13656     `
+/384            0           0     0     644     4000      `
+/403            0           0     0     644     13688     `
+/419            0           0     0     644     22624     `
+/435            0           0     0     644     10584     `
+/451            0           0     0     644     27360     `
+/469            0           0     0     644     14208     `
+/490            0           0     0     644     26360     `
+/511            0           0     0     644     15688     `
+/535            0           0     0     644     41072     `
+/552            0           0     0     644     9688      `
+/571            0           0     0     644     21088     `
+/583            0           0     0     644     1464      `
+/603            0           0     0     644     7544      `
+/624            0           0     0     644     5880      `
+/644            0           0     0     644     15968     `
+/662            0           0     0     644     6192      `
+/677            0           0     0     644     23864     `
+/695            0           0     0     644     2240      `
+/710            0           0     0     644     3064      `
+/737            0           0     0     644     3120      `
+/750            0           0     0     644     1496      `
+/764            0           0     0     644     23792     `
+/781            0           0     0     644     3128      `
+/798            0           0     0     644     118088    `
+/819            0           0     0     644     19288     `
+/834            0           0     0     644     4840      `

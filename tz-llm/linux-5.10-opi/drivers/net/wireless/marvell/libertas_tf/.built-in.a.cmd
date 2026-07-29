@@ -1,0 +1,1 @@
+cmd_drivers/net/wireless/marvell/libertas_tf/built-in.a := echo >/dev/null; rm -f drivers/net/wireless/marvell/libertas_tf/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/net/wireless/marvell/libertas_tf/built-in.a drivers/net/wireless/marvell/libertas_tf/main.o drivers/net/wireless/marvell/libertas_tf/cmd.o

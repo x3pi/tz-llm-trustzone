@@ -1,0 +1,15 @@
+${peripheral_name}_dal :: host {
+    hostName = "${peripheral_name}_host";
+    priority = 50;
+    uid = "";
+    gid = "";
+    caps = ["DAC_OVERRIDE", "DAC_READ_SEARCH"];
+    ${peripheral_name}_device :: device {
+        device0 :: deviceNode {
+            policy = 2;
+            priority = 100;
+            moduleName = "lib${peripheral_name}_driver.z.so";
+            serviceName = "${peripheral_name}_service";
+        }
+    }
+}

@@ -1,0 +1,20 @@
+!<thin>
+//                                              198       `
+focaltech_core.o/
+focaltech_ex_fun.o/
+focaltech_ex_mode.o/
+focaltech_flash.o/
+focaltech_gesture.o/
+focaltech_esdcheck.o/
+focaltech_i2c.o/
+focaltech_point_report_check.o/
+focaltech_upgrade_ft8201.o/
+/0              0           0     0     644     28104     `
+/18             0           0     0     644     1112      `
+/38             0           0     0     644     3072      `
+/59             0           0     0     644     31112     `
+/78             0           0     0     644     1112      `
+/99             0           0     0     644     1120      `
+/121            0           0     0     644     6000      `
+/138            0           0     0     644     1128      `
+/170            0           0     0     644     24968     `

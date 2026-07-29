@@ -1,0 +1,1 @@
+cmd_block/partitions/built-in.a := echo >/dev/null; rm -f block/partitions/built-in.a; aarch64-linux-gnu-ar cDPrST block/partitions/built-in.a block/partitions/core.o block/partitions/cmdline.o block/partitions/msdos.o block/partitions/efi.o

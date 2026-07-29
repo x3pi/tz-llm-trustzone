@@ -1,0 +1,20 @@
+!<thin>
+//                                              216       `
+android/fiq_debugger/fiq_debugger.o/
+android/ashmem.o/
+fbtft/fbtft-core.o/
+fbtft/fbtft-sysfs.o/
+fbtft/fbtft-bus.o/
+fbtft/fbtft-io.o/
+blackbox/blackbox_core.o/
+blackbox/blackbox_storage.o/
+blackbox/blackbox_common.o/
+/0              0           0     0     644     42368     `
+/37             0           0     0     644     18640     `
+/55             0           0     0     644     42712     `
+/75             0           0     0     644     7328      `
+/96             0           0     0     644     16424     `
+/115            0           0     0     644     12864     `
+/133            0           0     0     644     22352     `
+/159            0           0     0     644     1552      `
+/188            0           0     0     644     12088     `

@@ -1,0 +1,103 @@
+!<thin>
+//                                              1056      `
+soc-core.o/
+soc-dapm.o/
+soc-jack.o/
+soc-utils.o/
+soc-dai.o/
+soc-component.o/
+soc-pcm.o/
+soc-devres.o/
+soc-ops.o/
+soc-link.o/
+soc-card.o/
+soc-generic-dmaengine-pcm.o/
+codecs/dummy-codec.o/
+codecs/es7202.o/
+codecs/es7243e.o/
+codecs/es8311.o/
+codecs/es8316.o/
+codecs/es8323.o/
+codecs/es8326.o/
+codecs/max98090.o/
+codecs/hdmi-codec.o/
+codecs/rk3308_codec.o/
+codecs/rk3328_codec.o/
+codecs/rk817_codec.o/
+codecs/rk_codec_digital.o/
+codecs/rl6231.o/
+codecs/rt5616.o/
+codecs/rt5640.o/
+codecs/rt5645.o/
+codecs/rt5651.o/
+codecs/spdif_receiver.o/
+codecs/spdif_transmitter.o/
+codecs/ts3a227e.o/
+codecs/aw87xxx/aw87xxx.o/
+codecs/aw87xxx/aw_device.o/
+codecs/aw87xxx/aw_monitor.o/
+codecs/aw87xxx/aw_bin_parse.o/
+codecs/aw87xxx/aw_dsp.o/
+codecs/aw87xxx/aw_acf_bin.o/
+generic/simple-card-utils.o/
+generic/simple-card.o/
+rockchip/rockchip_i2s.o/
+rockchip/rockchip_i2s_tdm.o/
+rockchip/rockchip_pdm.o/
+rockchip/rockchip_spdif.o/
+rockchip/rockchip_spdifrx.o/
+rockchip/rockchip_hdmi.o/
+rockchip/rockchip_max98090.o/
+rockchip/rockchip_multicodecs.o/
+rockchip/rockchip_rt5645.o/
+
+/0              0           0     0     644     137960    `
+/12             0           0     0     644     104656    `
+/24             0           0     0     644     18352     `
+/36             0           0     0     644     10496     `
+/49             0           0     0     644     32856     `
+/60             0           0     0     644     37056     `
+/77             0           0     0     644     71344     `
+/88             0           0     0     644     8512      `
+/102            0           0     0     644     29744     `
+/113            0           0     0     644     8064      `
+/125            0           0     0     644     10200     `
+/137            0           0     0     644     15768     `
+/166            0           0     0     644     7584      `
+/188            0           0     0     644     19824     `
+/205            0           0     0     644     42032     `
+/223            0           0     0     644     36536     `
+/240            0           0     0     644     52088     `
+/257            0           0     0     644     53960     `
+/274            0           0     0     644     42840     `
+/291            0           0     0     644     132784    `
+/310            0           0     0     644     24176     `
+/331            0           0     0     644     90624     `
+/354            0           0     0     644     15136     `
+/377            0           0     0     644     27136     `
+/399            0           0     0     644     26144     `
+/426            0           0     0     644     9216      `
+/443            0           0     0     644     71136     `
+/460            0           0     0     644     173456    `
+/477            0           0     0     644     216536    `
+/494            0           0     0     644     133208    `
+/511            0           0     0     644     6528      `
+/536            0           0     0     644     6632      `
+/564            0           0     0     644     12232     `
+/583            0           0     0     644     54448     `
+/609            0           0     0     644     25752     `
+/637            0           0     0     644     38912     `
+/666            0           0     0     644     14272     `
+/697            0           0     0     644     4920      `
+/722            0           0     0     644     41584     `
+/751            0           0     0     644     31744     `
+/780            0           0     0     644     19552     `
+/803            0           0     0     644     20064     `
+/828            0           0     0     644     42608     `
+/857            0           0     0     644     23240     `
+/882            0           0     0     644     16008     `
+/909            0           0     0     644     16064     `
+/938            0           0     0     644     10088     `
+/964            0           0     0     644     25240     `
+/994            0           0     0     644     25624     `
+/1027           0           0     0     644     14176     `

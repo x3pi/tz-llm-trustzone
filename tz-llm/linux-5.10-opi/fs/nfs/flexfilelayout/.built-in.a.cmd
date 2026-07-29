@@ -1,0 +1,1 @@
+cmd_fs/nfs/flexfilelayout/built-in.a := echo >/dev/null; rm -f fs/nfs/flexfilelayout/built-in.a; aarch64-linux-gnu-ar cDPrST fs/nfs/flexfilelayout/built-in.a fs/nfs/flexfilelayout/flexfilelayout.o fs/nfs/flexfilelayout/flexfilelayoutdev.o

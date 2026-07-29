@@ -1,0 +1,1 @@
+cmd_drivers/video/rockchip/built-in.a := echo >/dev/null; rm -f drivers/video/rockchip/built-in.a; aarch64-linux-gnu-ar cDPrST drivers/video/rockchip/built-in.a drivers/video/rockchip/rga3/built-in.a drivers/video/rockchip/iep/built-in.a drivers/video/rockchip/mpp/built-in.a

@@ -1,0 +1,10 @@
+package ohos.hdi.${interface_name}.v1_0;
+
+import ohos.hdi.${interface_name}.v1_0.I${interface_name_capital_letters}Callback;
+import ohos.hdi.${interface_name}.v1_0.Types;
+
+interface I${interface_name_capital_letters} {
+    Ping([in] String sendMsg,[out] String recvMsg);
+    GetData([out] struct ${interface_name_capital_letters}Info info);
+    SetCallback([in] I${interface_name_capital_letters}Callback cbObj);
+}

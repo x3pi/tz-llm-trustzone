@@ -1,0 +1,4 @@
+
+root {
+    module = "rockchip,rk3588_chip";
+}

@@ -1,0 +1,18 @@
+# Build outputs (regenerate with rebuild.sh) -- these are per-build binaries,
+# not source; tracking them would blow up repo size and diff noise.
+scripts/kick-the-tires/share_build/
+scripts/kick-the-tires/share*/
+*.log
+
+# Compiled objects from local builds
+tz-llm/**/*.o
+tz-llm/**/build-chcore/
+tz-llm/**/build-rknpure/
+tz-llm/tee_os_kernel/ramdisk-dir/
+tz-llm/tee_os_kernel/oh_tee/
+tz-llm/tee_os_kernel/oh_tee_bak/
+
+# checkpoints/ IS tracked on purpose (small, curated, essential for "revert to
+# last good state") -- do not add a blanket checkpoints/ ignore here. If a
+# checkpoint image gets too large for comfortable git history, replace it
+# in place (same filename) rather than accumulating many dated copies.

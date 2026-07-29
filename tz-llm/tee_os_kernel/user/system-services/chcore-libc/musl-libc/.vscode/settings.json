@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "aio_impl.h": "c",
+        "atomic.h": "c"
+    }
+}
