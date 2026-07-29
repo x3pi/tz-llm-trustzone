@@ -434,6 +434,50 @@ so patience/retry remains the practical mitigation until/unless SPL's
 own retry-on-hash-failure behavior (if any exists) is investigated
 separately.
 
+## Direct test of the historical-precedent theory: FAILED (2026-07-29, even later) -- points to wear/remapping, not content
+
+Found the actual 2026-07-28 working build on disk
+(`tz-llm-ae/scripts/kick-the-tires/share_tzfix/images/{uboot_repacked.img,
+boot.img}`, optee hash confirmed `98df236b76...` byte-for-byte, same
+58,545,792-byte size as today's `tzfix5` -- so size was never the
+differentiator between the two, contrary to the earlier guess). Flashed
+this exact known-working pair to the board via `flash.sh` (clean write,
+no FAILED chunks) and power-cycled with a continuous UART capture running.
+
+**Result: identical silent-hang failure as `tzfix5`** -- no MaskROM
+fallback, zero UART output, for 90+ seconds. The build that is proven to
+have booted this exact board 2 days ago now fails the same way as today's
+build. **This rules out "something changed in the TEE-OS/TA content
+between 07-28 and today" as the explanation** -- the content is
+confirmed byte-identical to what worked, yet it no longer boots reliably.
+
+**User's own insight, and the most coherent theory so far**: the
+difference isn't the build, it's that **the card(s) have been fully
+reformatted/rewritten (GPT + idbloader + uboot + boot_linux + system +
+vendor, sometimes userdata) many times today** across both the old and
+new card, whereas the 07-28 working state was reached through continuous
+incremental development on a card that was never wiped back to blank and
+started over. SD cards perform logical-to-physical remapping (wear
+leveling / FTL) on every full erase+rewrite cycle -- repeatedly
+reformatting the same logical LBA range can land it on a *different*
+physical NAND block each time, and if a newly-assigned block happens to
+be marginal for the sustained large contiguous read a real boot-time SD
+controller DMA needs (as opposed to the smaller/different-pattern reads
+`rkdeveloptool`/USB-readers do), that would produce exactly this
+signature: file content proven correct, read-back via slower/chunked
+paths proven correct, yet the real boot-time bulk read intermittently or
+consistently fails, changing which specific occurrence it happens on
+based on whatever the current physical mapping happens to be.
+
+**This is hard to fix by reflashing more** (each reflash is itself a
+rewrite that could remap things again, possibly not for the better) and
+points toward: try a card that has NOT been reformatted at all today (if
+one exists), or accept this as accumulated wear from this project's
+extensive history of full-card reformats and treat "avoid unnecessary
+full reformats going forward, prefer `flash.sh`'s uboot/boot_linux-only
+path over `flash-full.sh` when the rest of the card doesn't need to
+change" as the operational mitigation.
+
 ## Historical precedent found: this exact repack mechanism DID work before (2026-07-28) -- so it's not a hard hardware wall
 
 Before concluding the deterministic-bad-hash finding below means a
