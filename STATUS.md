@@ -175,6 +175,16 @@ flash/repack.sh           repack a fresh uboot.img with the known-good U-Boot
 flash/flash.sh            verified flash to SD card (see infra notes above)
 ```
 
+## Operational tools
+
+- `tools/uart/uart_cmd.sh "<command>" [seconds]` — send one shell command to
+  the board over UART and capture the reply. Requires `/dev/ttyUSB0` at baud
+  **1500000** (not 115200). Keep commands short/simple (see UART line-editing
+  note above); prefer `hdc shell` once/if network access is sorted out.
+- `flash/flash.sh` reads the sudo password from `$SUDO_PW` (falls back to an
+  interactive prompt if unset) rather than a hardcoded password in the
+  script. Example: `SUDO_PW=yourpassword ./flash/flash.sh`.
+
 ## Repro command for the current bug (#5)
 
 After flashing `checkpoints/{uboot_repacked.img,boot.img}` and letting the
