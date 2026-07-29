@@ -434,6 +434,51 @@ so patience/retry remains the practical mitigation until/unless SPL's
 own retry-on-hash-failure behavior (if any exists) is investigated
 separately.
 
+## Historical precedent found: this exact repack mechanism DID work before (2026-07-28) -- so it's not a hard hardware wall
+
+Before concluding the deterministic-bad-hash finding below means a
+permanent hardware ceiling, checked this project's own memory log for a
+prior occurrence. Found one, dated 2026-07-28 (`Follow-up #26`, same
+memory file): **the identical repack recipe** (known-good U-Boot binary +
+freshly-built `tee.bin`, `mkimage -f u-boot.its -E -p 0x1000`) produced a
+build that **booted end-to-end on this same board**, with UART showing
+`Checking optee ... sha256(98df236b76...) + OK` followed by the TEE
+actually launching llama-cli, Linux booting fully, and the paper's §4.3
+TEE-REE NPU co-driver handshake (`tzdriver_register_rknpu_dev`) completing
+-- the furthest this project has ever gotten, at the time.
+
+That working optee hash (`98df236b76...`) is **different** from today's
+(`5816a244...`) -- the TEE-OS/TA source moved on between 07-28 and this
+morning's `tzfix1`-`tzfix5` iteration (expected; that's exactly what the
+`tzfix` series was for). A candidate cached `tee.bin` from around that
+era (`tz-llm-ae/scripts/kick-the-tires/repack/tee.bin`, dated Jul 27 23:21)
+is 52,483,712 bytes -- close to but not identical to today's 58,545,792
+bytes, and its hash (`f4caa6de...`) doesn't match `98df236b...` either, so
+it's not confirmed to be the exact working artifact, just a similarly-
+sized nearby build. **This means the "~55MB triggers a real SD-controller
+DMA limit" theory from the section below is not obviously supported by a
+size jump** -- 50MB apparently worked, 55.8MB doesn't, a ~11% difference,
+which may or may not be enough to cross a real threshold.
+
+**Bottom line: this is not a proven permanent hardware ceiling.** A
+working combination existed 2 days ago on this exact board. The right
+next step is a *comparison*, not a hardware workaround:
+1. Find exactly what changed in the TEE-OS/TA source between whatever
+   produced the working `98df236b76...` optee blob and today's
+   `5816a244...` one (git log the `tz-llm/tee_os_kernel` tree between
+   those two build timestamps, or between the `tzfix1` and `tzfix5`
+   iterations if those are separately recoverable).
+2. Check whether the optee blob's *size* grew meaningfully (not just the
+   ~11% seen in the one nearby cached sample above -- get the real
+   07-28 `tee.bin` if it still exists anywhere, e.g. old `share_tzfix*`
+   directories under `tz-llm-ae/scripts/kick-the-tires/`, and diff sizes
+   properly).
+3. If size did grow substantially, that's a real lead for the "large-DMA
+   read" theory. If it didn't, the deterministic-wrong-hash cause is
+   something else entirely (worth re-opening from scratch) -- possibly
+   something about *this specific build's* optee content/layout, not
+   raw size at all.
+
 ## Further correction: the bad-hash value is DETERMINISTIC, not random (2026-07-29, even later)
 
 Got a full, continuous UART capture (started `cat /dev/ttyUSB0` *before* power-
