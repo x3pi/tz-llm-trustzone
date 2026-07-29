@@ -240,12 +240,237 @@ second time.
 `assets/full-flash/idblock_from_working_card.bin` (sectors 64-8191, the
 *whole* pre-`uboot@0x2000` reserved region, extracted whole from the actual
 working SD card this project has used since before this session -- i.e. this
-project's own GPT layout, not Debian's) is now wired into `flash-full.sh` as
-the idbloader source for future blank-card attempts. **This has not been
-flash-tested yet** -- it was extracted right as the session pivoted back to
-the working card rather than continuing to iterate live. If this doesn't
-work either, the `--tpl --spl` build-our-own-SPL path above is the next
-thing to try, not another blind payload swap.
+project's own GPT layout, not Debian's) was wired into `flash-full.sh` as
+the idbloader source and **flash-tested (4th attempt)**: all 6 partitions
+wrote and verified clean, but the board still fell straight back into
+MaskROM on power-on -- this time a **clean rejection**, not the silent hang
+of #1/#2 (a real, different failure mode). Re-read of the extracted bytes
+(3 independent re-reads via `rl`, all identical, matching the original
+extraction) ruled out USB-channel read corruption as the cause. Why an
+extraction that is byte-verified-accurate from a card that itself boots fine
+still gets rejected on a *different* card is unexplained -- possibly
+something in the idbloader payload legitimately ties itself to that specific
+card's identity/geometry (SD CID, capacity-dependent field, etc.), not just
+its GPT layout. Not pursued further live; see the golden-image section below
+for how this was ultimately worked around.
+
+## Golden-image backup + direct `/dev/sdb` block access (2026-07-29)
+
+While investigating "what if this all needs to be reproduced on another
+machine" (disaster recovery), discovered this SD card reader/board setup
+lets the SD card be read via a **plain USB card reader as a normal Linux
+block device** (`/dev/sdb` here), completely bypassing `rkdeveloptool` and
+every MaskROM-protocol issue that caused the 4 failed idbloader attempts
+above (`db`/`cs`/`wl`/`rl`/`gpt` vendor-transfer quirks, the broken `ul`,
+the intermittently-corrupting channel). Plain `dd`/`sha256sum` work
+directly, no timeout/retry/majority-vote ceremony needed, and are far
+faster (3.6GB in 38s @ ~96MB/s vs. the many-minutes chunked-verified writes
+`flash-full.sh` needs over the MaskROM channel).
+
+Device identity was confirmed two ways before trusting it: GPT partition
+sizes on `/dev/sdb` match `parameter_custom.txt` exactly, and
+`sha256sum` of the first 64MB of `/dev/sdb1` (`98b15c08...259c7`) matches
+the previously-recorded hash of `checkpoints/20260729-tzfix5-verified/
+uboot_repacked.img`. Actual old-card capacity is 57.6GB/61891149824 bytes
+(`blockdev --getsize64`). The "119.4GB" figure noted earlier in this same
+investigation turned out to be the *new/blank* card's real size, not a
+misremembering -- both cards were on `/dev/sdb` at different points as they
+were swapped in the same reader; always re-verify via hash before trusting
+which physical card is currently addressed as `/dev/sdb`.
+
+Backed up sectors 0 through 0x6BA000 (idbloader + uboot + misc/bootctrl/
+resource + boot_linux + ramdisk + system + vendor -- everything needed to
+boot, excluding sys-prod-onward admin partitions and userdata) to
+`checkpoints/golden-image/idbloader_through_vendor.img` (3,612,344,320
+bytes). Structurally spot-verified: valid GPT header at LBA 1, `RKNS`
+idbloader magic at LBA 0x40, correct `d00dfeed` FIT magic at both LBA
+0x2000 (uboot) and LBA 0x88000 (boot_linux). **Deleted after attempt #8
+solved the idbloader problem properly** (this file's original purpose --
+freed ~3.4GB on a host that was down to ~5.6GB free). If a similar backup
+is needed again, the old card is still around and reachable via a plain USB
+card reader as a `/dev/sdX` block device -- `dd if=/dev/sdX1 ... | dd
+of=...` as done here, no `rkdeveloptool`/MaskROM involved. That technique
+(not the specific image file) is the reusable result of this detour.
+
+**Write test (attempt #5, direct `dd`, 2026-07-29): also failed.** Wrote
+just the idbloader region (sectors 64-8191, 4,161,536 bytes -- same range as
+attempt #4's `idblock_from_working_card.bin`) from this golden image
+directly onto the blank/new card's `/dev/sdb` via `dd` (bypassing
+`rkdeveloptool`/MaskROM entirely), leaving the new card's already-correct
+119.4GB-sized GPT/system/vendor/userdata from a prior `flash-full.sh` run
+untouched. Write verified byte-perfect via `sha256sum` readback
+(`8a3f4ade...`) before the card was moved to the board. Result: board still
+falls straight back into MaskROM on power-on (confirmed via `lsusb` showing
+`2207:350b` Rockchip enumeration, zero UART output at any point -- same
+silent-hang signature as attempts #1/#2, not the "clean rejection" of #4).
+
+This is a significant negative result: it rules out the write-path/MaskROM-
+channel-corruption theory entirely (this write used `dd` + hash-verified
+readback, not `rkdeveloptool`), on top of attempt #4 already having ruled
+out extraction/read corruption. The exact same bytes, written two different
+reliable ways, both fail on this card. This now strongly points at the
+idbloader payload itself being **tied to the old card's specific identity**
+(SD CID, factory-programmed geometry/timing parameters, or similar) rather
+than anything about GPT layout, write path, or data integrity. The
+`--tpl --spl` build-our-own-SPL path (see attempt #1/#2 root-cause
+discussion above) is now the most promising remaining direction -- a
+properly built idbloader for *this* board/config should not carry any
+old-card-specific identity binding.
+
+**Attempt #6 (own `--spl --tpl`, both overridden): failed differently.**
+Built `idblock.bin` via `./make.sh --idblock --tpl --spl` run directly in
+the already-built Docker container (`docker exec`, no board-name argument
+passed -- this avoids the `fast_build_uboot.sh` regression from earlier,
+since `sub_commands()`'s dispatch is keyed on `$1` alone and `process_args`
+only triggers a defconfig rebuild when a bare board-name token is present).
+`uboot.img`/`boot.img` hashes confirmed unchanged before/after (no rebuild
+triggered). Result: **`tpl/u-boot-tpl.bin` is a 992-byte stub**, nothing
+like a real DDR-init/training blob (compare: rkbin's generic
+`rk3588_ddr_lp4_2112MHz_lp5_2400MHz_v1.18.bin` is 75,320 bytes) -- Rockchip
+does not open-source DDR training/calibration code, so U-Boot's own `tpl`
+build target for this board is a non-functional placeholder. Flashing this
+produced the exact same silent-hang signature as attempts #1/#2 (no MaskROM
+fallback, zero UART, indefinitely) -- consistent with DRAM never actually
+being initialized.
+
+**Attempt #7 (own `--spl` only, keep rkbin's real TPL): different failure,
+real progress.** Rebuilt with `./make.sh --idblock --spl` (no `--tpl`), so
+`TPL_BIN` falls back to its default (`${RKBIN}/FlashData`, the real
+75KB DDR-init blob) while `SPL_BIN` uses our own compiled
+`spl/u-boot-spl.bin` (226KB, matches the working card's `uboot.itb`/build
+generation, not a generic download-only blob). Result: idblock.bin is
+305,152 bytes (`Init Data Size: 75776`, `Boot Data Size: 227328` -- both
+now plausible real sizes). Flash-tested: board falls back to MaskROM
+*cleanly* this time (`2207:350b` reappears immediately), not a silent hang
+-- the same "clean rejection" signature as attempt #4
+(`idblock_from_working_card.bin`, real bytes from the actual working card).
+Two completely different idbloader payloads (one extracted whole from a
+known-working card, one freshly built from this exact project's own SPL
+source) both produce the identical clean-fallback failure mode on this
+specific blank card -- this pointed toward something card/hardware-specific
+downstream of the idbloader content itself, not an idbloader-content
+problem per se.
+
+**Attempt #8 (official Rockchip `MiniLoaderAll.bin` from RKDevTool): WORKS.**
+User pointed at a MiniLoaderAll.bin bundled with the official "RKDevTool"
+Windows flashing GUI package
+(`os/Android and Linux image burning tool-RKDevTool and driver.../
+MiniLoader-something you need to burn Linux images/MiniLoaderAll.bin`,
+481,728 bytes, sha256 `607284db...`) -- confirmed via hash comparison to be
+a genuinely different file from the project's own
+`device_opi5plus_REAL/loader/MiniLoaderAll.bin` (448,960 bytes, already
+tried and failed as attempt #2). Written whole to LBA 0x40 via
+`rkdeveloptool wl` + hash-verified readback, then reset. **Board booted for
+real**: UART showed the OP-TEE image hash check passing, ATF/BL31 init
+(`NOTICE: BL31: v2.3()...`), GICv3 init, then ChCore/TEE-OS's own cold-boot
+sequence (`uart init finished`, `per-CPU info init finished`,
+`get_tzdram_end returns 0xc400000`, `firewall_ddr_cma_rgn_init 118`) --
+further into the boot chain than any blank-card attempt this entire
+session. **This solves the blank-card idbloader problem**:
+`assets/full-flash/MiniLoaderAll_official.bin` (copy of the RKDevTool file)
+is the correct idbloader source; `flash-full.sh`'s `IDBLOADER=` should be
+updated to point at it once this is fully confirmed end-to-end.
+
+Boot then went silent again after `firewall_ddr_cma_rgn_init 118` -- no
+further UART output for 50+ seconds including after a blind Enter keypress,
+so it has not yet been confirmed to reach a live U-Boot prompt or Linux.
+Not yet root-caused whether this is a new hang inside ChCore's own init (on
+this specific card/memory layout) or just needs more patience -- **next
+step: keep watching UART for several more minutes before assuming another
+hang**, and if it does stall, the working old card's exact U-Boot boot
+sequence requires manual commands at the U-Boot prompt (not autoboot) --
+`mmc dev 0`, `mmc read 0x10000000 0x39000 0x20000`, `bootm 0x10000000` --
+worth trying blind (send them speculatively) in case a U-Boot prompt is
+sitting silently waiting with output that was somehow missed.
+
+Also: disk usage on the host is critical (99% full, ~5.7GB free as of this
+backup) -- do not create further multi-GB image files without first
+clearing space or moving this backup off-disk.
+
+## Container bind-mount trap (2026-07-29): `project/` edits were silently not being built
+
+The Docker builder container (`tzllm_fixed_builder`, created before the
+`project/` restructuring) has its bind mounts baked in at the OLD
+`tz-llm-ae/tz-llm/...` host paths (`docker inspect` confirms), not
+`project/tz-llm/...`. Editing source under `project/` has **zero effect** on
+what the container actually builds unless it's also synced into
+`tz-llm-ae/`. This had not caused visible problems yet only because the two
+trees happened to still be byte-identical (no divergent edits made since the
+restructuring) -- confirmed via diff before this was caught.
+
+**Proper fix (recreate the container with mounts pointing at `project/`)
+was evaluated and rejected for now**: doing that without losing the
+container's internal build state (compiled toolchain setup, `out/`,
+`rkbin/`, `.config` -- none of which are bind-mounted, all would be lost on
+a plain recreate) requires `docker commit` first, which duplicates the
+container's ~11.4GB writable layer into a new image layer. The host had
+only ~9GB free at the time -- not safe to attempt. Revisit this once disk
+space allows (`df -h` the `Docker Root Dir` from `docker info`, currently
+`/var/snap/docker/common/var-lib-docker`, same filesystem as everything
+else on this host).
+
+**Interim fix**: `scripts/kick-the-tires/sync-to-container.sh` -- run this
+before every `build-oh-docker.sh` that follows a source edit under
+`project/tz-llm/{tee_os_kernel,linux-5.10-opi,tzdriver}/` (the three trees
+that are actually edited; the others -- llama.cpp, drivers_hdf_core,
+vendor_opi5plus, device_opi5plus_REAL -- have not been touched this
+project's whole history and are lower-risk to leave unsynced, but are also
+covered by the same mount-mismatch if that ever changes). This makes the
+sync an explicit, scripted step instead of a silent trap -- not as good as
+true single-source-of-truth, but no longer a way to silently ship an
+untested binary.
+
+## Incident (2026-07-29): `flash.sh` bug clobbered GPT + idbloader on the new card
+
+While flashing a LOG_LEVEL=2 debug rebuild, `flash/flash.sh` (a script
+written fresh during the `project/` restructuring, not carried over from
+`tz-llm-ae`) resolved the `uboot` partition's LBA via `awk '$3=="uboot"'`
+against live `rkdeveloptool ppt` output. This exact-match failed silently
+(most likely a trailing `\r` in the tool's own output breaking the
+comparison) and produced an **empty** `UBOOT_LBA`, which bash arithmetic
+silently treated as `0`. The script then wrote all 131,072 sectors (64MB) of
+`uboot_repacked.img` starting at **LBA 0x0** instead of the correct
+`0x2000` -- overwriting the protective MBR, primary GPT header/table, and
+critically the idbloader at LBA 0x40 that attempt #8 had just fixed, plus
+the first ~56MB of the real `uboot` partition (with content shifted 4MB
+early, i.e. wrong/misaligned, not just missing). `boot_linux` was NOT
+affected (that LBA resolved correctly via a substring match, not exact
+match, and wrote cleanly) -- confirmed all 11 chunks verified OK. `system`/
+`vendor`/`userdata` are also unaffected (well outside the touched LBA
+range).
+
+Root cause of *why* this bug got introduced at all: `flash.sh` was written
+to dynamically re-derive partition LBAs from live `ppt` output "to not
+trust hardcoded offsets" -- but the offsets in `parameter_custom.txt`
+(`uboot@0x2000`, `boot_linux@0x88000`, etc.) are fixed constants that never
+actually vary between cards (only `userdata`'s size/end does, since it's
+the GPT's "grow" partition). `flash-full.sh` already correctly uses these
+as hardcoded constants and has been reliable all session. The dynamic-
+lookup approach in `flash.sh` was unnecessary complexity that introduced a
+real, damaging bug where the simpler hardcoded approach had none. **Fixed**:
+`flash.sh` now uses the same hardcoded `UBOOT_LBA=0x2000`/`BOOT_LBA=0x88000`
+constants as `flash-full.sh`, with the `ppt` dump kept only as an
+informational sanity check (`|| true`, output not parsed).
+
+Checked whether this was a repeat of an old, already-solved problem from
+before the `project/` restructuring (a reasonable suspicion given the
+restructuring's whole point was to avoid exactly this class of regression):
+it is not. `tz-llm-ae/scripts/kick-the-tires/flash.sh` (the pre-
+restructuring equivalent) took a completely different approach -- an HTTP
+client (`flash-proxy/client.py`, present in both trees) posting to a
+`flash-proxy` server on `localhost:8080` that did the actual flashing
+server-side. **No server-side implementation was ever found in either tree**
+-- `flash-proxy/` only ever contained the client half in this project's
+history, so that old path was dead/unusable in this environment already,
+not a proven-working tool that got lost in the restructuring. The bug in
+today's `flash.sh` is newly introduced this session, not a regression from
+lost institutional knowledge.
+
+Recovery (in progress): re-enter MaskROM, rewrite GPT from
+`parameter_custom.txt`, rewrite `assets/full-flash/MiniLoaderAll_official.bin`
+at LBA 0x40, rewrite `checkpoints/uboot_repacked.img` at the correct LBA
+0x2000 using the now-fixed `flash.sh`. `boot_linux`/`system`/`vendor`/
+`userdata` do not need to be touched.
 
 ## Directory map
 

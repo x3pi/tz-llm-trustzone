@@ -30,8 +30,10 @@ sleep 2
 sudo_run "$RKDEV" cs 2
 sleep 2
 
-echo "=== reading live GPT (do not trust hardcoded LBA offsets) ==="
-sudo_run "$RKDEV" ppt
+echo "=== reading live GPT (sanity check only -- LBAs below are the fixed"
+echo "    constants from assets/full-flash/parameter_custom.txt, which never"
+echo "    change between cards; only userdata's size/end varies) ==="
+sudo_run "$RKDEV" ppt || true
 
 write_verified() {
     local partname=$1 file=$2 base_lba=$3
@@ -67,8 +69,14 @@ write_verified() {
     done
 }
 
-BOOT_LBA=$(sudo_run "$RKDEV" ppt 2>&1 | awk '/boot_linux/{print "0x"$2}')
-UBOOT_LBA=$(sudo_run "$RKDEV" ppt 2>&1 | awk '$3=="uboot"{print "0x"$2}')
+# Fixed constants from parameter_custom.txt -- same ones flash-full.sh uses.
+# Do NOT switch back to parsing `ppt` output dynamically: rkdeveloptool's
+# `ppt` formatting is fragile to parse (a stray '\r' silently broke a
+# previous version of this script's awk match on "uboot", which produced an
+# EMPTY LBA and wrote 64MB starting at LBA 0x0 -- clobbering the MBR/GPT and
+# the idbloader at LBA 0x40). These offsets never change between cards.
+UBOOT_LBA=0x2000
+BOOT_LBA=0x88000
 echo "resolved: uboot @ $UBOOT_LBA, boot_linux @ $BOOT_LBA"
 
 write_verified uboot "$UBOOT" "$UBOOT_LBA"

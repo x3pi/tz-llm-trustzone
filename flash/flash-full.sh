@@ -29,20 +29,21 @@ BOOT=${2:-checkpoints/boot.img}
 SYSTEM=assets/full-flash/system_real.img
 VENDOR=assets/full-flash/vendor_real.img
 USERDATA=assets/full-flash/userdata.img
-# Sectors 64-8191 (up to but excluding the "uboot" GPT partition at LBA
-# 0x2000) extracted whole from a card that has run this exact project's
-# GPT/uboot layout successfully since the beginning -- NOT hand-built. See
-# STATUS.md "Blank SD card: idbloader" for the full story: a hand-built
-# idblock.bin (mkimage -T rksd from rkbin's generic RK3588MINIALL.ini
-# FlashBoot/FlashData) and even device_opi5plus_REAL/loader/MiniLoaderAll.bin
-# written directly both leave the board silently hung after power-on (no
-# UART output at all, not even the ROM's own DDR-init banner, so this is a
-# very early hang, not a clean BootROM rejection) -- both are believed to be
-# "USB-download-mode-only" loaders, not real cold-boot-capable ones. This
-# extracted region is UNTESTED as of this writing (was pulled from the
-# working card right as we switched back to it, not yet flashed+verified on
-# a blank card) -- confirm this actually boots before trusting it blindly.
-IDBLOADER=assets/full-flash/idblock_from_working_card.bin
+# The official Rockchip MiniLoaderAll.bin from the RKDevTool package (NOT
+# this project's own device_opi5plus_REAL/loader/MiniLoaderAll.bin, a
+# different/older file that was tried and failed). Four other payloads were
+# tried and failed first -- see STATUS.md "Blank SD card: idbloader" attempts
+# #1-#7 for the full story (a hand-built idblock.bin from rkbin's generic
+# ini, this project's own MiniLoaderAll.bin, an extraction from a working
+# Debian image, a whole-region extraction from this project's own working
+# card, and even a from-source rebuild using this project's own compiled SPL
+# -- all failed, either a silent pre-UART hang or a clean MaskROM rejection).
+# This one (attempt #8) is CONFIRMED WORKING: booted a genuinely blank card
+# through BootROM -> idbloader -> ATF/BL31 -> into ChCore/TEE-OS init on
+# 2026-07-29. Do not swap this for a different MiniLoaderAll.bin without
+# re-verifying end to end -- these files are not interchangeable even when
+# same-named.
+IDBLOADER=assets/full-flash/MiniLoaderAll_official.bin
 SUDO_PW=${SUDO_PW:-}
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
