@@ -434,6 +434,51 @@ so patience/retry remains the practical mitigation until/unless SPL's
 own retry-on-hash-failure behavior (if any exists) is investigated
 separately.
 
+## Further correction: the bad-hash value is DETERMINISTIC, not random (2026-07-29, even later)
+
+Got a full, continuous UART capture (started `cat /dev/ttyUSB0` *before* power-
+on, not the usual poll-after-the-fact) of a MaskROM-fallback episode using the
+exact same `checkpoints/uboot_repacked.img` (`98b15c08...`) already flashed
+and verified correct multiple times today. The trace shows:
+
+```
+## Checking atf-1 0x00040000 ... sha256(90b478f3ff...) + OK
+## Checking atf-2 ... sha256(569ee96047...) + OK
+Bad hash: ac8a218444e8fc55d844961a9d7276172d6c1d320c3d838553d127a9c127cdf5
+ error!
+```
+
+**`ac8a218444e8...` is the exact same wrong hash value seen in an earlier
+capture today**, for the `optee` component, on a different flash attempt.
+Verified the FIT file itself is correct on every axis checked: the
+recorded `data-position` for `optee` (`0x15f400`, via `fdtget`) points to
+bytes that hash to exactly the *expected* value (`5816a244...`) when
+extracted straight from the checkpoint file. The file is not the problem.
+
+**A repeated, identical wrong hash across independent flash/boot attempts
+rules out random bit-flip noise as the explanation** -- true random
+corruption would produce a *different* wrong value each time (this is
+exactly how the majority-vote read verification elsewhere in this project
+distinguishes real corruption from transient noise). Getting the *same*
+wrong 32-byte value twice, from the same never-changed on-card data, means
+whatever's misreading it is doing so **deterministically** -- most likely
+a real limitation of the board's on-board SD controller when DMA'ing a
+large (~55MB) contiguous read during real boot (a transfer size/pattern
+`rkdeveloptool`'s MaskROM-protocol reads, and Ubuntu's <1.6MB FIT, never
+exercise).
+
+**This invalidates the "just retry, it's probabilistic" conclusion from
+the section below** (kept for its correct sub-findings, but its final
+retry-based recommendation should be treated as superseded). If the
+misread really is deterministic for a fixed data pattern, repeated power-
+cycles with *unchanged* content are not expected to eventually succeed.
+Untested next ideas, in rough order of effort: (a) see if a smaller optee
+payload (if the actual TA/TEE-OS could be slimmed down) avoids whatever
+size threshold triggers this; (b) check if U-Boot/SPL config has any DMA
+alignment/chunking option for large FIT loadables; (c) try a physically
+different board if one becomes available, to separate "this board's SD
+controller" from "this general board model."
+
 ## CORRECTION (2026-07-29, later same day): not a bad SD card -- likely the board's own SD slot/controller
 
 The "physical bad block" conclusion below turned out to be wrong in its
