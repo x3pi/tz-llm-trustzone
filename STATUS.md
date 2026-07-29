@@ -404,6 +404,36 @@ Also: disk usage on the host is critical (99% full, ~5.7GB free as of this
 backup) -- do not create further multi-GB image files without first
 clearing space or moving this backup off-disk.
 
+## Why this project's boot is so much more failure-prone than a plain Ubuntu image (2026-07-29)
+
+While debugging yet another MaskROM-fallback episode, compared this project's
+FIT structure against `os/ubuntu-opi5max-minimal.img` (a community image
+confirmed to boot on this same board/card history). Both use the identical
+mechanism -- a FIT with per-component sha256 hash verification, checked by
+SPL before boot proceeds -- so "Ubuntu is less strict" is not the
+explanation. The real difference is **data volume**: Ubuntu's FIT hashes
+`uboot` (1.3MB) + 3 small ATF stages (~260KB total) + `fdt` (13KB) -- under
+1.6MB total, and has **no OP-TEE/TEE-OS component at all**. This project's
+FIT additionally hashes a **~55MB OP-TEE/TEE-OS blob** (`optee`, the actual
+TZ-LLM/ChCore payload) -- roughly **35x more data** that must come back
+bit-perfect from the SD card on every single boot, through whatever
+baseline bit-error-rate this board/card/slot combination has.
+
+This reframes today's whole saga: the repeated MaskROM-fallback episodes
+are very plausibly not a *broken* board, but the *expected* consequence of
+verifying a much larger hashed payload than a typical distro image ever
+does, over a channel with a small-but-nonzero error rate -- consistent with
+the historical note (2026-07-26) that the same file, reflashed 3x, failed
+hash verification twice and succeeded the third time. **Retrying (power-
+cycle and re-check) is not superstition -- it has a real statistical
+basis**: each attempt is an independent trial against a fixed per-boot
+data volume, so repeated attempts should eventually converge, the same way
+repeated flash-verify attempts already do. There is no known way to reduce
+the ~55MB OP-TEE hash requirement itself (it's the real TEE-OS payload),
+so patience/retry remains the practical mitigation until/unless SPL's
+own retry-on-hash-failure behavior (if any exists) is investigated
+separately.
+
 ## CORRECTION (2026-07-29, later same day): not a bad SD card -- likely the board's own SD slot/controller
 
 The "physical bad block" conclusion below turned out to be wrong in its
