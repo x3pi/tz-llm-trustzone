@@ -11,6 +11,10 @@ tz-llm/**/build-rknpure/
 tz-llm/tee_os_kernel/ramdisk-dir/
 tz-llm/tee_os_kernel/oh_tee/
 tz-llm/tee_os_kernel/oh_tee_bak/
+tz-llm/tee_os_kernel/user/system-services/system-servers/procmgr/procmgr
+
+# rkdeveloptool's own runtime log dir (grows every run, not source)
+tools/rkdeveloptool/log/
 
 # checkpoints/ IS tracked on purpose (small, curated, essential for "revert to
 # last good state") -- do not add a blanket checkpoints/ ignore here. If a

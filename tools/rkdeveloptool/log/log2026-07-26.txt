@@ -1,2 +1,0 @@
-23:19:19 	Error:RKU_Write failed, err=-1
-23:19:19 	Error: RKU_ResetDevice failed, err=-3

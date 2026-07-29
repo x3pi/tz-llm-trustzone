@@ -154,6 +154,99 @@ existing `all_ring_buffer_header` ring buffer protocol, reusing
 not present in this artifact as released. Don't expect "one boot, many
 prompts" to work without building that first.
 
+## Blank SD card: idbloader (2026-07-29, unresolved but documented)
+
+Flashing a genuinely blank SD card (GPT + uboot + boot_linux + system +
+vendor + userdata, all byte/spot-verified clean via `flash-full.sh`) produces
+a card that **falls straight back into MaskROM on every power-on, even
+without holding the MaskROM button** — the RK3588 BootROM's own automatic
+fallback when it finds nothing valid at the fixed idbloader location, LBA 64
+(0x40). None of this project's flashing scripts have ever written that
+region; the working SD card used every other night this project has existed
+already had a valid idbloader there from whenever it was originally
+provisioned (predates this project). `rkdeveloptool`'s own `ul` (upgrade
+loader) command exists to write it but is broken on this exact
+board/MaskROM: it fails deterministically with `RKU_ReadCapability`'s
+underlying `RKU_Write failed, err=-1` (a USB Mass-Storage/CBW bulk-transfer
+request the vendor-control-transfer-based `db`/`wl`/`rl`/`gpt` commands never
+use) -- confirmed with two different loader files, both failing identically
+at the same point, so it is not a file-choice problem, it is the tool itself.
+
+Fix path found: **Rockchip's own official `upgrade_tool` CLI** (from
+`https://github.com/LubanCat/tools/tree/master/linux/Linux_Upgrade_Tool`,
+referenced in the artifact's own README) has a working `UL <loader>
+[-noreset]` that completes cleanly (`Prepare IDB Start/Success`, `Download
+IDB Start/Success`, `Upgrade loader ok.`) where `rkdeveloptool ul` fails
+outright. It's a plain x86-64 static ELF binary, no install needed --
+`assets/full-flash/` does not currently keep a copy of it (grab the tarball
+fresh, or ask -- it was not committed here because its license/redistribution
+terms weren't checked).
+
+That said, WHICH BYTES to write at LBA 0x40 is still not solved cleanly.
+Three payloads tried, all via the working `upgrade_tool UL` (so the earlier
+`rkdeveloptool` bug is not a factor in these results):
+
+1. `mkimage -T rksd -n rk3588 -d <ddr>:<spl>` built from the *default* rkbin
+   paths in `RKBOOT/RK3588MINIALL.ini` (the same generic prebuilt SPL/DDR-init
+   binaries `device_opi5plus_REAL/loader/MiniLoaderAll.bin` itself is built
+   from -- confirmed by reading `pack_idblock()`/`pack_spl_loader_image()` in
+   the Docker image's own `make.sh`). BootROM read it fine (no MaskROM
+   fallback this time, unlike every other attempt) but the board then hung
+   completely -- zero UART output, not even the BootROM's own DDR-init
+   banner, for 5+ minutes, power LED solid but no heartbeat blink. Recovered
+   fine via the physical MaskROM button (not a brick).
+2. `device_opi5plus_REAL/loader/MiniLoaderAll.bin` written directly (same
+   underlying SPL/DDR-init family as #1, just the whole "download loader"
+   file instead of a narrower `mkimage -T rksd` repack of the same pieces).
+   Identical silent-hang symptom.
+3. The idbloader region (sectors 64-640, up to but excluding where its own
+   `uboot.itb` FIT begins) extracted directly from a **known-working**
+   community Debian image
+   (`os/Orangepi5max_..._debian_bookworm_.../....img`, confirmed to actually
+   boot Linux -- power LED blinking/heartbeat, not solid -- on this exact
+   board), combined with *our own* GPT/uboot layout. Same silent hang.
+   Working theory: this idbloader does not do a generic GPT-partition-name
+   lookup for the next stage -- it likely expects the next stage (its own
+   uboot.itb) at a location matching *Debian's* GPT convention (which places
+   partition 1 at LBA 61440, nothing like our `uboot@0x2000`), so pairing it
+   with our GPT sends it looking in the wrong place. Mixing idbloader-from-
+   one-image with GPT-from-another is not a safe combination.
+
+**Root cause for #1/#2, best current theory**: `RK3588MINIALL.ini`'s
+`FlashBoot`/`FlashData` (and therefore `MiniLoaderAll.bin`, and anything
+`pack_idblock()` builds from them without `--tpl`/`--spl` overrides) are
+rkbin's generic, prebuilt "USB download-mode bootstrap" SPL -- proven to
+correctly init DDR and enumerate over USB (that's what makes `db` work all
+night, every night), but its designed job stops there: wait for USB vendor
+commands. Used as the actual cold-boot idbloader (no USB host attached), it
+plausibly does exactly that -- waits forever -- matching the observed silent
+hang exactly. A real fix likely needs `pack_idblock` invoked with
+`--tpl --spl` (or `ARG_TPL_BIN`/`ARG_SPL_BIN` set directly) pointing at the
+project's *own compiled* `tpl/u-boot-tpl.bin` / `spl/u-boot-spl-dtb.bin` from
+the same `rk3588-edge` build that produces our working `uboot.img` -- these
+have proper multi-boot-media (SD/eMMC/USB) support, unlike the generic
+download-only prebuilt. **Not yet tried** -- a naive first attempt at this
+(re-invoking `./make.sh rk3588-edge --idblock` as a second call after the
+main build) turned out to re-run the ENTIRE build pipeline a second time
+(not a narrow idblock-only step) and deleted the already-good `uboot.img`
+before failing on an unrelated missing rkbin file in a differently-configured
+(generic `rk3588-evb`, not our board) code path -- caught before it did
+lasting damage (`fast_build_uboot.sh` reverted cleanly, confirmed via
+`git diff`), but it means whatever does this next needs to directly invoke
+`mkimage -T rksd` itself with explicit absolute paths to our own already-
+built `tpl/`/`spl/` outputs, not go through `make.sh`'s command dispatch a
+second time.
+
+`assets/full-flash/idblock_from_working_card.bin` (sectors 64-8191, the
+*whole* pre-`uboot@0x2000` reserved region, extracted whole from the actual
+working SD card this project has used since before this session -- i.e. this
+project's own GPT layout, not Debian's) is now wired into `flash-full.sh` as
+the idbloader source for future blank-card attempts. **This has not been
+flash-tested yet** -- it was extracted right as the session pivoted back to
+the working card rather than continuing to iterate live. If this doesn't
+work either, the `--tpl --spl` build-our-own-SPL path above is the next
+thing to try, not another blind payload swap.
+
 ## Directory map
 
 ```
@@ -170,9 +263,18 @@ checkpoints/              uboot_repacked.img + boot.img + SHA256SUMS (latest
                           verified-flashed state, see above)
 patches/                  tee_os_kernel_vs_upstream.patch -- the 4 chanmgr/
                           rknpu source changes as a diff, for reference
+assets/full-flash/        parameter_custom.txt, rk3588_spl_loader loader,
+                          system_real.img/vendor_real.img/userdata.img, and
+                          idblock_from_working_card.bin -- everything
+                          flash-full.sh needs to init a BLANK SD card from
+                          scratch (see "Blank SD card: idbloader" above --
+                          the idbloader piece is unresolved/untested)
 rebuild.sh                rebuild TEE-OS+kernel (~40 min, Docker)
 flash/repack.sh           repack a fresh uboot.img with the known-good U-Boot
-flash/flash.sh            verified flash to SD card (see infra notes above)
+flash/flash.sh            verified flash to SD card, existing card only (see
+                          infra notes above)
+flash/flash-full.sh       full blank-card init: GPT + idbloader + uboot +
+                          boot_linux + system + vendor + userdata
 ```
 
 ## Operational tools
