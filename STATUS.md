@@ -404,6 +404,63 @@ Also: disk usage on the host is critical (99% full, ~5.7GB free as of this
 backup) -- do not create further multi-GB image files without first
 clearing space or moving this backup off-disk.
 
+## Old card: physical bad block found in the `uboot` partition (2026-07-29)
+
+**Root cause finally found for the whole day's flaky MaskROM-fallback /
+silent-hang / bad-hash boot failures on the old card**: a real, localized,
+non-writable region on the physical SD card, at absolute LBA `0x10000`
+through roughly `0x11c00` (within the `uboot` GPT partition, specifically
+the region where the OP-TEE FIT component lands -- this is exactly why the
+one time we got a real UART trace it showed `Checking optee ... Bad hash`
+rather than a generic failure).
+
+Diagnostic sequence, all on the *old* card, all pointing the same way:
+
+1. `checkpoints/uboot_repacked.img` is internally self-consistent -- the
+   FIT header's recorded optee hash (`5816a244...`) matches re-extracting
+   and re-hashing that exact segment from the file locally. The file is
+   not corrupt.
+2. A live boot attempt (the one time this session a full, legible UART
+   trace was captured) showed U-Boot's SPL computing a *different* hash
+   (`ac8a2184...`) for the optee data it actually read from the card at
+   boot time -- via the real SD controller, a different hardware path than
+   `rkdeveloptool`'s MaskROM/USB-based `rl`/`wl`.
+3. `flash/flash.sh`'s own chunked-write-with-verify caught this directly:
+   two independent full reflashes both failed at the exact same 4MiB chunk
+   (chunk 7, LBA `0x10000`) after 5 retries each -- not a random chunk each
+   time, the *same* one.
+4. Reading that region repeatedly (no writes) returned one stable value
+   4/5 times, confirming the card can still read consistently there -- but
+   that stable value does **not** match what was ever written there
+   (`239fd6f2...` vs the file's real content `4402afbf...`).
+5. Systematically ruled out every process/timing explanation before
+   concluding it's physical: (a) smaller 512KiB/64KiB sub-chunk writes --
+   still stuck at the same wrong value; (b) a 5-second delay between write
+   and verification read (in case of a write-cache-not-yet-flushed
+   explanation) -- no change; (c) writing from a real temp file instead of
+   a process-substitution pipe (in case `sudo`+`<(...)` was silently
+   truncating input) -- no change. The write command itself always reports
+   100% success; the data simply never persists at this location.
+
+**Conclusion: a physically bad/worn flash block on this specific SD card,
+localized to roughly LBA 0x10000-0x11c00.** Not fixable in software --
+accepts writes (reports success, sometimes even reads back correctly
+immediately after) but does not retain data. This explains essentially
+every inconsistent boot result on the old card today, despite every
+checkpoint file involved being independently verified correct.
+
+**Not a data-loss risk**: this bad region is entirely within the `uboot`
+GPT partition (LBA `0x2000`-`0x82000`), nowhere near `userdata` (LBA
+`0x1308000`+, where the real GGUF model lives) or `system`/`vendor`. The
+software/checkpoint/build pipeline in this repo has been independently and
+thoroughly verified correct throughout today's work (see the sections
+above) -- the remaining blocker is purely this one physical SD card's
+hardware. **Next step if resuming**: this exact card's `uboot` partition
+needs a different physical card (or, if ever worth the effort, an idbloader/
+GPT layout that deliberately avoids the ~0x10000-0x11c00 LBA range -- not
+attempted, likely not worth the complexity versus just using a healthy
+card).
+
 ## Container bind-mount trap (2026-07-29): `project/` edits were silently not being built
 
 The Docker builder container (`tzllm_fixed_builder`, created before the
