@@ -917,3 +917,381 @@ LD_LIBRARY_PATH=/data/local/tmp/rknpu/ /data/local/tmp/rknpu/ld-linux-aarch64.so
 Run in background (not foreground on a UART console — a hang holds the tty
 and Ctrl+C does not reach it). This is the *only* TZ call this boot will
 service; a fresh power cycle is needed to try again.
+
+## SPL retry-on-hash-failure patch, and 3 disproven theories for the chronic LBA 0x11800 write failure (2026-07-29 night)
+
+Implemented the retry patch scoped in the previous session:
+`u-boot-orangepi/common/spl/spl_fit.c`'s `spl_load_fit_image()` now retries
+`info->read()` + `fit_image_verify_with_data()` up to 5 times (external-data
+images only) before returning `-EPERM`, instead of failing on the first bad
+hash. Compiles clean; confirmed the string `"Bad hash, retrying read (%d/5)"`
+present in the built `spl/u-boot-spl-nodtb.bin`.
+
+To actually run this patched SPL, it has to be packed into a fresh idbloader
+(`./make.sh CROSS_COMPILE=aarch64-linux-gnu- --idblock --spl`, combining our
+own compiled `spl/u-boot-spl.bin` with rkbin's real DDR-init TPL) — the
+currently-deployed `MiniLoaderAll_official.bin` idbloader's second stage is
+Rockchip's own closed prebuilt `rk3588_spl_v1.14.bin`, unrelated to this
+source tree, so patching `spl_fit.c` has no effect while that idbloader is in
+use. Confirmed via `boot_merger unpack` that `MiniLoaderAll_official.bin`'s
+`FlashBoot` slot is a genuine vendor binary (hash doesn't match anything in
+the local `rkbin` checkout, but the filename convention and the ini
+reference match). Important context found while investigating this: the
+BREAKTHROUGH live-shell boot earlier tonight (see above) *itself* already
+used a from-source `--idblock --spl` build, not `MiniLoaderAll_official.bin`
+— so this combination (real TPL + our own compiled SPL) is not a fresh,
+untested path; it already worked once tonight before the retry patch was
+added. New idbloader built this way: `assets/full-flash/idblock_pool3fix_retry.bin`
+(305,152 bytes, sha256 `19c4642e...`). New script:
+`flash/flash-with-idbloader.sh <idbloader> [uboot] [boot]` — like `flash.sh`
+but also writes the idbloader at LBA 0x40 first, without doing a full
+`flash-full.sh` GPT/system/vendor/userdata wipe.
+
+**Testing this required rebuilding the u-boot-orangepi tree, which hit an
+unrelated environment problem first**: ~2000 files under `u-boot-orangepi/`
+were still owned by `root` from an old build that ran inside Docker as root,
+blocking the current user (`pi`) from writing new build outputs (e.g.
+`arch/arm/mach-rockchip/pstore.su`). Fixed with `sudo chown -R pi:pi .` on
+the whole tree (user supplied the sudo password directly in this session).
+Not expected to recur unless another root-driven build touches this tree
+again.
+
+**Attempting to test the patch on the actual chronic failure (flashing
+`checkpoints/pool3fix-clean/` — the LOG_LEVEL=1 build of the pool-3 mm_init
+fix that has never once flashed cleanly) surfaced something more important
+than the SPL patch itself: the write-time failure that has blocked
+`pool3fix-clean` all session is not what several theories this session
+assumed it was.** Three flash attempts with the new idbloader all failed
+identically, at the exact same point: `flash/flash.sh`'s/`flash-with-idbloader.sh`'s
+512KB-chunk scheme always fails at **chunk 62** (absolute LBA `0x11800`,
+~31MB into the 64MB `uboot_repacked.img`), 0/3 or occasionally 1/3 verify
+match across all 5 write-retry attempts, no partial progress. This is the
+same absolute LBA region (`~0x11800-0x11900`) that has been the chronic
+trouble spot across multiple different sessions and multiple different
+`uboot_repacked.img` contents, not something new to `pool3fix-clean`.
+
+Three theories were tested live tonight and each was **disproven**, in this
+order:
+1. **"Marginal/worn physical sector on this specific SD card."** Disproven:
+   user swapped in a **second, different physical SD card** mid-session:
+   `flash-with-idbloader.sh` was rerun unchanged and failed at **the exact
+   same chunk 62 / LBA 0x11800** on the new card too (with baseline noise
+   elsewhere on this card being slightly worse — chunks 0 and 26 needed
+   2/3 instead of 3/3 majority — but chunk 62 was a hard, deterministic 0/3
+   failure across all 5 retries, same as the old card). Two independent
+   physical cards failing at the identical absolute address rules out a
+   single card's own worn/marginal NAND block as the explanation.
+2. **"Cumulative per-session USB/MaskROM transfer limit (~32MB), matching
+   `CONFIG_SYS_MMC_MAX_BLK_COUNT=65535` sectors found in `dw_mmc.c`/`mmc.c`
+   earlier tonight."** Tested by forcing a **fresh loader session** (new
+   physical power cycle + fresh `db`/`cs 2` handshake) partway through the
+   write, positioned so only ~6MB would be transferred in the new session
+   before reaching chunk 62. Disproven: chunk 62 still failed identically
+   (0/3, all 5 retries) in the brand-new session. (Also learned an
+   operational fact along the way: `rkdeveloptool db` cannot re-enter loader
+   mode without an actual physical power cycle back to real MaskROM first —
+   calling it again while the device is still in an already-active loader/
+   USB-MSC state just times out.)
+3. Random USB-channel bit-flip noise was already effectively ruled out
+   before tonight (same wrong location every time, never a different
+   chunk), and remains ruled out.
+
+**What's left, and the strongest remaining theory**: something tied to this
+*absolute* LBA address itself (`~0x11800`, i.e. roughly 137MB into the
+device) in the RK3588 BootROM/MaskROM protocol's own SD/MMC read-write
+implementation — independent of destination card, independent of session
+transfer history, independent of file content (different contents at this
+same file offset have failed across different sessions historically too).
+This could be an address-decoder edge case, a DMA descriptor/buffer boundary
+specific to this offset, or some other BootROM-level quirk. Not yet
+root-caused further — would need lower-level tooling (bus analyzer, or
+Rockchip's own internal debug documentation) to pin down definitively, which
+is beyond what's practical in this project. **The SPL retry patch itself
+remains untested end-to-end** (never got past the write-time failure to
+reach a real boot with the patched idbloader) — it may still be useful for
+transient real-boot hash failures even if it can't help with this
+specific, fully-deterministic write-time failure (a retry loop only helps
+when a retry can plausibly succeed; this failure has shown zero variance
+across at least 8 total attempts tonight, so retrying the *read at boot
+time* for this exact scenario would likely not help either if the same
+deterministic mechanism is at play during real boot reads, not just
+MaskROM-protocol writes).
+
+**Recommendation for next session**: stop pursuing new write-time theories
+for `pool3fix-clean` specifically; the mechanism is likely something at the
+BootROM/hardware protocol level that isn't fixable from this project's
+scripts. Options: (a) keep using `checkpoints/pool3fix/` (LOG_LEVEL=2, the
+one build that HAS flashed and booted successfully) as the working reference
+instead of chasing a "clean" LOG_LEVEL=1 rebuild; (b) if a clean rebuild is
+still wanted, try a build whose compiled size happens to shift the byte
+layout so this troublesome chunk boundary lands on different content (not
+guaranteed to help, since the LBA itself seems to be the common factor, not
+content); (c) resume the original TZ-LLM/NPU inference goal using
+`checkpoints/pool3fix/` as-is now that it's a confirmed-bootable reference,
+rather than continuing to block on a "clean logs" nice-to-have.
+
+## OOM instrumentation, secure_storage/teecd root-cause chase, and a new post-fix crash cascade (2026-07-30)
+
+Long follow-on session investigating the OOM/Data-Abort spam and panic-reboot
+flagged as unresolved above. Net result: **two real, previously-undiscovered
+bugs found and fixed** (missing `secure_storage` GPT partition, missing
+`/sec_storage` mount-point directory), `teecd` conclusively proven unrelated
+to the TZ-LLM/NPU inference path and fully disabled, and the pool-3 OOM
+theory disproven with direct instrumentation evidence -- but boot now hits a
+**new, different, systemic crash** (many unrelated services SIGSEGV near
+same the boot, i.e. not simply a rehash of any of the bugs fixed this
+session).
+
+**Step 1 -- instrumented the actual OOM/allocation path** (not a fix, a
+diagnostic): added `kinfo` prints to `kernel/mm/buddy.c`'s `buddy_get_pages()`
+OOM branch (prints `pool_idx`, `pool_mem_size`, `order`) and to
+`kernel/object/user_fault.c`'s `sys_user_fault_map()` (prints `client_badge`,
+`fault_va`, `remap_va`, `copy` whenever the page-fault-servicing `get_pages(0)`
+call actually fails) -- rebuilt via the full `chcore.sh && linux.sh &&
+chcore.sh` pipeline, repacked, flashed, booted. **Result: `[FAULT_OOM]` (the
+print inside the actual page-fault-servicing allocation path) fired
+**zero** times across the whole capture, while the routine `[OOM]
+pool_idx=0 order=0` line fired 50,000+ times.** Cross-checked: every `order=0`
+failure was `pool_idx=0` only, never followed by a same-order failure at
+`pool_idx=1` or beyond -- i.e. pool 0 (a small ~67MB pool, tried first) fills
+up early and every small allocation request simply falls through to pool 1
+(~85MB) and succeeds there silently. **This conclusively disproves the "pool-3
+removal caused real memory pressure" theory from the prior session** -- the
+huge OOM print volume is benign, expected fallback-allocator noise, not
+evidence of exhaustion. (Instrumentation left in the tree; harmless at
+production `LOG_LEVEL=1` since both prints are `kinfo`, not `kdebug`.)
+
+**Step 2 -- found the real root cause of `teecd` (TEE Client Daemon) crashing
+every boot (`exit code 255`, repeated respawn, eventually killing `samgr` a
+"critical service" and triggering a full system panic-reboot)**, via three
+compounding real bugs, found one at a time by actually reading source
+(not guessing):
+
+1. **Missing `secure_storage` GPT partition.** `teecd`'s own init job
+   (`/system/etc/init/teecd.cfg`) does `mount ext4
+   /dev/block/by-name/secure_storage /sec_storage ...` as its very first
+   step -- but `assets/full-flash/parameter_custom.txt`'s partition table has
+   **no partition named `secure_storage` at all**. Fixed by adding one:
+   there is a genuine ~5.9GB unused gap between `chip_ckm`'s end (LBA
+   `0x72C000`) and `userdata`'s start (LBA `0x1308000`) in the existing
+   layout, so a new 64MB (`0x20000` sectors) partition was inserted there
+   with **zero risk to any existing partition's offset** --
+   `,0x00020000@0x0072C000(secure_storage)` added to `parameter_custom.txt`,
+   a blank ext4 image created (`assets/full-flash/secure_storage.img`,
+   `mkfs.ext4`), both flashed via a new GPT write + targeted `wl` at LBA
+   `0x72C000`. Verified: `mount` line's error changed from `ENOENT` to
+   *no error at all*, and the kernel log showed `EXT4-fs (mmcblk0p15):
+   mounted filesystem with ordered data mode` -- genuine success.
+2. **Missing `/sec_storage` mount-point directory.** Even with the
+   partition now mountable, `mount` still failed (`err 2`). Root cause:
+   `/sec_storage` didn't exist as a directory anywhere on the *actual*
+   boot-time root filesystem. Initially (wrongly) assumed root was the
+   initial ramdisk (`ramdisk_5plus_original.img`) and added `/sec_storage`
+   there -- rebuilt via the full pipeline, flashed, retested: **still
+   failed, this time with `err 30` (EROFS)**, proving root is mounted
+   read-only at that point, so a runtime `mkdir` in the cfg can never
+   create it regardless. Investigated further and confirmed via mounting
+   `assets/full-flash/system_real.img` directly: **it IS the real root
+   filesystem** (`root=PARTUUID=<system's UUID>` in the kernel cmdline;
+   contains `/data`, `/dev`, `/proc`, `init -> /system/bin/init`, etc. --
+   not just an overlay at `/usr`). Added `/sec_storage` (0700) at the
+   **top level of `system_real.img` itself** (not the ramdisk), reflashed
+   just `system.img`. Verified: the `mount` command line in the boot log
+   now has **zero error output** at all (previously always followed by
+   `Failed to mount for /sec_storage, err 2`).
+3. **`/dev/tc_private` genuinely never gets created -- by design, not a
+   bug.** After (1) and (2), `teecd` still crashed (`exit 255`), now on
+   `Failed to change owner for /dev/tc_private, err 2`. Traced through
+   `tzdriver/core/tc_client_driver.c`: the *standard* OpenHarmony
+   `tc_ns_client_init()` (which creates both `/dev/tc_ns_client` and
+   `/dev/tc_private`) is **dead code** -- `tc_init()` has an unconditional
+   `return ret;` right after its "tc_init finish" log line, making
+   `tc_ns_client_init()` and everything after it (`tc_teeos_init`,
+   `enable_dev_nodes`, `alloc_dev_bitmap`, etc.) unreachable. This
+   project's own `llm_client_init()` (the function actually called)
+   creates *only* `/dev/tc_ns_client`, via a custom `g_llm_ns_client_fops`
+   -- `/dev/tc_private` was never meant to exist in this build at all.
+   Confirmed a `ueventd.config` permission-list theory was a red herring
+   (added the missing entry, made no difference -- the device genuinely
+   isn't created at the kernel level, no amount of userspace permission
+   config can conjure it).
+   **Then verified (via a dedicated Explore-agent code audit, not
+   assumption) that `teecd`/`/dev/tc_private`/`libteec` are entirely
+   unrelated to the actual TZ-LLM inference path**: the real CA
+   (`llama.cpp/examples/main/fake_ca.cpp`, `alloc-stage.cpp`,
+   `io-backend.cpp`) opens `/dev/tc_ns_client` directly via raw
+   `open()`+`ioctl(LLM_CLIENT_IOCTL_*)`, never includes
+   `tee_client_api.h`, never calls any `TEEC_*` function. TA loading goes
+   through ChCore's own `chanmgr` as a native process launch, never
+   through `teecd`'s `secfile_load_agent.c` (that code path is entirely
+   absent from this project). Zero references to `teecd`/`libteec`/
+   `TEEC_*` anywhere in this project's own vendor config. **Disabling
+   `teecd` carries no risk to CPU (TrustZone) or NPU inference.**
+
+**Step 3 -- disabling `teecd` took two attempts to actually work, and
+surfaced a real lesson about unverified large writes.** First attempt:
+removed just the `"early-fs": ["start teecd"]` job from `teecd.cfg`,
+keeping the `"services"` block. Reflashed, retested: **`teecd` still
+started** -- turned out OpenHarmony's init can auto-launch a service that's
+merely *declared* in `"services"`, independent of any explicit `"start"`
+job (not confirmed via source, inferred from this repeated behavior).
+**Second attempt: deleted `teecd.cfg` entirely.** Reflashed, retested with
+a definitively single, clean UART reader (see below) -- **confirmed
+`teecd` no longer starts at all (0 occurrences in a full clean boot
+capture).**
+
+**Along the way, hit and resolved a real self-inflicted diagnostic bug**:
+at one point two `cat /dev/ttyUSB0` background processes were reading the
+same serial port simultaneously (one from an earlier capture that was
+never killed), producing garbled/interleaved UART logs that looked like
+`teecd` was still starting when it may not have been. Always `ps aux |
+grep "cat /dev/ttyUSB0"` and kill stragglers before trusting a capture.
+Also independently reconfirmed, via a byte-exact targeted re-read (using
+`debugfs -R "stat <path>" <img>` to get the file's exact filesystem block
+number, converting to an absolute card LBA, then a 3x-majority-vote
+`rl` readback), that a specific `system.img` edit really did (and later
+really didn't, before the `teecd.cfg` deletion) survive a `wl` write --
+this targeted-block-verify technique is a fast, reliable alternative to
+full-file chunked verification for confirming *one specific known edit*
+landed correctly, without needing to reverify the whole multi-GB image.
+
+**Current unresolved blocker (real, not a repeat of anything above)**:
+with `teecd` fully confirmed gone, boot now fails with a **new crash
+cascade** -- many unrelated services (`ecologicalRuleMgrService`,
+`telephony_sa`, `light_host`, `av_codec_service`, `softbus_server`,
+`msdp_sa`, `audio_host`, `inputmethod_service`, `accessibility`,
+`foundation`, `deviceauth_service`, and eventually `samgr` itself) all
+exit with `SIGSEGV` in a tight window, and `processdump` (the OS's own
+crash-info-dumping tool, invoked automatically when a service crashes)
+itself hits a genuine kernel Oops (`Unable to handle kernel paging
+request`, `pc : unmap_page_range+0x134/0x5f0`) while trying to process
+one of them. **Leading theory, not yet verified**: many *unrelated*
+services crashing near-simultaneously smells like a shared dependency
+(e.g. a widely-linked shared library) got corrupted -- plausibly by the
+same chronic large-block SD-read reliability issue documented extensively
+elsewhere in this file, this time landing in a shared `.so` instead of
+`optee`/the kernel Image/GPT. Not yet root-caused further. GPT itself
+read correctly in this same boot (0 `Invalid GPT` errors), so the flaky
+read this time (if that's what it is) hit something else.
+
+**Net status at end of session**: `checkpoints/secstorage-fix/` (uboot +
+boot_linux, includes the earlier ramdisk `/sec_storage` mkdir attempt,
+superseded but harmless) is the current uboot/boot_linux pair.
+`assets/full-flash/system_real.img` now has the `secure_storage` mount
+fix AND `teecd.cfg` fully deleted -- this is the most-fixed system image
+to date, not yet promoted/copied to a dedicated named checkpoint (todo:
+snapshot it before further edits). `assets/full-flash/parameter_custom.txt`
+now includes the `secure_storage` partition permanently. TZ-LLM+NPU
+inference still not re-demonstrated -- the boot-stability blocker moved
+from "pool-3 hang" to "teecd panic-reboot" to now "unexplained multi-service
+SIGSEGV cascade", each a real, distinct, now-partially-or-fully-resolved
+problem, not the same bug wearing different names. Next session should
+start by investigating the SIGSEGV cascade (check whether it's the same
+few processes every boot or random -- if random, points at hardware read
+flakiness in a shared library; if the same processes every time, points at
+a real software bug specific to those services) before returning to the
+original TZ-LLM/NPU goal.
+
+## Root cause found: this specific board's hardware, not this project's code (2026-07-30)
+
+Continuation of the SIGSEGV-cascade investigation above. Corrected a
+mistaken deletion of 14 legitimate OS services (disabled based on a wrong
+"mobile-only" assumption; log evidence showed all 14 had run cleanly
+before) -- restored verbatim from the docker image's OpenHarmony source.
+Added `show_unhandled_signals=1` to `arch/arm64/kernel/traps.c` for
+better crash visibility; corrected an over-confident "translation fault
+proves SD corruption" claim after re-reading `arch/arm64/mm/fault.c`
+(translation fault just means "no page-table mapping found", not
+necessarily "wrong data was read" -- a real but narrower signal than
+first claimed). Tried a "pre-warm" mitigation (sequentially read
+`ld-musl-aarch64.so.1` into page cache before any concurrent service
+access, to rule out a first-touch race) -- **tested and disproved**: the
+identical crash (`ld-musl-aarch64.so.1[...+ba000]`, translation fault)
+recurred in two different processes despite the pre-warm.
+
+**Decisive test: swapped in a second, completely different physical SD
+card.** The `ld-musl+0xba000` crash vanished entirely (never recurred),
+but a *different* crash cascade appeared (`multimodalinput`/`hilogd`/
+`samgr` all SIGSEGV within ~150ms, no `unhandled exception` line despite
+the debug flag -- looks like externally-delivered signals, not CPU
+faults), and separately the chronic "Bad hash" U-Boot boot-time read
+failure (see many entries above) also reproduced on this brand-new card,
+with the **same wrong hash value** across two independent boot attempts.
+
+Investigated the "Bad hash" mechanism at the code level (not just
+symptom-level) for the first time: `include/mmc.h`'s
+`CONFIG_SYS_MMC_MAX_BLK_COUNT` defaults to 65535 sectors (~32MiB) --
+the max single `READ_MULTIPLE_BLOCK` (CMD18) transfer size -- and this
+board's config never overrides it. The Linux kernel Image (~38.7MiB) is
+the *only* FIT component that ever exceeds this, forcing a 2-chunk read
+at the hardware maximum transfer size; every other component (all
+<32MiB) always reads in one comfortably-sized chunk and has never once
+failed. This correlation (only the >32MiB component ever fails) looked
+like a real, fixable lead.
+
+**Two real source fixes made to `u-boot-orangepi` (now tracked in this
+repo at `tz-llm/u-boot-orangepi/`, previously untracked/external)**:
+1. `include/configs/rk3588_common.h`: added
+   `#define CONFIG_SYS_MMC_MAX_BLK_COUNT 8192` (4MiB max transfer instead
+   of the 32MiB default), to test the "large single DMA transfer is
+   unreliable" theory.
+2. Rebuilding surfaced an unrelated regression: `.config` had
+   `CONFIG_OPTEE_CLIENT=y` (with `CONFIG_OPTEE_ALWAYS_USE_SECURITY_PARTITION=y`),
+   which the actually-deployed working U-Boot binary was proven (via
+   `strings` on the binary -- the string `"optee check api revision fail"`
+   was entirely absent) to NOT have had compiled in. With it enabled, a
+   real-OP-TEE-client-ABI check (`OpteeClientApiLib.c`,
+   `optee_api_revision_is_compatible()`) now runs during FIT boot and
+   panics (`optee api revision fail: 0.0`) because this project's TEE-OS
+   is ChCore/OHTEE, not real Rockchip OP-TEE, so it never answers that
+   SMC correctly. Fixed by disabling `CONFIG_OPTEE_CLIENT` (and its
+   dependents `OPTEE_V1`/`OPTEE_V2`/`OPTEE_ALWAYS_USE_SECURITY_PARTITION`)
+   in `.config`. Needed `scripts/kick-the-tires/repack/u-boot-nodtb.bin`
+   and `u-boot.dtb` overwritten with the fresh build, then
+   `flash/repack.sh <existing-uboot_repacked.img>` to reuse the
+   already-tested `optee`/TEE-OS blob unchanged.
+   **Build gotcha for next time**: after hand-editing `.config`, a plain
+   `make` does NOT resync `include/config/auto.conf` on this old
+   (2017.09-era) U-Boot tree -- it silently builds with the *stale*
+   config. Must run `make ... oldconfig` (interactively; pipe `yes ""` to
+   accept defaults for genuinely-new symbols) before the real build, or
+   the edit has no effect despite `.config` looking correct.
+
+**Result: the MMC-chunk-size fix did NOT fix the "Bad hash" bug** --
+identical failure recurred (different wrong-hash value this time) even
+at 4MiB chunks. This disproves the "large single DMA transfer" theory as
+the actual mechanism. The OP-TEE-disable fix is real and worth keeping
+(no downside), but the core Bad Hash bug remains unexplained by anything
+fixable in U-Boot's MMC driver.
+
+**Then the user's own idea settled it: swap in a genuinely different
+physical board** (not just a different card). Full `flash-full.sh` with
+this same fixed U-Boot + unchanged `optee`/kernel content: **0 verify
+failures, then a completely clean boot** -- every FIT hash check passed
+first try (including the 38.7MiB kernel Image that always failed on the
+old board), reached a live, responsive shell (`uname -a` confirmed) and
+stayed up 170+ seconds under a full 30-minute UART capture with real
+WiFi scanning, USB mouse hot-plug, and dozens of OS services starting --
+zero panics, zero SIGSEGV cascades, zero Bad Hash. **Same exact image
+content, only the physical board differed.**
+
+**Conclusion**: this entire project's chronic "flaky boot" saga --
+Bad Hash on large FIT reads, the SIGSEGV cascades, the `ld-musl` crashes,
+the userdata f2fs corruption, the CMA fragmentation crash -- is most
+consistent with **this specific old board's hardware being marginal**
+(SD controller/slot signal integrity and/or marginal DRAM -- a
+independently-built, well-tested Debian image was also observed to hit a
+translation-fault Oops in the core page allocator, `__free_pages_ok`,
+on the SAME old board, which is strong evidence the problem is not
+specific to this project's own kernel/TEE-OS code at all). The new board
+is the reference-good hardware going forward. Recommended operational
+practices going forward (discussed with user): never cut power mid-flash,
+add active cooling if not already present, avoid unnecessary full-card
+reformats (`flash-full.sh`) when `flash.sh` suffices, let the board rest
+between extended high-load test runs.
+
+**Current best checkpoint**: `checkpoints/mmcfix-debug2/` (uboot_repacked.img
++ boot.img) -- U-Boot with both fixes above, same tested-good TEE-OS/kernel
+content as `checkpoints/showsig-debug/`. This is the build now flashed and
+confirmed working on the new board. TZ-LLM+NPU inference itself still not
+yet re-tested on this new board -- that's the immediate next step.

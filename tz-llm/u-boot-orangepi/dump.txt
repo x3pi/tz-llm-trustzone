@@ -1,0 +1,14 @@
+"Synchronous Abort" handler, esr 0x96000010
+* Reason:        Exception from a Data abort, from current exception level
+* PC         =   00000000002baeb0
+* LR         =   00000000002169f8
+* SP         =   00000000eb9f9220
+* ESR_EL2    =   0000000096000010
+* Reloc Off  =   00000000eda3b000
+  PC:   [< 002baeb0 >]
+Stack:
+        [< 002baeb0 >]
+        [< 00217fe4 >]
+        [< 0022e380 >]
+        [< 00218c20 >]
+        [< 00218e54 >]

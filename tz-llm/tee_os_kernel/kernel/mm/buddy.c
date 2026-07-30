@@ -254,7 +254,9 @@ struct page *buddy_get_pages(struct phys_mem_pool *pool, int order)
     }
 
     if (unlikely(page == NULL)) {
-        kdebug("[OOM] No enough memory in memory pool %p\n", pool);
+        int pool_idx = (int)(pool - global_mem);
+        kinfo("[OOM] pool_idx=%d pool_mem_size=0x%lx order=%d\n",
+              pool_idx, pool->pool_mem_size, order);
         goto out;
     }
 

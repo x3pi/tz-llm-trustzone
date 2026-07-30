@@ -55,7 +55,7 @@ static const char *handler[]= {
 	"Error"
 };
 
-int show_unhandled_signals = 0;
+int show_unhandled_signals = 1;
 
 static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 {

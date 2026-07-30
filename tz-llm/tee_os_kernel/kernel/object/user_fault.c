@@ -185,8 +185,11 @@ int sys_user_fault_map(badge_t client_badge, vaddr_t fault_va, vaddr_t remap_va,
         new_pa = pa;
     } else {
         new_page = get_pages(0);
-        if (new_page == NULL)
+        if (new_page == NULL) {
+            kinfo("[FAULT_OOM] sys_user_fault_map: client_badge=%d fault_va=0x%lx remap_va=0x%lx copy=%d\n",
+                  client_badge, fault_va, remap_va, copy);
             return -EINVAL;
+        }
         if (remap_va)
             memcpy(new_page, (void *)phys_to_virt(pa), PAGE_SIZE);
         else
