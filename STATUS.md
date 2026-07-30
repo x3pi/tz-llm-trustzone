@@ -1295,3 +1295,128 @@ between extended high-load test runs.
 content as `checkpoints/showsig-debug/`. This is the build now flashed and
 confirmed working on the new board. TZ-LLM+NPU inference itself still not
 yet re-tested on this new board -- that's the immediate next step.
+
+## TZ-LLM+NPU re-test on the new board: 3 real bugs found via deep SMC/pipeline tracing, not yet fixed (2026-07-30, continued)
+
+Resumed the actual TZ-LLM/NPU inference goal now that the new board is
+confirmed stable. Repro: `mount /dev/block/nvme0n1p1 /data/ssd` then
+`LD_LIBRARY_PATH=/data/ssd/rknpu/ /data/ssd/rknpu/ld-linux-aarch64.so.1
+/data/ssd/rknpu/fake -c 0 -l 0 -m tinyllama -n 64 -s 0 > /data/tz.log 2>&1 &`
+(all CA binaries + model already present on the SSD from earlier sessions).
+
+**First run hung silently** (no crash, ~400% CPU, UART/console became
+unresponsive under the load -- traced this to `usb_host`'s pre-existing
+crash-loop, unrelated to the LLM path, spamming dmesg; confirmed via the
+boot log that it starts crashing at ~52s uptime, *before* any USB device is
+even plugged in, so it's not something to "fix" by unplugging anything).
+Set up **`hdc` over WiFi** to get a reliable, non-UART debugging channel
+(recipe: `param set persist.hdc.port 8710; param set ohos.ctl.stop hdcd;
+(/system/bin/hdcd -t &)`, then `hdc tconn <ip>:8710` from the host --
+this is NOT persisted across reboots, must be redone every time).
+
+**Bug #1 -- NPU offload is silently ON by default, even without `-ngl`.**
+`fake`'s CLI has no working `-ngl` passthrough (documented back in
+Follow-up #21), so `params.n_gpu_layers` stays at its `-1` default;
+`common.cpp`'s `if (params.n_gpu_layers != -1)` guard does NOT catch `-1`,
+so the model's own "offload everything" default applies regardless.
+Confirmed via `llm_load_tensors: offloading 22 repeating layers to GPU`
+appearing in the log despite never passing `-ngl`. Fixed by hardcoding
+`params.n_gpu_layers = 0;` in `examples/main/main.cpp` right before
+`gpt_init()` (TA-side/`LLAMA_USE_CHCORE_API` build only) -- this is the
+actual secure-world `llama-cli` entry point (confirmed via `before
+gpt_init`/`In function gpt_init` log lines matching exactly this file, not
+`fake_ca.cpp`, which only implements the CA-relay side).
+
+**Bug #2 -- the model-loading tensor pipeline stalls at the exact same
+byte offset regardless of NPU offload.** With or without the Bug #1 fix,
+loading always stops at file offset `187224064` (~178.5MB into the
+~1.1GB `tinyllama-1.1b-chat-v1.0.Q8_0.gguf`) -- confirmed via a
+Python GGUF-header parser (`/tmp/.../parse_gguf.py`, run against the
+model file on the host) that this is exactly `blk.0.attn_v.weight`, the
+9th tensor of transformer layer 0. Used `fake_ca.cpp`'s existing
+`dbg_log_dump()` (`kill -USR1 <pid>`) diagnostic and confirmed the
+CA-side io-event ring buffer goes completely silent (identical dump
+contents across two checks 90s apart) -- not slow, genuinely stalled.
+
+Added two-sided SMC tracing to find where: `[TZLLM_TRACE]` prints in
+`tzdriver/core/tc_client_driver.c`'s `smc_call_cpu_resume()` (kernel,
+Normal World, logs every `push_pages_with_index()` call with cma_index/
+size/result) and in `tee_os_kernel/kernel/.../smc.c`'s
+`sys_tee_switch_req()`/`handle_yield_smc()` (ChCore, Secure World, logs
+every `SMC_EXIT_SHADOW` thread exit/wake pair). **Result: push_pages
+succeeds hundreds of times (confirmed up to push #409, `entry_index` up
+to 101 per CMA region) -- ruling out any small fixed-capacity array/limit
+theory -- then stops completely.** After that point, the trace shows a
+**very fast livelock**: the same thread repeatedly exits via
+`SMC_EXIT_SHADOW x2=4` (the `io_rpc()`/`__io_try_get()` "is there a
+completed IO result yet?" poll from `io-frontend.cpp`) and gets woken
+again immediately, hundreds of times/second, forever -- with **zero**
+further `push #` events. This matches `LayerScheduler::step()`
+(`layer-sched.cpp`) legitimately busy-polling while genuinely starved:
+the `alloc`/`io`/`decrypt` priority queues all end up empty and no new
+`Pipeline` gets enqueued for the next tensor. Traced the actual
+tensor-registration loop (`llama.cpp:5098`, calls `register_param_tensor()`
+once per tensor with no explicit per-iteration scheduler drive) and the
+`IOStage`/`AllocStage` stage machinery (`cnt_to_finish = cma_indexes.size()
+* 2`, `io_cnt <= 32` concurrency cap in `layer-sched.cpp`) without finding
+an obvious single-line bug from static reading alone -- this is genuinely
+complex concurrent producer/consumer code spanning two address spaces.
+**Added targeted instrumentation** (throttled `printf` in `layer-sched.cpp`
+`step()`'s empty-queues path, dumping `io_cnt`/`on_fly_cnt`/all three
+queue sizes every 2000th idle iteration) to pin down which counter/queue
+is actually stuck next session, instead of guessing further from outside.
+
+**Real build-pipeline bug found and fixed along the way**: `scripts/kick-
+the-tires/chcore-extracted.sh` (the project's override for the docker
+image's own `chcore.sh`) does `rm -rf ../oh_tee; cp -r
+/home/vectorxj/oh_tee ../` on *every single run* -- restoring the
+pristine, stock `oh_tee/apps/{llama-cli,libllama.so,libggml.so}` from the
+docker image and **silently discarding** any freshly-built TA binaries the
+separate `build-llama.sh`/`build-llama-docker.sh` pipeline had just placed
+there via `chcore_upload()`. This meant multiple rebuild+reflash+test
+cycles this session ran the OLD, unmodified `llama-cli` despite every
+source edit and every `rebuild.sh` reporting success -- confirmed via
+`strings <built image> | grep <unique-diagnostic-string>` coming back
+empty despite the string being freshly compiled into
+`build-chcore/src/libllama.so` moments earlier. **Fixed**: added a
+re-copy step in `chcore-extracted.sh` right after the `oh_tee` restore,
+pulling from the bind-mounted `.../llama.cpp/build-chcore/{bin/llama-cli,
+src/libllama.so,ggml/src/libggml.so}` so any TA-side llama.cpp/ggml source
+change actually reaches the built image. **This bug means any prior
+session's TA-side (`LLAMA_USE_CHCORE_API`) source edits that were
+believed deployed via a plain `rebuild.sh` may not actually have been** --
+worth keeping in mind if a "fix" from before today never seemed to take
+effect for no clear reason.
+
+**Bug #3 (new, unrelated, not yet root-caused)**: after fixing Bug #1 and
+retesting, hit a *different* crash before even reaching the Bug #2 stall
+point: `fake` (the CA process) itself aborts with a glibc
+`pthread_mutex_lock.c:94: Assertion 'mutex->__data.__owner == 0' failed`
+-- an internal mutex-state-corruption assertion, not a normal
+deadlock/double-lock. This matches an **already-documented, unresolved**
+finding from an earlier session (`Follow-up #22`'s note: "CA-side
+pthread_mutex_lock glibc assertion failure... right at startup on the
+TrustZone-only-no-NPU path... likely pre-existing, first time this exact
+flag/n combo got tested cleanly"). Notably this is the **first time this
+exact combination (real `n_gpu_layers=0`, i.e. genuinely no NPU at all)
+has been exercised**, since Bug #1 (NPU silently defaulting on) means
+essentially every prior "TrustZone-only" test this whole project's
+history was *actually* running with NPU offload active the whole time.
+Not yet root-caused which specific mutex (`alloc_mtx`/`gather_mtx`/
+`cma_mtx[]` in `alloc-stage-chcore.cpp`, `tasks_lock`/`get_buf_mtx`/
+`wait_io_mtx`/`ctxs_mtx` in `io-backend.cpp`/`io-frontend.cpp`, `io_lock`
+in `layer-sched.cpp`) or why -- next session should start here, since this
+now blocks the CPU-only path *earlier* than Bug #2's stall point.
+
+**Session ended by explicit user request to stop and document, not
+because the investigation was exhausted.** Current best checkpoint:
+`checkpoints/pipeline-trace-debug/` (also promoted to the default
+`checkpoints/{uboot_repacked.img,boot.img}`) -- has all three of today's
+source fixes/instrumentation (Bug #1's `n_gpu_layers = 0`, the two-sided
+`[TZLLM_TRACE]` SMC tracing, and the `layer-sched.cpp` queue-size/counter
+tracing), confirmed booting cleanly on the new board. TZ-LLM+NPU
+end-to-end inference is **still not demonstrated** -- three real,
+distinct, well-characterized bugs now stand between here and that goal
+(Bugs #1 fixed but #2 and #3 open), which is genuine forward progress
+compared to the vague "it just hangs" state at the start of today, even
+though the original goal wasn't reached.

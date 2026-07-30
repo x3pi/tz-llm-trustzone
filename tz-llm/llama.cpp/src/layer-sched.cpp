@@ -87,6 +87,23 @@ if (!is_strawman) {
             }
 #endif
             if (res.first) break;
+            /* TEMP DIAGNOSTIC: all 3 stage queues empty AND no in-flight IO
+             * ever completes -- pairs with the [TZLLM_TRACE] SMC push/wake
+             * trace, which showed push_pages succeeding hundreds of times
+             * then abruptly stopping (~178MB into the model, same point
+             * with or without NPU offload) while the io_rpc()/x2=4 poll
+             * loop kept spinning forever after. Logging the actual queue
+             * sizes + io_cnt + on_fly_cnt here pinpoints which counter/queue
+             * is the one that got stuck, instead of guessing from outside. */
+            if (gettid() == main_tid) {
+                extern int on_fly_cnt;
+                static int idle_ctr = 0;
+                if ((idle_ctr++ % 2000) == 0) {
+                    printf("[TZLLM_TRACE] step() idle: io_cnt=%d on_fly_cnt=%d alloc.size=%zu io.size=%zu decrypt.size=%zu (#%d)\n",
+                        io_cnt, on_fly_cnt, alloc.size(), io.size(), decrypt.size(), idle_ctr);
+                    fflush(stdout);
+                }
+            }
             return false;
         }
     }

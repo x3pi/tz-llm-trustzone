@@ -234,6 +234,16 @@ int main(int argc, char **argv)
     set_cache_proportion(params.cache);
     std::cout << "after set_cache_proportion" << std::endl;
 
+    // TEMP DIAGNOSTIC: force CPU-only (no GPU/NPU offload) to isolate whether
+    // the tensor-load stall (io_step ring buffer goes silent ~15% into the
+    // model, see fake_ca.cpp's dbg_log_dump()) is specific to the NPU-offload
+    // path. `fake`'s CLI has no working -ngl passthrough (getopt doesn't
+    // define -g), so params.n_gpu_layers stays at its -1 default, which
+    // common.cpp's llama_model_default_params() then offloads via
+    // (n_gpu_layers != -1 check does NOT catch -1, so the model's own
+    // default -- offload everything -- applies). Remove once the NPU path
+    // itself is fixed.
+    params.n_gpu_layers = 0;
     std::cout << "before gpt_init" << std::endl;
     gpt_init();
     std::cout << "after gpt_init" << std::endl;

@@ -1568,10 +1568,23 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 				req_thread = 0;
 				// return SMC_LOOP_EXIT_NPU_SUBMIT;
 				break;
-			case 1:
-				// tlogd("%s %d ta %#lx\n", __func__, __LINE__, out.ta);
-				ret_tee = tzasc_cma_push_pages_with_index(out.ta & ~(PAGE_SIZE-1), out.ta & (PAGE_SIZE-1));
+			case 1: {
+				/* TEMP DIAGNOSTIC: trace every push request that actually
+				 * reaches the Normal-World driver, to find where a stall
+				 * (io_step ring buffer goes silent ~178MB into the model,
+				 * same byte offset with or without NPU offload) diverges
+				 * from a normal push -- does the driver ever see the
+				 * request for the stuck tensor at all? */
+				unsigned long push_size = out.ta & ~(PAGE_SIZE-1);
+				int push_cma_index = out.ta & (PAGE_SIZE-1);
+				static atomic_t push_ctr = ATOMIC_INIT(0);
+				int n = atomic_inc_return(&push_ctr);
+				pr_info("[TZLLM_TRACE] push #%d cma_index=%d size=%#lx req_thread=%#lx cpu=%d\n",
+					n, push_cma_index, push_size, req_thread, raw_smp_processor_id());
+				ret_tee = tzasc_cma_push_pages_with_index(push_size, push_cma_index);
+				pr_info("[TZLLM_TRACE] push #%d done ret=%d\n", n, ret_tee);
 				break;
+			}
 			case 0:
 				ret_tee = tzasc_cma_pop_pages_with_index(out.ta & (PAGE_SIZE-1));
 				break;

@@ -100,6 +100,14 @@ void handle_yield_smc(unsigned long x0, unsigned long x1, unsigned long x2,
         struct thread *thread = (struct thread *)x2;
         arch_set_thread_return(thread, x1);
         BUG_ON(sched_enqueue(thread));
+        /* TEMP DIAGNOSTIC: pairs with [TZLLM_TRACE] in tc_client_driver.c's
+         * smc_call_cpu_resume() -- confirms this exact thread's push/pop
+         * request actually got relayed back into ChCore and woken here,
+         * vs staying parked forever (the observed stall symptom: CA-side
+         * io_step ring buffer goes silent, no crash, no dmesg error). */
+        static int wake_ctr = 0;
+        if ((++wake_ctr % 2000) == 1)
+            kinfo("[TZLLM_TRACE] handle_yield_smc: waking thread %p (#%d)\n", thread, wake_ctr);
         // kinfo("%s %d wake up thread %p ret %lx\n", __func__, __LINE__, thread, x1);
         extern struct tzasc_cma_meta *tzasc_cma_meta;
         // kinfo("%s %d count %lx\n", __func__, __LINE__, tzasc_cma_meta->count);
@@ -183,7 +191,26 @@ unsigned long sys_tee_switch_req(struct smc_registers *regs_u)
             regs_k.x1 = SMC_EXIT_NORMAL;
         } else {
             regs_k.x4 = (unsigned long)current_thread;
-            // kinfo("%s %d waiting thread %p\n", __func__, __LINE__, current_thread);
+            /* TEMP DIAGNOSTIC: pairs with the wake-side trace above and
+             * [TZLLM_TRACE] in tc_client_driver.c -- logs every thread that
+             * exits ChCore via SMC_EXIT_SHADOW (push_pages/pop_pages), so a
+             * stalled tensor load can be matched: does this thread's exit
+             * ever get a matching wake in handle_yield_smc? */
+            static int shadow_exit_ctr = 0;
+            static int io_poll_ctr = 0;
+            ++shadow_exit_ctr;
+            /* x2==4 is the io_rpc()/__io_try_get() poll (see io-frontend.cpp)
+             * -- fires hundreds of times/sec while waiting, drowning out the
+             * real push(x2=1)/pop(x2=0) events. Throttle it hard; keep every
+             * push/pop occurrence since those are rare and are the ones that
+             * matter for finding where the tensor-load sequence stalls. */
+            if (regs_k.x2 == 4) {
+                if ((++io_poll_ctr % 2000) != 1)
+                    goto skip_trace_print;
+            }
+            kinfo("[TZLLM_TRACE] sys_tee_switch_req: SMC_EXIT_SHADOW thread %p x2=%lx x3=%lx (#%d, poll#%d)\n",
+                current_thread, regs_k.x2, regs_k.x3, shadow_exit_ctr, io_poll_ctr);
+skip_trace_print:;
             enqueue = false;
         }
     } else {
