@@ -181,6 +181,24 @@ void AllocStage::start(void *input)
     msg.cma_indexes.clear();
 }
 
+// TEMP DIAGNOSTIC: chasing the "always stalls at the same push count"
+// race (STATUS.md, Bug #2 continuation) -- log every AllocStage get_task/
+// submit call with the full internal counter state, keyed by `this` (one
+// AllocStage instance per tensor's Pipeline) and a global monotonic
+// sequence number, so the exact last-live state of whichever AllocStage
+// stalls is captured even though this whole print sits behind
+// submit_pos_mtx/finished_nr (real-time cost is out-of-scope, this is a
+// diagnostic build only).
+static std::atomic<int> alloc_trace_ctr{0};
+// Multiple ChCore threads printf() to the same physical UART concurrently
+// with no line-atomicity guarantee, badly interleaving/corrupting the
+// diagnostic output byte-by-byte (confirmed on hardware: first capture
+// with this instrumentation was largely unreadable). Serialize just this
+// diagnostic's own prints with a dedicated mutex so each line comes out
+// intact, at the cost of extra contention (acceptable for a diagnostic
+// build only).
+std::mutex alloc_trace_print_mtx;
+
 std::pair<std::shared_ptr<Task>, bool> AllocStage::get_task(void *arg)
 {
     std::lock_guard<std::mutex> _(submit_pos_mtx);
@@ -202,7 +220,18 @@ std::pair<std::shared_ptr<Task>, bool> AllocStage::get_task(void *arg)
 
     auto task = std::make_shared<AllocTask>(ROUND_UP(std::min(BLOCK_SIZE, size - submit_pos), PAGE_SIZE), (vaddr_t)addr + submit_pos, cma_index);
     submit_pos += BLOCK_SIZE;
-    return { task, submit_pos >= size };
+    bool is_last = submit_pos >= size;
+    {
+        int n = alloc_trace_ctr.fetch_add(1);
+        std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+        printf("[ALLOC_TRACE] #%d get_task this=%p tid_arg=%d cma=%d get_nr=[%d,%d,%d,%d] block_nr=[%d,%d,%d,%d] finished_nr=%d all_block_nr=%d submit_pos=%zu size=%zu is_last=%d\n",
+            n, (void *)this, (int)(long)arg, cma_index,
+            get_nr[0], get_nr[1], get_nr[2], get_nr[3],
+            block_nr[0], block_nr[1], block_nr[2], block_nr[3],
+            (int)finished_nr, all_block_nr, submit_pos, size, is_last);
+        fflush(stdout);
+    }
+    return { task, is_last };
 }
 
 bool AllocStage::submit(std::shared_ptr<Task> task)
@@ -218,7 +247,15 @@ bool AllocStage::submit(std::shared_ptr<Task> task)
         });
     }
     auto old_nr = finished_nr.fetch_add(1);
-    if (old_nr + 1 == all_block_nr)
+    bool is_done = (old_nr + 1 == all_block_nr);
+    {
+        int n = alloc_trace_ctr.fetch_add(1);
+        std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+        printf("[ALLOC_TRACE] #%d submit    this=%p cma=%d entry=%d old_nr=%d all_block_nr=%d is_done=%d\n",
+            n, (void *)this, alloc_task->cma_index, alloc_task->entry_index, old_nr, all_block_nr, is_done);
+        fflush(stdout);
+    }
+    if (is_done)
         return true;
     return false;
 }

@@ -82,11 +82,41 @@ target_include_directories(llama PUBLIC ${LLAMA_INCLUDE_DIR})
 target_link_libraries(llama PUBLIC ${LLAMA_LINK_DIR})
 
 if (NOT LLAMA_CHCORE_API)
+# BUG FIX: io-backend.cpp was compiled into BOTH this library and `llama`
+# (see the `list(APPEND LLAMA_SOURCE_FILES alloc-stage.cpp io-backend.cpp)`
+# above) -- since io_init()/io_step()/get_ctx()/put_ctx() are ordinary
+# (non-static) functions, each shared library ended up exporting its own
+# duplicate definition with default ELF visibility. With both libllama.so
+# and libremoting_backend.so loaded into the same `fake` process, the
+# dynamic linker's symbol interposition picks ONE winning definition for
+# *every* call site process-wide, regardless of which library's code
+# thinks it's calling its own copy -- an inconsistent, effectively
+# undefined mix of which library's static state (fd/tzd_fd/mutexes,
+# themselves correctly kept file-local via `static`) actually backs a
+# given call. This is the exact same class of bug already found and
+# documented for `is_strawman` (see prefetch.cpp's comment) -- confirmed
+# here via `nm -D`, which shows `io_step` exported as a global defined
+# symbol (`T`) in both .so's. Symptom on hardware: an early, otherwise
+# inexplicable `glibc pthread_mutex_lock: Assertion 'mutex->__data.__owner
+# == 0' failed` right as the 4 ca_thread pthreads start concurrently
+# calling into this code for the first time. Fix: don't recompile
+# io-backend.cpp a second time here. ca-backend.cpp's `extern void
+# io_init/io_step(...)` are left genuinely undefined in this .so on
+# purpose -- shared libraries allow undefined symbols by default (they're
+# expected to be resolved at process-load time against whatever else is
+# already loaded), and since `fake`/`llama-cli` already link `llama`
+# directly, the single copy built there satisfies these at runtime with
+# no explicit link-time dependency needed here. (Tried linking against
+# `llama` directly first -- works, but also transitively pulls in
+# llama's libcrypto.so.3/libssl.so.3 link deps as new hard DT_NEEDED
+# entries on this .so, which aren't present on the board's
+# /data/ssd/rknpu/ and were never needed before since llama's own copy
+# apparently gets --as-needed-dropped. Leaving the symbols undefined
+# here avoids introducing that dependency at all.)
 add_library(
     remoting_backend
     interface.h
     io.h
-    io-backend.cpp
     ca-backend.cpp
 )
 target_compile_features(remoting_backend PUBLIC cxx_std_17)

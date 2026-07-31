@@ -114,6 +114,21 @@ if (!is_strawman) {
 
     task->step();
     if (pipeline->get_current_stage()->submit(task)) {
+        // TEMP DIAGNOSTIC: chasing the fixed-point stall (Bug #2
+        // continuation, STATUS.md) -- confirm the stage transition
+        // (alloc->io->decrypt->finished) actually happens for every
+        // pipeline whose last block just completed, since AllocStage's
+        // own ALLOC_TRACE only shows submit()'s is_done bit, not whether
+        // the pipeline successfully re-enters a queue afterward.
+#ifdef LLAMA_USE_CHCORE_API
+        extern std::mutex alloc_trace_print_mtx;
+        {
+            std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+            printf("[ALLOC_TRACE] finish_stage+enqueue pipeline=%p sched_info=%p\n",
+                (void *)pipeline.get(), pipeline->get_sched_info());
+            fflush(stdout);
+        }
+#endif
         pipeline->finish_stage();
         if (!pipeline->is_finished()) {
             enqueue(pipeline);
@@ -131,6 +146,15 @@ if (!is_strawman) {
             auto pipeline = entry->pipeline;
             auto task = entry->task;
             if (pipeline->get_current_stage()->submit(task)) {
+#ifdef LLAMA_USE_CHCORE_API
+                extern std::mutex alloc_trace_print_mtx;
+                {
+                    std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+                    printf("[ALLOC_TRACE] (strawman io_try_get) finish_stage+enqueue pipeline=%p sched_info=%p\n",
+                        (void *)pipeline.get(), pipeline->get_sched_info());
+                    fflush(stdout);
+                }
+#endif
                 pipeline->finish_stage();
                 if (!pipeline->is_finished()) {
                     enqueue(pipeline);
@@ -173,6 +197,20 @@ if (!is_strawman) {
     task->step();
     if (is_io) io_lock.unlock();
     if (pipeline->get_current_stage()->submit(task)) {
+#ifdef LLAMA_USE_CHCORE_API
+        // TEMP DIAGNOSTIC: same as the non-strawman call site above --
+        // this is the ACTUAL call site exercised when testing with -s 1
+        // (strawman), which is what every reproduction of the Bug #2
+        // stall this session has used. The first instrumented build put
+        // this trace only in the non-strawman branch and never fired.
+        extern std::mutex alloc_trace_print_mtx;
+        {
+            std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+            printf("[ALLOC_TRACE] (strawman) finish_stage+enqueue pipeline=%p sched_info=%p is_io=%d\n",
+                (void *)pipeline.get(), pipeline->get_sched_info(), is_io);
+            fflush(stdout);
+        }
+#endif
         pipeline->finish_stage();
         if (!pipeline->is_finished()) {
             enqueue(pipeline);

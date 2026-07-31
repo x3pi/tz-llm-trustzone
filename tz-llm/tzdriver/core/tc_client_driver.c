@@ -1537,6 +1537,19 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 
 		// tlogd("%s %d ret %#lx\n", __func__, __LINE__, out.ret);
 		if (out.ret == SMC_EXIT_PREEMPTED) {
+			/* TEMP DIAGNOSTIC: after a push fails with -ENOMEM (see the
+			 * case 1 trace above), one ca_thread pins a core at 100%
+			 * in-kernel CPU time (state R) while dmesg shows zero further
+			 * push/npu_submit/npu_done trace lines at all -- consistent
+			 * with the secure-world TA looping here (SMC_EXIT_PREEMPTED)
+			 * forever without ever reaching SMC_EXIT_SHADOW again, i.e.
+			 * it never makes another real request after the failed push.
+			 * Confirm with a throttled counter. */
+			static atomic_t preempt_ctr = ATOMIC_INIT(0);
+			int pc = atomic_inc_return(&preempt_ctr);
+			if ((pc % 5000) == 1)
+				pr_info("[TZLLM_TRACE] SMC_EXIT_PREEMPTED spin #%d cpu=%d\n",
+					pc, raw_smp_processor_id());
 			// tlogd("%s %d SMC_PREEMPT\n", __func__, __LINE__);
 			req_thread = 0;
 			ret_tee = 0;
@@ -1555,19 +1568,36 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 				ret = SMC_LOOP_EXIT_IO_STEP;
 				this_cpu_write(on_fly_io_thread, req_thread);
 				break;
-			case 3:
+			case 3: {
+				/* TEMP DIAGNOSTIC: trace NPU job-done relay -- pairs with
+				 * the case 2 trace below to see whether submit/done ever
+				 * actually cycle, since /sys/kernel/debug/rknpu/load shows
+				 * 0% on all cores and /proc/interrupts shows 0 for the NPU
+				 * IRQs despite the ca_thread staying 100% busy in-kernel
+				 * with the push trace frozen -- suspect the loop is stuck
+				 * spinning on case 2/3 instead of ever reaching push again. */
+				static atomic_t npu_done_ctr = ATOMIC_INIT(0);
+				int nd = atomic_inc_return(&npu_done_ctr);
+				pr_info("[TZLLM_TRACE] npu_done #%d job=%#lx cpu=%d\n",
+					nd, out.ta, raw_smp_processor_id());
 				result->npu_done.job = (void *)out.ta;
 				// tlogd("%s %d job %lx\n", __func__, __LINE__, out.ta);
 				rknpu_job_done_s(result->npu_done.job, 0);
 				ret_tee = 0;
 				break;
-			case 2:
+			}
+			case 2: {
+				static atomic_t npu_submit_ctr = ATOMIC_INIT(0);
+				int ns = atomic_inc_return(&npu_submit_ctr);
 				result->npu_submit.npu_mask = out.ta;
 				waiting_npu_thread[result->npu_submit.npu_mask] = req_thread;
 				ret_tee = rknpu_submit_s(rknpu_dev, result->npu_submit.npu_mask);
+				pr_info("[TZLLM_TRACE] npu_submit #%d mask=%#lx ret=%d cpu=%d\n",
+					ns, result->npu_submit.npu_mask, ret_tee, raw_smp_processor_id());
 				req_thread = 0;
 				// return SMC_LOOP_EXIT_NPU_SUBMIT;
 				break;
+			}
 			case 1: {
 				/* TEMP DIAGNOSTIC: trace every push request that actually
 				 * reaches the Normal-World driver, to find where a stall

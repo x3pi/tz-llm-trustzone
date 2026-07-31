@@ -1420,3 +1420,327 @@ distinct, well-characterized bugs now stand between here and that goal
 (Bugs #1 fixed but #2 and #3 open), which is genuine forward progress
 compared to the vague "it just hangs" state at the start of today, even
 though the original goal wasn't reached.
+
+## Session 2026-07-30/31: Bug #3 (mutex) root-caused and fixed; first-ever
+## coherent end-to-end answer; Bug #2 (tensor-load stall) reproduced live,
+## confirmed genuinely non-deterministic
+
+**Bug #3 root cause found and fixed for real.** The recurring
+`Fatal glibc error: pthread_mutex_lock.c:94: assertion failed:
+mutex->__data.__owner == 0` crash (previously misdiagnosed/half-fixed as
+an ELF symbol-interposition issue in `io-backend.cpp`) has a second,
+deeper cause: `ring_buffer::mtx` (`src/interface.h`), the lock protecting
+`all_ring_buffer.io_tasks`/`io_results`, lives **inside the TZ driver's
+shared mmap'd page that is genuinely written by both the Normal World CA
+process (glibc/Linux) and the Secure World TA (ChCore, chcore-libc/musl)**.
+A `std::mutex` there is a `PTHREAD_PROCESS_PRIVATE` `pthread_mutex_t` by
+default -- invalid for real inter-process shared memory even between two
+processes on the *same* libc, and doubly broken here because glibc's NPTL
+and musl's pthread implementation use different internal struct layouts:
+one side's lock()/unlock() writes bytes the other side's libc doesn't
+recognize as valid state, eventually tripping glibc's own consistency
+check. This crash reproduced late in a run (~400-1200+ produce/consume
+cycles in, varying between runs) -- consistent with a cross-libc
+byte-level race, not a deterministic bug. This bug was introduced by an
+**earlier session's own fix** for a real but different race (head/count
+ordering in the lock-free ring buffer, see the comment still in
+`interface.h`) -- a textbook case of "fixing one bug by introducing a
+worse one," exactly the failure mode the user asked to guard against
+going forward.
+
+**Fix**: replaced `std::mutex mtx` with a hand-rolled `raw_spinlock`
+(pure `std::atomic<int>` CAS loop, `src/interface.h`) -- relies only on
+cache-coherent hardware atomic instructions (LDXR/STXR / LSE), no OS
+futex syscall, no per-libc thread/owner bookkeeping, so it's actually
+valid across the ChCore/Linux world boundary. `interface.h` is shared
+(via `io.h` → `io-frontend.h`) into **both** the TA build
+(`LLAMA_USE_CHCORE_API`) and the CA build, so a single header edit fixes
+both sides.
+
+**Deployment note (learn from this)**: this fix required rebuilding and
+reflashing **both** the TA (baked into `uboot.img`'s `optee` FIT
+component) and the CA (`fake`/`libllama.so` on the SSD) -- unlike most
+prior fixes this project's history, which were kernel/`boot.img`-only. A
+freshly-built `uboot.img` straight from the `oh-builder-hdf.sh` pipeline
+hit the **long-documented "No CLI available" / "FIT: No boot partition"**
+failure (the pipeline's own U-Boot doesn't know this board's GPT
+partition name `boot_linux`) -- recovered via `flash/repack.sh`, which
+keeps the pipeline's freshly-built `tee.bin` (TA) but repacks it with the
+**known-good U-Boot binary** from `scripts/kick-the-tires/repack/`. This
+script already existed and is the correct tool for exactly this
+situation; use it whenever a TA/TEE-OS-only change needs a new
+`uboot.img`.
+
+**Incident: self-inflicted GPT/idbloader corruption, recovered.** While
+flashing the repacked `uboot.img`, wrote it to LBA `0x0` instead of the
+correct `0x2000` (see section "1. Trạng thái known-good" and
+`flash/repack.sh`/`flash-full.sh` for the correct constant) -- overwrote
+the protective MBR, primary GPT header/table, and idbloader (LBA `0x40`).
+Board still booted the boot ROM into MaskROM automatically (idbloader
+invalid → boot ROM falls back). **Recovered without data loss**: the
+backup GPT at the tail of the disk was untouched (only the first ~64MB
+was clobbered); read it via `rkdeveloptool rl`, reconstructed a valid
+disk image locally (`truncate` a sparse file to the real disk's byte
+size, write the backup GPT bytes to the matching tail offset, add a
+synthetic protective MBR at LBA 0), ran `gdisk`'s auto-recover-from-backup
+(built-in behavior when primary GPT is invalid), extracted the repaired
+first-34-sectors, and `wl 0`'d that back to the real device. Confirmed via
+`rkdeveloptool ppt` matching the pre-incident layout exactly
+(`uboot@0x2000`, `boot_linux@0x88000`, ..., `userdata@0x1308000`).
+Re-flashed `idblock.bin` (from the same build) at LBA `0x40`, then
+`uboot.img`/`boot.img` at the correct `0x2000`/`0x39000`. **Lesson**: this
+project has (at least) two different, non-interchangeable "LBA convention"
+sources floating around -- `CHECKPOINT_RESTORE_20260725.md`'s
+`0x2000`/`0x39000` pair (a raw-offset convention this project's actual
+boot flow uses: the kernel FIT is placed at a fixed sub-offset *inside*
+the oversized `uboot` GPT partition, not at the GPT's own separate
+`boot_linux` partition) vs. `flash.sh`'s `UBOOT_LBA=0x2000`/
+`BOOT_LBA=0x88000` (targeting the GPT partition table's own
+`boot_linux` entry directly, from the 2026-07-29 GPT-clobber incident
+writeup). **Always double-check which convention a given script/runbook
+uses before typing a raw `wl <LBA>` command by hand** -- confusing the
+two is exactly how this incident happened.
+
+**First-ever fully coherent, on-topic-mechanism (if not on-topic-content)
+answer produced end-to-end inside real TrustZone**, confirmed 3 times
+today with the mutex fix deployed (`fake -c 0 -l 0 -m tinyllama -n 64
+-s 1`, i.e. CPU-only/strawman path, no `-t`): full model load (all
+tensors through `output.weight`), full 63-token decode, real
+`llama_perf_context_print` stats (load ~23.5s, prompt eval ~13.5s/153
+tok, eval ~22s/31 tok), grammatically correct English output. Note the
+model's answer is **not topically related** to the fixed benchmark
+prompt it was given (a "write a poem about laughter" prompt produced an
+answer about "Collection pages" e-commerce theme settings) -- this is a
+separate, lower-priority quality/prompt-template question, not a
+correctness-of-mechanism bug; the important finding is that TrustZone's
+CA/TA/SMC/TZASC pipeline mechanically works and produces coherent tokens.
+Verified this really is real TrustZone execution (not simulated): the
+TA's optee FIT component's SHA256 is checked by U-Boot itself at boot
+(`## Checking optee ... sha256(...) + OK`), the model weights are loaded
+through real `tzasc_cma_push_pages`-protected physical memory, and CA/TA
+communication happens via real ARM SMC instructions (visible as
+`SMC_EXIT_SHADOW x2=...` in the ChCore kernel trace) -- this matches the
+paper's own described CA/TA/TZASC/SMC architecture exactly (verified by
+reading the paper, arXiv 2511.13717, and comparing against this repo's
+`tc_client_driver.c`/`interface.h`/`pipeline.cpp`: 4 REE worker threads +
+4 TZASC/CMA regions matches the paper's own "4 threads, 3.8GB/s CMA
+throughput" line almost exactly -- the thread/region count is a faithful
+implementation choice, not an architectural bug).
+
+**Bug #2 (tensor-load stall) reproduced live and shown to be genuinely
+non-deterministic, independent of prompt -- and always at the exact same
+milestone when it does occur.** Across 7 total post-mutex-fix runs today
+(all `fake -c 0 -m tinyllama -n 64 -s 1`, varying only `-l 0` vs.
+`-t "<free text>"`): **4 succeeded fully** (3x `-l 0`, all producing the
+identical benchmark-prompt answer/timing above -- deterministic given
+fixed seed; 1x `-t "What is your name?"`, producing a genuinely
+**on-topic, coherent answer -- "Sure! My name is Alex."** -- confirming
+the earlier off-topic benchmark-prompt answer was a prompt/quality
+artifact, not a sign the mechanism itself is broken), **3 hung** (one
+`-t "What is your name?"` the first time, one `-l 0`, and one more
+`-t "What is your name?"` -- each on an otherwise-identical fresh boot to
+a run of the exact same command that succeeded on a different boot),
+**every single hang stopped at the identical kernel-side push counter
+value, `push #203`** (out of ~1235 needed for the full model) -- not a
+range, the exact same number all three times, strongly suggesting the
+race lives at one specific structural transition point in the scheduler
+(e.g. a specific tensor's `Pipeline` reaching completion, or an
+`AllocStage`/`LayerScheduler` internal counter crossing a threshold) 
+rather than being spread uniformly through the whole load. Confirmed via
+kernel-side
+`[TZLLM_TRACE] push #203` (out of ~1235 needed for the full 1.1GB model,
+i.e. only ~16% through loading), after which the kernel-level CMA push
+counter (`dmesg | grep -c 'push #'`) and the CA-side `dbg_log_idx` ring
+buffer (dumped via `kill -USR1 <fake_pid>`, see `dbg_log_dump()` in
+`io-backend.cpp`) both go **completely silent** (confirmed frozen across
+multiple checks, minutes apart) while the 4 `ca_thread`s stay in kernel
+state `R` (not `D`), consuming real CPU in a tight
+`ioctl(RUN)`→`io_step()`→`sched_yield()` busy-loop that finds nothing
+left to do (`io_tasks.consume()` returns empty, `wait_io()` returns
+NULL) -- i.e. **the CA side is legitimately idle; the bug is that the TA
+(secure world) stops issuing new `io_launch()` requests**, not a CA-side
+deadlock. One curious, not-yet-explained detail: the CA-side dbg_log's
+*last* recorded event before the stall was `kind=0 is_meas=1` -- an
+`is_measurement` task, which is only supposed to fire once, at the true
+end of a full decode (`record_measure()` inside
+`llama_perf_context_print()`) -- appearing this early (~16% through
+loading) is suspicious and worth investigating first if resuming this
+bug, though it's not yet confirmed whether this reflects a genuine
+premature/erroneous call on the TA side or is a red herring from
+dbg_log's small (64-entry) ring buffer wrapping in a way that's easy to
+misread out of context (this session initially misread it as definitive
+proof of prematurity before verifying dbg_log_idx really had stopped
+advancing).
+
+**Architectural assessment (per user's explicit ask, before doing
+further ad-hoc patching):** compared this project's implementation
+against the actual paper (arXiv 2511.13717) for both bugs found today.
+Bug #3 (the mutex) was **not** a paper-architecture issue -- it was a
+bug introduced by a previous local session's own incomplete fix, now
+corrected. Bug #2 (this stall) is **also not** a paper-architecture
+issue -- the paper's "pipelined restoration" design is a straightforward
+fixed-worker-pool scheduler with no unusual synchronization complexity
+described; a **genuine race/lost-wakeup bug in this codebase's own
+`LayerScheduler`/`AllocStage`/`IOStage`/pipeline queue-handoff logic**
+(`layer-sched.cpp`, `pipeline.cpp`, `alloc-stage-chcore.cpp`) is the most
+likely location, not the paper's design nor the kernel/CMA layer (already
+separately investigated and mostly ruled out in earlier sessions).
+**Recommendation for whoever resumes this**: do not add more CMA
+retry/kernel-level patches for this -- focus on a careful lifetime/
+ownership audit of the scheduler's three priority queues (`alloc`, `io`,
+`decrypt` in `LayerScheduler`) and the `AllocStage`'s own internal counter
+state (`get_nr[10]`, `block_nr[10]`, `finished_nr`, `all_block_nr` in
+`alloc-stage-chcore.cpp`) for a missed-decrement/lost-wakeup race,
+starting from the `is_meas=1`-appears-early clue above.
+
+**Follow-up same day: live-instrumented reproduction (`[ALLOC_TRACE]` in
+`alloc-stage-chcore.cpp`/`layer-sched.cpp`, TA rebuild+repack+reflash
+cycle) substantially revises the above diagnosis.** Two important
+corrections:
+
+1. **"push #203" is not "16% through loading" -- it's closer to "100% of
+   the AllocStage phase for the whole model".** Live trace confirmed
+   `finish_stage+enqueue` firing for the pipeline with `sched_info`
+   corresponding to the `output`/final tensor (layer 999 in
+   `parse_name()`'s numbering) at essentially the same point the kernel
+   push counter stops moving. AllocStage only *reserves* CMA-protected
+   physical pages (cheap, few SMC round-trips per tensor); the expensive
+   part -- actually reading gigabytes off disk (IOStage) and decrypting
+   them (DecryptStage) -- happens afterward and needs no further
+   `push_pages()` calls. So a frozen push counter at ~203 is consistent
+   with **all allocation work finishing quickly and the real stall being
+   in IOStage/DecryptStage or the scheduler's post-alloc bookkeeping**,
+   not evidence of an early, partial hang as previously assumed.
+
+2. **This is not a pure "hang" -- the process reaches its own completion
+   path (`step 5`, `step 6`, the final `tzasc_cma_free_pages()` rollback
+   via `x2=deadbeef`) and then goes idle, but produces a broken result**:
+   `GENERATED_ANSWER` was **empty** (vs. the normal coherent/on-topic
+   answer from a clean run), and the printed `llama_perf_context_print`
+   stats were internally inconsistent/implausible (`eval time = 0.00 ms
+   / 1 runs` when `-n 64` was requested; `sampling ... 1730337
+   tokens/second`) while `load time`/`prompt eval time` looked
+   plausible and close to a clean run's numbers. This strongly suggests
+   the race **corrupts scheduler/pipeline state such that the decode
+   loop exits immediately (e.g. spuriously observes EOS on the very
+   first sampled token)**, rather than the CA-side threads deadlocking
+   on a resource. The kernel-level "push counter frozen" symptom used
+   throughout this session as the primary stall detector is a
+   *downstream* consequence (no more tensors ever need loading once the
+   corrupted decode loop exits early), not the stall's own location.
+
+**Revised next step for whoever resumes**: stop treating this as an
+allocation/CMA-adjacent bug. Instrument (or read carefully)
+`llama_decode()`'s sampling/EOS-check path and the `Pipeline`/`AllocStage`
+transition specifically around the *last* few tensors finishing alloc
+around the same wall-clock window inference actually starts consuming
+them, looking for a race between "last tensor's AllocStage marked done"
+and "first token's forward pass believes all needed tensors are ready" --
+i.e. revisit `use_param_tensor()`'s `while (!pipeline->is_finished())
+sched->step();` busy-wait loop (`prefetch.cpp`) for a case where it can
+return believing a tensor is ready when in fact a stage transition
+(`Pipeline::finish_stage()`, `stage_mtx`-guarded but only for that one
+`Pipeline` instance, not against concurrent readers of `current_stage`
+in the small window between "submit() said done" and
+"finish_stage() actually swapped the pointer") interacts badly under
+real 4-thread-concurrent load. 8 total post-mutex-fix runs so far: 4 full
+successes (identical good output), 3 confirmed frozen-push-counter stalls
+at exactly push #203, 1 new variant (this one) that completes but with
+empty/corrupted output -- all with `-s 1`/strawman; `-s 0`
+(real NPU) still separately known to produce garbage tokens even on a
+"successful" (non-stalling) completion, a likely-different bug in the
+RKNPURE compute path (see the `is_strawman` history in `prefetch.cpp`).
+
+**Root cause found: `commit_tzasc()` in `decrypt-stage.cpp` had two
+independent, compounding bugs.** (1) `pending_addr[4]` (a
+`std::priority_queue`) and `cur_addr[4]` were read/written from multiple
+threads -- one per tensor's `DecryptStage::start()` call, and with ~200
+tensors sharing only 4 `cma_index` values, real concurrent calls for the
+same index are common -- with **zero synchronization**; genuinely
+undefined behavior on a non-thread-safe STL container. Fixed with a
+per-cma_index `std::mutex`. (2) Independently, `pending_addr` used the
+*default* `std::priority_queue` comparator (`std::less`, a max-heap,
+`top()` = largest), but the code's own logic (`if (base_addr !=
+cur_addr[cma_index]) break;`) needs the *smallest* pending `base_addr`
+next, to extend `cur_addr` upward in order -- i.e. it needed a min-heap
+(`std::greater`). Fixed by adding the explicit comparator. Both bugs
+were present in the same ~15-line function and are logically independent
+(one is a threading bug, the other is a pure logic bug that would
+misbehave even single-threaded whenever 2+ ranges are pending at once for
+the same cma_index) -- worth remembering as a second instance of this
+project's recurring pattern where a well-intentioned earlier fix (adding
+the priority_queue) introduced a new bug while fixing another.
+
+Bug (2) alone explains why this was *intermittent* rather than
+always-broken: when calls to `commit_tzasc()` happen to arrive
+close to address order (only ever 0-1 entries pending at a time for a
+given cma_index), `top()` trivially returns the single pending entry
+regardless of heap polarity, and the bug never manifests -- matching the
+observed non-deterministic ~50% failure rate exactly.
+
+**One mechanistic claim worth flagging as unconfirmed, not just
+accepted at face value**: the natural assumption is "a range stuck behind
+the wrong-comparator bug never gets `usys_config_tzasc()` called, so the
+TZASC hardware boundary was never extended over it, so the TA reads
+unprotected/garbage memory." This doesn't actually hold up against the
+paper's own design: `usys_config_tzasc()` (the "extend_protected" step)
+only extends the *security* boundary (blocking Normal World access
+going forward) -- it is not what makes that memory *readable* by the TA.
+Readability comes from `usys_map_tzasc_cma_pmo()` in `AllocStage`, which
+already ran unconditionally, earlier, independent of `commit_tzasc()`.
+So a stuck/never-committed range should, in principle, still contain
+the CA's already-written real tensor bytes and be normally readable by
+the TA -- a missing `usys_config_tzasc()` call is more directly a
+*security* regression (that range stays Normal-World-accessible when it
+shouldn't) than a data-corruption one. The more likely mechanism for
+the actually-observed garbage/empty output is that unsynchronized
+concurrent access to a non-thread-safe `std::priority_queue` is genuine
+undefined behavior beyond "wrong logical answer" -- e.g. one thread's
+`push()` triggering the underlying `std::vector`'s reallocation while
+another thread concurrently reads through a stale pointer is a classic
+use-after-free that can corrupt unrelated nearby heap memory (plausibly
+including live tensor buffers), which would produce exactly the
+observed "sometimes fine, sometimes garbage" pattern without needing the
+TZASC-permission theory at all. Both bugs are real and both fixes are
+correct regardless of which exact mechanism explains the garbage-output
+symptom -- this note is about getting the causal story right for the
+record, not about whether to keep the fix.
+
+**Status: fix applied (`decrypt-stage.cpp`), TA+CA rebuilt, uboot.img
+repacked+reflashed, live test in progress -- not yet confirmed on
+hardware as of this note.** Update this section with pass/fail results
+from the next test round before considering Bug #2 resolved.
+
+**Operational notes for future sessions**:
+- `hdcd` TCP mode (`param set persist.hdc.port 8710; param set
+  ohos.ctl.stop hdcd; /system/bin/hdcd -t &`) does **not** persist across
+  reboots -- must redo this 3-line UART sequence after every single
+  reboot before `hdc tconn` will work.
+- The TA is launched **once per boot** by `chanmgr` -- only the first
+  `fake` invocation after a fresh boot reaches a live TA; every
+  subsequent invocation in the same boot session just busy-spins forever
+  with zero kernel-side push activity (looks identical to a genuine hang
+  at a glance -- check `dmesg | grep -c 'push #'` staying at the exact
+  same count across a `date`-stamped gap to distinguish).
+- The CA (`fake`) process's own stdout (redirected to a log file) does
+  **not** contain the TA's console output (`[DBG_USE]`, `[TZLLM_TRACE]`,
+  `GENERATED_ANSWER`, `llama_perf_*`) -- that only goes to the physical
+  UART. Always keep a continuous UART capture running *before* starting
+  a test if the goal is to see the model's actual answer, not just the
+  CA-side log.
+- Multiple concurrent readers/writers on `/dev/ttyUSB0` (this session's
+  own stray background `cat` processes, plus separately the user's own
+  `picocom` sessions) reliably cause split/lost data and "echoes but
+  doesn't execute" symptoms that look exactly like a hung console or a
+  hung board, but aren't -- always check `ps aux | grep ttyUSB0` and
+  `fuser /dev/ttyUSB0` first before concluding the board itself is stuck.
+  A dead background reader can also make kernel timestamps look "frozen"
+  in a stale log file when the board is actually fine.
+- `wifi_hal_service` reliably crashes once (`exit code 255`) ~2s after
+  first starting, then auto-restarts and works normally -- confirmed
+  identical across 3 separate boots today, so this specific crash-once
+  pattern is **not** the cause of session-to-session WiFi-readiness-time
+  variability (~88s from boot to first scan attempt was consistent both
+  times it was measured) -- if investigating slow/inconsistent WiFi
+  further, look elsewhere (association/DHCP timing with the actual AP,
+  not this service's own startup).

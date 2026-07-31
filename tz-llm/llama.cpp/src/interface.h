@@ -90,34 +90,69 @@ struct page_result {
     size_t off;
 };
 
+// BUG FIX: ring_buffer instances (io_tasks/io_results inside
+// all_ring_buffer) live in memory mmap'd from the TZ driver's shared page -
+// genuinely shared between the Normal World CA process (glibc/Linux) and
+// the Secure World TA (ChCore, chcore-libc/musl). A previous fix for a real
+// produce() reordering race (see below) serialized access with a
+// std::mutex, on the mistaken assumption that this buffer is only ever
+// touched by multiple threads of a single process. It is not: io_launch()
+// (TA side) and io_step() (CA side) both lock the SAME mtx bytes in this
+// shared struct. std::mutex is a pthread_mutex_t with default
+// PTHREAD_PROCESS_PRIVATE semantics, and glibc's NPTL and musl's pthread
+// implementation use *different* internal layouts/algorithms for that
+// struct - one side's lock()/unlock() writes bytes the other side's libc
+// doesn't recognize as valid state, eventually tripping glibc's own
+// consistency check ("Fatal glibc error: pthread_mutex_lock.c:94:
+// assertion failed: mutex->__data.__owner == 0"). Confirmed on hardware:
+// this crash reproduces late in a run (~400-1200+ produce/consume cycles
+// in, varying between runs) - consistent with a cross-libc byte-level race,
+// not a deterministic bug. Fix: use a raw spinlock built purely from
+// std::atomic (CAS loop), which only relies on cache-coherent hardware
+// atomic instructions (LDXR/STXR / LSE) - no OS futex syscall, no per-libc
+// thread/owner bookkeeping - so it's actually valid across this world
+// boundary, unlike any OS-level mutex.
+struct raw_spinlock {
+    std::atomic<int> locked{0};
+
+    void lock(void) {
+        int expected;
+        do {
+            expected = 0;
+        } while (!locked.compare_exchange_weak(expected, 1,
+            std::memory_order_acquire, std::memory_order_relaxed));
+    }
+
+    void unlock(void) {
+        locked.store(0, std::memory_order_release);
+    }
+};
+
 template<typename T, int BUFFER_SIZE>
 struct ring_buffer {
     T buffer[BUFFER_SIZE];
     std::atomic<int> head;
     std::atomic<int> tail;
     std::atomic<int> count;
-    // BUG FIX: this was a lock-free ring buffer where produce() advances
-    // `head` (claiming a slot) via CAS *before* memcpy-ing the item into it,
-    // and only increments `count` (which gates consumer visibility) *after*
-    // the memcpy. With a single producer this is fine, but io_launch() and
-    // record_measure() both call produce() on the same io_tasks buffer from
-    // up to 4 concurrent ca_thread pthreads - if producer B's CAS+memcpy+
-    // count++ all complete before producer A's memcpy (even though A's CAS
-    // claimed an *earlier* slot), a consumer can see count reflect B's write
-    // and dequeue in tail order, landing on A's still-unwritten slot. That
-    // slot's backing memory is the driver's shared g_llm_shm region, which
-    // reads as all-zero until first written - so the consumer gets a
-    // zeroed-out io_task (cma_index=0, entry_index=0, len=0,
-    // is_measurement=false) that looks like a legitimate but empty IO
-    // request, and get_buf()'s mmap(..., len=0, ...) fails with EINVAL.
-    // Confirmed on hardware: this exact zeroed-task signature, appearing
-    // late in a run (more concurrent producer/consumer churn by then).
-    // Simplest correct fix: serialize produce()/consume() entirely. This
-    // ring buffer's actual usage in this project is always multiple threads
-    // of one process (not genuinely cross-process shared-memory access), so
-    // a plain mutex is sufficient here even though the backing struct
-    // happens to live in mmap'd device memory.
-    std::mutex mtx;
+    // BUG FIX (original race, still applicable): this was a lock-free ring
+    // buffer where produce() advances `head` (claiming a slot) via CAS
+    // *before* memcpy-ing the item into it, and only increments `count`
+    // (which gates consumer visibility) *after* the memcpy. With a single
+    // producer this is fine, but io_launch()/record_measure() (TA side) and
+    // io_step() (CA side) can each have multiple concurrent callers - if
+    // producer B's CAS+memcpy+count++ all complete before producer A's
+    // memcpy (even though A's CAS claimed an *earlier* slot), a consumer
+    // can see count reflect B's write and dequeue in tail order, landing on
+    // A's still-unwritten slot. That slot's backing memory is the driver's
+    // shared g_llm_shm region, which reads as all-zero until first written -
+    // so the consumer gets a zeroed-out io_task (cma_index=0,
+    // entry_index=0, len=0, is_measurement=false) that looks like a
+    // legitimate but empty IO request, and get_buf()'s mmap(..., len=0,
+    // ...) fails with EINVAL. Confirmed on hardware: this exact zeroed-task
+    // signature, appearing late in a run (more concurrent producer/consumer
+    // churn by then). Fix: serialize produce()/consume() with the
+    // cross-world-safe raw_spinlock above.
+    raw_spinlock mtx;
 
     void init(void) {
         head = tail = count = 0;
@@ -125,7 +160,7 @@ struct ring_buffer {
 
     ring_buffer(void): head(0), tail(0), count(0) {}
     int produce(const T *item) {
-        std::lock_guard<std::mutex> _(mtx);
+        std::lock_guard<raw_spinlock> _(mtx);
         GGML_ASSERT(this->count.load() != BUFFER_SIZE);
         int _head = this->head.load();
         memcpy(this->buffer + _head, item, sizeof(T));
@@ -135,7 +170,7 @@ struct ring_buffer {
     }
 
     int consume(T *item) {
-        std::lock_guard<std::mutex> _(mtx);
+        std::lock_guard<raw_spinlock> _(mtx);
         if (this->count.load() == 0) {
             return -1;
         }
