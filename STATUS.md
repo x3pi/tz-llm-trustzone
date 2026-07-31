@@ -1744,3 +1744,78 @@ from the next test round before considering Bug #2 resolved.
   times it was measured) -- if investigating slow/inconsistent WiFi
   further, look elsewhere (association/DHCP timing with the actual AP,
   not this service's own startup).
+
+## 2026-07-31: MAT_COPY test result — real NPU weight buffers exhaust wrong memory pool (architectural bug, not a simple fix)
+
+Flashed and tested the `MAT_COPY` enable from the previous session (uboot.img rebuilt via
+`oh-builder-hdf.sh` with `#define MAT_COPY` uncommented in `ggml-rknpu-re.cpp:122`, repacked via
+`flash/repack.sh`, flashed at 0x2000/0x39000, board booted clean, optee hash verified). Ran
+`fake -c 0 -m tinyllama -n 64 -s 0 -t "What is your name?"` over hdc/WiFi.
+
+**Result: NOT a fix. Uncovered a new, more fundamental bug.** Tensor loading completed normally
+(490 `push #` events, matches prior successful runs). Shortly after entering NPU compute, the
+kernel UART log was flooded with over 1,000,000 lines of
+`[INFO] [OOM] pool_idx=0 pool_mem_size=0x4370000 order=0` /
+`[INFO] [OOM] pool_idx=1 pool_mem_size=0x5134000 order=0` in ~15 minutes (`buddy.c:258`, ChCore's
+generic buddy allocator failing to satisfy even a single-page (order=0) request) — a genuine
+retry-storm/near-livelock, not slow NPU compute. Process was killed manually (CPU time was
+climbing steadily at ~398%, which on its own is NOT proof of real progress — this project has a
+documented precedent of high-CPU busy-spin livelocks, e.g. Follow-up #31's Bug #2 — so "process is
+burning CPU" must never be treated as sufficient evidence of forward progress by itself; concrete
+state-advancing output is required).
+
+**Root cause, traced through the actual allocation chain (not guessed):**
+1. `rknn_mem`'s constructor (`ggml-rknpu-re.cpp:893`) calls `mem_allocate()`.
+2. TA-side `mem_allocate()` (`chcore-port/npu_interface.c:48`) calls
+   `chcore_alloc_dma_mem(size, dma_handle, cache)`.
+3. `chcore_alloc_dma_mem()` (`chcore-port/memory.c:280`) calls `usys_create_pmo(size, PMO_DATA)`
+   — a **generic** kernel PMO allocation — and immediately asserts
+   `BUG_ON(dma_handle->paddr >= (4UL << 30))`, i.e. it is hard-constrained to physical addresses
+   **below 4GB**.
+4. The <4GB physical range is backed by ChCore's 4 small `global_mem` buddy pools set up in
+   `mmparse.c` for rk3588: pool 0 = ~124MB (`[img_end, 0x10000000)`), pool 1 = ~82MB
+   (`[0x02e00000, 0x08000000)` — exactly matches the `pool_mem_size=0x5134000` in the OOM log),
+   pool 2 = 1.5GB (`[0x60000000, 0xC0000000)`), pool 3 = 768MB (`[0x20000000, 0x50000000)`). A
+   comment already in that file (left by an earlier session, re-confirmed correct now) states
+   these are "ChCore's own internal bookkeeping pool, not where model weights live".
+5. The real model weight/tensor data lives in a **completely separate** region: `tzasc_cma`, whose
+   4 base addresses (`cur_addr[]` in `decrypt-stage.cpp`) all start at **≥4GB physical**
+   (`0x100000000` and up) — an entirely different allocator (`push_pages`/`commit_tzasc`), not the
+   generic buddy pools at all.
+
+**So**: with `MAT_COPY` off, `rknn_mem` was only ever constructed once (the static
+`global_weight` scratch buffer) — negligible load on the small <4GB pools. With `MAT_COPY` on,
+`get_B_bufs()` (`ggml-rknpu-re.cpp:1346`, only reachable under `#ifdef MAT_COPY`) constructs a
+**new real `rknn_mem` per distinct (K,N) matmul shape** across the whole model via this same
+<4GB-constrained generic allocator — a workload of a completely different order of magnitude that
+these small pools (67-82MB for the two that failed) were never sized or intended for. This
+exhausts them, and every subsequent single-page kernel allocation of any kind (not just NPU
+buffers) starts failing and retrying, which is the observed flood.
+
+**Contextual note**: `npu_interface.c`'s copyright header attributes it to Jasbir Matharu's
+open-source `rk3588-npu` driver (an independent GitHub project), adapted into ChCore by the tz-llm
+authors — plausible explanation for why it was never built with `tzasc_cma` awareness in the first
+place, and further circumstantial support (beyond the direct Zenodo diff already done) for why
+`MAT_COPY` ships disabled by default in the original paper artifact: this may be a genuinely
+unfinished integration, not just an oversight.
+
+**Not yet done — real fix would require** rerouting `rknn_mem`'s real-weight-buffer allocation
+path to draw from `tzasc_cma` (via the same `push_pages`/`commit_tzasc` mechanism used for model
+weights elsewhere) instead of generic `PMO_DATA`, or substantially enlarging the <4GB pools if
+that turns out to be simpler/sufficient. Both are nontrivial changes, not a one-line flag flip.
+`MAT_COPY` should probably be left disabled again for now (current flashed image still has it
+enabled and is known-broken for `-s 0`; the CPU-only `-s 1` path from the previous session's
+`081ead254` commit is unaffected and still the known-good state) until this is actually fixed.
+
+**Separately: direct comparison against the real Zenodo artifact** (zenodo.org/records/17054270,
+`tz-llm-ae.tar.gz`, per user request, not just local git history's "initial commit") confirmed:
+- `MAT_COPY` is disabled (`// #define MAT_COPY`) in the pristine artifact too — not a local
+  regression, inherited from upstream.
+- The pristine `interface.h`'s `ring_buffer` never had a `std::mutex` at all — it used a
+  lock-free CAS-based head/tail (pure atomics only). The `std::mutex` that caused this session's
+  Bug #3 (cross-libc mutex corruption, fixed via `raw_spinlock`) was added by some session prior to
+  this repo's own git "initial commit" — meaning today's `raw_spinlock` fix is a convergence back
+  toward the original artifact's safe design, not a novel workaround.
+- Pristine `decrypt-stage.cpp` runs real AES decryption and defaults `is_strawman = false`; both
+  already intentionally overridden locally (decrypt disabled, strawman forced true) due to
+  real stall bugs found and documented in earlier sessions — confirmed still the right call.

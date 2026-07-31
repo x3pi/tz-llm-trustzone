@@ -119,6 +119,31 @@ typedef int rknn_core_mask;
 
 const float SCALE_MIN = 1e-9;
 
+// Disabled since the paper artifact's own initial commit (5b4d68f55) --
+// confirmed still disabled in the pristine Zenodo AE release too (not a
+// local regression). When off, for_all_weights() is a no-op and every
+// npu_task's weight buffer points at one shared, never-populated
+// `global_weight` scratch buffer instead of real GGUF weight data --
+// this is a real bug (NPU never computes on real weights), but simply
+// enabling this flag is NOT a safe fix: tested 2026-07-31 and it causes
+// a *worse*, different failure. Real per-tensor weight buffers
+// (`matmul_buffer_mgr::get_B_bufs()`) allocate via `rknn_mem` ->
+// `mem_allocate()` -> `chcore_alloc_dma_mem()` -> `usys_create_pmo(...,
+// PMO_DATA)`, which is hard-constrained to physical addresses <4GB
+// (BUG_ON in chcore-port/memory.c) -- i.e. it lands in ChCore's small
+// internal bookkeeping buddy pools (~67MB/~82MB, see mmparse.c), NOT
+// the large >=4GB tzasc_cma region where model weight data actually
+// belongs. TinyLlama's real per-shape weight buffers total ~110MB
+// (7 per-layer shapes ~42.5MB, shared across all 22 layers since the
+// cache key is dimension-only + lm_head alone ~65MB), which exceeds
+// those pools' capacity and causes a system-wide single-page
+// allocation-retry storm (1M+ `[OOM] pool_idx=0/1 ... order=0` lines
+// in ~15 min) rather than a working NPU path. Fixing this properly
+// means rerouting rknn_mem's real-weight-buffer allocation through
+// tzasc_cma (the same push_pages/commit_tzasc mechanism used for model
+// weights elsewhere) instead of generic PMO_DATA -- a real architecture
+// change, not a flag flip. See STATUS.md (2026-07-31 entries) for the
+// full trace. Leave this disabled until that fix exists.
 // #define MAT_COPY
 
 #include <sys/ioctl.h>
