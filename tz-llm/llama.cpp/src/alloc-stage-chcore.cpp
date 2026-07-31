@@ -56,11 +56,37 @@ int push_pages(size_t len, int cma_index) {
     GGML_ASSERT(cma_index >= 0 && cma_index < TZASC_NR);
     auto tzasc_cma_meta = tzasc_cma_meta_arr + cma_index;
 
-    struct smc_registers req = {0};
-    req.x1 = SMC_EXIT_SHADOW;
-    req.x2 = 1;
-    req.x3 = ROUND_UP(len, PAGE_SIZE) | cma_index;
-    int ret = usys_tee_switch_req(&req);
+    // BUG FIX: the kernel's cma_alloc() can fail transiently even when
+    // the pool is mostly free -- confirmed on hardware, dmesg showed
+    // "tzasc2: alloc failed, req-size: 256 pages, ret: -4" (ret -4 =
+    // -EINTR, NOT -ENOMEM) with "158938 free of 196608 total pages"
+    // still available. -EINTR from cma_alloc() is a well-known transient
+    // condition (internal migration/compaction got interrupted) -- the
+    // standard, correct handling is to just retry, not treat it as
+    // real exhaustion. Previously this one-shot ret fell straight into
+    // BUG_ON(ret < 0), which prints once and then spins in an infinite
+    // empty for(;;) loop FOREVER (chcore/bug.h) -- not a crash, not a
+    // clean failure: a silent, CPU-pegged hang that looks exactly like
+    // slow computation from the outside (confirmed: this is what made
+    // the -s 0 NPU test appear to run for 35+ minutes with climbing CPU
+    // and zero progress, right after a push logged this exact ret: -4).
+    // Retry a bounded number of times with a yield in between.
+    int ret;
+    int attempt;
+    for (attempt = 0; attempt < 200; attempt++) {
+        struct smc_registers req = {0};
+        req.x1 = SMC_EXIT_SHADOW;
+        req.x2 = 1;
+        req.x3 = ROUND_UP(len, PAGE_SIZE) | cma_index;
+        ret = usys_tee_switch_req(&req);
+        if (ret >= 0) break;
+        usys_yield();
+    }
+    if (attempt > 0 && ret >= 0) {
+        printf("[PUSH_RETRY] push_pages succeeded after %d retr%s (cma_index=%d, len=%#zx)\n",
+            attempt, attempt == 1 ? "y" : "ies", cma_index, len);
+        fflush(stdout);
+    }
     BUG_ON(ret < 0);
 
     int c = push_pages_call_ctr.fetch_add(1);
@@ -145,11 +171,16 @@ AllocStage::AllocStage(size_t off, size_t len): addr(NULL) {
     msg.paddr.resize(TZASC_NR);
     GGML_ASSERT(addr);
 
+    // TZASC_NR_MODEL (not TZASC_NR): real tensor data is only ever
+    // distributed across indices [0, TZASC_NR_MODEL) -- index TZASC_NR-1
+    // stays untouched by this pipeline, reserved for NPU real-weight
+    // scratch buffers (see chcore/llm.h). block_nr[TZASC_NR-1] is left at
+    // its zero-initialized value and never incremented below.
     all_block_nr = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    int cur_start = last_pos.fetch_add(all_block_nr) % TZASC_NR;
-    int cur_end = (cur_start + all_block_nr) % TZASC_NR;
-    for (int i = 0; i < TZASC_NR; i++) {
-        block_nr[i] = all_block_nr / TZASC_NR;
+    int cur_start = last_pos.fetch_add(all_block_nr) % TZASC_NR_MODEL;
+    int cur_end = (cur_start + all_block_nr) % TZASC_NR_MODEL;
+    for (int i = 0; i < TZASC_NR_MODEL; i++) {
+        block_nr[i] = all_block_nr / TZASC_NR_MODEL;
         if (cur_start <= cur_end) {
             if (cur_start <= i && i < cur_end) {
                 block_nr[i]++;
@@ -164,7 +195,7 @@ AllocStage::AllocStage(size_t off, size_t len): addr(NULL) {
     GGML_ASSERT(sizeof(block_nr) / sizeof(all_block_nr) >= TZASC_NR);
 
     int test_sum = 0;
-    for (int i = 0; i < TZASC_NR; i++) {
+    for (int i = 0; i < TZASC_NR_MODEL; i++) {
         test_sum += block_nr[i];
     }
     GGML_ASSERT(test_sum == all_block_nr);
@@ -209,7 +240,10 @@ std::pair<std::shared_ptr<Task>, bool> AllocStage::get_task(void *arg)
         GGML_ASSERT(get_nr[i] <= block_nr[i]);
     }
     if (get_nr[cma_index] == block_nr[cma_index]) {
-        for (int i = 0; i < TZASC_NR; i++) {
+        // TZASC_NR_MODEL: never fall back onto the NPU-reserved index
+        // (its block_nr[] is always 0 here anyway, so this is belt-and-
+        // suspenders, not strictly required -- see chcore/llm.h).
+        for (int i = 0; i < TZASC_NR_MODEL; i++) {
             if (get_nr[i] < block_nr[i]) {
                 cma_index = i;
                 break;

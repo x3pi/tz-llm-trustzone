@@ -31,7 +31,9 @@ bool is_pipelining = false;
 
 int get_cma_index(void) {
     if (my_cma_index == -1) {
-        my_cma_index = cma_index_counter.fetch_add(1) % TZASC_NR;
+        // TZASC_NR_MODEL (not TZASC_NR): index TZASC_NR-1 is reserved for
+        // NPU real-weight scratch buffers, see chcore/llm.h.
+        my_cma_index = cma_index_counter.fetch_add(1) % TZASC_NR_MODEL;
     }
     return my_cma_index;
 }

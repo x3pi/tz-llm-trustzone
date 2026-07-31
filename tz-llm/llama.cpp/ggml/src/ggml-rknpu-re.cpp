@@ -119,32 +119,31 @@ typedef int rknn_core_mask;
 
 const float SCALE_MIN = 1e-9;
 
-// Disabled since the paper artifact's own initial commit (5b4d68f55) --
-// confirmed still disabled in the pristine Zenodo AE release too (not a
-// local regression). When off, for_all_weights() is a no-op and every
-// npu_task's weight buffer points at one shared, never-populated
-// `global_weight` scratch buffer instead of real GGUF weight data --
-// this is a real bug (NPU never computes on real weights), but simply
-// enabling this flag is NOT a safe fix: tested 2026-07-31 and it causes
-// a *worse*, different failure. Real per-tensor weight buffers
-// (`matmul_buffer_mgr::get_B_bufs()`) allocate via `rknn_mem` ->
-// `mem_allocate()` -> `chcore_alloc_dma_mem()` -> `usys_create_pmo(...,
-// PMO_DATA)`, which is hard-constrained to physical addresses <4GB
-// (BUG_ON in chcore-port/memory.c) -- i.e. it lands in ChCore's small
-// internal bookkeeping buddy pools (~67MB/~82MB, see mmparse.c), NOT
-// the large >=4GB tzasc_cma region where model weight data actually
-// belongs. TinyLlama's real per-shape weight buffers total ~110MB
-// (7 per-layer shapes ~42.5MB, shared across all 22 layers since the
-// cache key is dimension-only + lm_head alone ~65MB), which exceeds
-// those pools' capacity and causes a system-wide single-page
-// allocation-retry storm (1M+ `[OOM] pool_idx=0/1 ... order=0` lines
-// in ~15 min) rather than a working NPU path. Fixing this properly
-// means rerouting rknn_mem's real-weight-buffer allocation through
-// tzasc_cma (the same push_pages/commit_tzasc mechanism used for model
-// weights elsewhere) instead of generic PMO_DATA -- a real architecture
-// change, not a flag flip. See STATUS.md (2026-07-31 entries) for the
-// full trace. Leave this disabled until that fix exists.
-// #define MAT_COPY
+// Disabled since the paper artifact's own initial commit (5b4d68f55),
+// confirmed still disabled in the pristine Zenodo AE release too. First
+// enable attempt (2026-07-31) caused a worse failure: real per-tensor
+// weight buffers (`matmul_buffer_mgr::get_B_bufs()` -> `rknn_mem`) went
+// through `mem_allocate()` -> `usys_create_pmo(..., PMO_DATA)`, hard-
+// constrained to physical addresses <4GB -- i.e. ChCore's small internal
+// bookkeeping buddy pools (~67MB/~82MB, see mmparse.c), not the large
+// >=4GB tzasc_cma region where model weight data belongs. TinyLlama's
+// real weight buffers total ~110MB, overflowing those pools and causing
+// a system-wide allocation-retry storm.
+//
+// Fixed properly (not just flag-flipped) by rerouting `rknn_mem`'s
+// tzasc-constructor (the `use_tzasc=true` overload used by B_bufs, see
+// the GGML_USE_CHCORE block above) through the same push_pages()/
+// commit_tzasc() primitives real tensor loading already uses, on a
+// dedicated reserved index (TZASC_NR_NPU_SCRATCH = TZASC_NR-1,
+// chcore/llm.h) that real tensor loading (alloc-stage-chcore.cpp's
+// AllocStage, layer-sched.cpp's get_cma_index()) has been restricted to
+// never touch. This partition is what makes commit_tzasc() -- which
+// only extends the TZASC boundary in strict per-index address order --
+// safe to call from two independent, uncoordinated subsystems: they
+// never share an index, so neither can leave the other's commit stuck
+// waiting on a gap it will never fill. See STATUS.md for the full
+// design writeup.
+#define MAT_COPY
 
 #include <sys/ioctl.h>
 
@@ -870,6 +869,50 @@ extern "C" {
 #define CACHE_INVALIDATE    2
 #define CACHE_CLEAN_AND_INV 3
 #define SYNC_IDCACHE        4
+
+// Real NPU weight buffers (MAT_COPY on, B_bufs -> rknn_mem) allocate
+// through tzasc_cma instead of the generic PMO_DATA path -- see
+// chcore/llm.h's TZASC_NR_MODEL/TZASC_NR_NPU_SCRATCH comment and
+// STATUS.md for why: PMO_DATA is hard-limited to physical addresses
+// <4GB (ChCore's own small internal bookkeeping buddy pools, ~67MB/
+// ~82MB total), which real per-tensor weight data (~110MB for
+// TinyLlama) overflows, causing a system-wide allocation-retry storm.
+// tzasc_cma is the >=4GB, multi-GB region actually sized for model-
+// scale data. push_pages()/commit_tzasc() (alloc-stage-chcore.cpp/
+// decrypt-stage.cpp) are the same already-proven primitives real
+// tensor loading uses -- reused here, not reinvented, on an index
+// (TZASC_NR_NPU_SCRATCH) real tensor loading never touches, so the two
+// uses can never race on the same commit_tzasc() per-index ordering.
+// No chcore include path is wired up for ggml/src's build target (unlike
+// llama.cpp/src's), matching this file's existing pattern just above of
+// hand-declaring individual chcore symbols via extern instead of
+// #include-ing the real headers. TZASC_NR/struct layout below MUST stay
+// byte-for-byte identical to chcore/llm.h (the two compile into the same
+// TA binary and share this exact global) -- if that header's struct
+// layout ever changes, update here too.
+#define TZASC_NR (4)
+#define TZASC_NR_MODEL (TZASC_NR - 1)
+#define TZASC_NR_NPU_SCRATCH (TZASC_NR - 1)
+struct page;
+struct tzasc_cma_entry {
+    unsigned long paddr;
+    unsigned long size;
+    struct page *cma_pages;
+};
+struct tzasc_cma_meta {
+    unsigned long base;
+    unsigned long size;
+    unsigned long count;
+    struct tzasc_cma_entry entry[((4096 << 10) / TZASC_NR - sizeof(unsigned long) * 4) / sizeof(struct tzasc_cma_entry)];
+};
+extern "C" {
+    unsigned long chcore_alloc_vaddr(unsigned long size);
+    int usys_map_tzasc_cma_pmo(unsigned long vaddr, unsigned long len, unsigned long paddr);
+}
+extern int push_pages(size_t len, int cma_index);
+extern struct tzasc_cma_meta *tzasc_cma_meta_arr;
+extern std::mutex cma_mtx[TZASC_NR];
+extern void commit_tzasc(int cma_index, unsigned long _base_addr, unsigned long _top_addr);
 #endif
 
 inline size_t rknn_type_size_A(rknn_tensor_type type) {
@@ -898,9 +941,33 @@ struct rknn_mem {
     float scale;
     pthread_spinlock_t scale_lock;
 
+    // Real weight data (MAT_COPY) only ever needs quantizing ONCE per
+    // buffer -- weight content doesn't change between tokens, unlike
+    // A_bufs (activations) and C_bufs (outputs), which genuinely do and
+    // must keep resetting every call. But ggml_compute_forward_mul_mat
+    // (ggml.c) calls pre0()/pre_scale()/pre1() unconditionally on EVERY
+    // matmul (i.e. every layer, every token) with no cache-awareness, and
+    // pre0() unconditionally reset_cnt()s every weight buffer it touches
+    // -- including ones already fully quantized by an earlier call --
+    // which makes pre_scale()/pre1()'s work-stealing loops (and their
+    // malloc+to_float() of the ENTIRE source tensor, redone per (nn,kk)
+    // tile) redo the full weight quantization from scratch on every
+    // single token. For a 22-layer model this means the one-time cost of
+    // quantizing ~110MB of real weight data was being paid again on
+    // every token instead of once -- the actual dominant cost behind
+    // the -s 0 NPU path taking 30+ minutes for 32 tokens (confirmed via
+    // direct code trace, not measured in isolation -- see STATUS.md).
+    // Gate on this flag instead: quantize once, mark ready, skip forever
+    // after.
+    std::atomic<bool> weight_ready{false};
+
     std::atomic<int> pre_scale_cnt;
     std::atomic<int> pre1_cnt;
     std::atomic<int> post_cnt;
+
+#ifdef GGML_USE_CHCORE
+    bool use_tzasc = false;
+#endif
 
     rknn_mem(size_t size): size(size) {
         dma_ptr = mem_allocate(size, &dma, &obj,
@@ -914,9 +981,50 @@ struct rknn_mem {
         scale = 1.0;
         pthread_spin_init(&scale_lock, 0);
     }
+#ifdef GGML_USE_CHCORE
+    // use_tzasc=true: real NPU weight buffers, see the comment above the
+    // extern declarations near this file's GGML_USE_CHCORE includes.
+    rknn_mem(size_t size, bool use_tzasc): size(size), use_tzasc(use_tzasc) {
+        if (!use_tzasc) {
+            dma_ptr = mem_allocate(size, &dma, &obj,
+                RKNPU_MEM_IOMMU_LIMIT_IOVA_ALIGNMENT | RKNPU_MEM_CACHEABLE, &handle);
+            ptr = dma_ptr;
+            GGML_ASSERT(dma_ptr);
+            scale = 1.0;
+            pthread_spin_init(&scale_lock, 0);
+            return;
+        }
+        size_t rounded = (size + 0xfff) & ~0xfffUL;
+        unsigned long vaddr = chcore_alloc_vaddr(rounded);
+        GGML_ASSERT(vaddr != 0);
+        int entry_index;
+        {
+            std::lock_guard<std::mutex> _(cma_mtx[TZASC_NR_NPU_SCRATCH]);
+            entry_index = push_pages(rounded, TZASC_NR_NPU_SCRATCH);
+        }
+        GGML_ASSERT(entry_index >= 0);
+        unsigned long paddr = tzasc_cma_meta_arr[TZASC_NR_NPU_SCRATCH].entry[entry_index].paddr;
+        GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, rounded, paddr) == 0);
+        commit_tzasc(TZASC_NR_NPU_SCRATCH, paddr, paddr + rounded);
+        dma = paddr;
+        obj = vaddr;
+        ptr = dma_ptr = (void *)vaddr;
+        GGML_ASSERT(dma_ptr);
+        scale = 1.0;
+        pthread_spin_init(&scale_lock, 0);
+    }
+#endif
     ~rknn_mem(void) {
 #ifdef FAKE_CACHE
         dma_buf_free(size, &fd, ptr);
+#endif
+#ifdef GGML_USE_CHCORE
+        // tzasc_cma buffers are never individually freed, same as real
+        // tensor loading's own AllocTask mappings (alloc-stage-chcore.cpp)
+        // -- both live for the TA process's whole lifetime in practice
+        // (matmul_buffer_mgr's cache never evicts), so there is no
+        // established unmap/pop_pages path to reuse here safely.
+        if (use_tzasc) return;
 #endif
         mem_destroy(dma_ptr, size, handle, obj);
     }
@@ -956,12 +1064,48 @@ struct B_bufs {
     int K, N, k, n;
     rknn_tensor_type type;
     std::map<std::tuple<int, int>, std::shared_ptr<rknn_mem>> Bs;
+    // Group-level counterpart to rknn_mem::weight_ready (per-tile): lets
+    // pre_scale()/pre1() skip their own malloc+to_float() of the WHOLE
+    // source tensor entirely once every tile in this group is already
+    // quantized, instead of only skipping the per-tile inner loop body
+    // (which still left one full-tensor float conversion happening per
+    // TILE, per CALL, on every already-cached token -- e.g. 8 redundant
+    // 65M-element conversions per token for lm_head alone). Set once,
+    // by whichever thread finishes the last tile in pre1().
+    std::atomic<bool> group_ready{false};
+    // CORRECTNESS: this B_bufs (and its rknn_mem tiles) is keyed only by
+    // (K, N, k, n, type) -- the WEIGHT TENSOR'S SHAPE -- not by which
+    // specific tensor. Every layer of a uniform-architecture model (all
+    // 22 TinyLlama layers' attn_q, for instance) shares the exact same
+    // shape and therefore the exact same cached B_bufs/rknn_mem objects;
+    // matmul_kernel_find()'s own (m,k,n,type) cache means this collision
+    // happens WITHIN a single token's forward pass across layers, not
+    // just across tokens. The ORIGINAL design handles this correctly by
+    // having pre0() unconditionally reset_cnt() every call, forcing
+    // pre_scale()/pre1() to re-quantize fresh data every time regardless
+    // -- correct but wasteful. weight_ready/group_ready's "quantize once,
+    // never again" is only safe when re-used by the SAME tensor (e.g.
+    // decode token 2 reusing token 1's already-correct data for the SAME
+    // layer) -- reusing it for a DIFFERENT layer's weights would silently
+    // compute wrong results using the wrong layer's data. last_source
+    // tracks which tensor's raw data last populated this group; pre0()
+    // invalidates group_ready/weight_ready whenever it changes.
+    void *last_source = nullptr;
 
     B_bufs(int K, int N, int k, int n, rknn_tensor_type type)
         : K(K), N(N), k(k), n(n), type(type) {
         for (int nn = 0; nn < n; nn += N)
             for (int kk = 0; kk < k; kk += K)
+                // Real NPU weight buffers: route through tzasc_cma in the
+                // TrustZone TA build (see the GGML_USE_CHCORE comment near
+                // rknn_mem's tzasc constructor) -- the CA/Normal-World
+                // build has no TZASC concept and no small-pool constraint,
+                // so it keeps using the plain allocator unchanged.
+#ifdef GGML_USE_CHCORE
+                Bs.emplace(std::make_tuple(nn, kk), std::make_shared<rknn_mem>(B_buf_size, true));
+#else
                 Bs.emplace(std::make_tuple(nn, kk), std::make_shared<rknn_mem>(B_buf_size));
+#endif
     }
 };
 struct C_bufs {
@@ -1016,9 +1160,24 @@ struct matmul_buffer_mgr {
         }
         return ret;
     }
+    // BUG FIX: this used to unconditionally clear() B_map (weight
+    // buffers) too, alongside A_map/C_map, on every prefill->decode
+    // transition (see the ith==0/m==1 call site below). A_map/C_map's
+    // keys include M and m (activation/output shapes, which genuinely
+    // change between prefill's large M and decode's M=1 -- stale,
+    // correctly invalidated). B_map's key is only (K, N, k, n, type) --
+    // the WEIGHT tensor's own shape, which does not depend on M/m at
+    // all, so a decode-phase call with the same weight tensor reuses the
+    // exact same cache key as prefill used. Clearing it anyway threw
+    // away every already-quantized weight buffer (the expensive one-time
+    // cost weight_ready is specifically there to avoid paying twice) at
+    // the worst possible moment: right as decode -- the phase that most
+    // needs to be fast, since it repeats per token -- begins. Confirmed
+    // on hardware: real weight buffers (tzasc_cma push_pages, cma_index
+    // 3) were still being freshly created well after the first decode
+    // step's measure dump had already fired.
     void clear(void) {
         A_map.clear();
-        B_map.clear();
         C_map.clear();
     }
 };
@@ -1159,6 +1318,21 @@ struct matmul_kernel {
     int m, n, k;
     int M, N, K;
     rknn_tensor_type type;
+    // PERFORMANCE (see B_bufs::last_source's correctness fix and
+    // STATUS.md): a matmul_kernel used to be keyed only on (m,k,n,type),
+    // so every layer of a uniform-architecture model (all 22 TinyLlama
+    // layers' attn_q, e.g.) shared the exact same kernel object and thus
+    // the exact same weight_id buffers -- correctness required
+    // re-quantizing on every single call regardless of any cache, since
+    // the actual tensor differs every time. Keying on the weight
+    // tensor's own raw data pointer too (stable for a whole run once the
+    // model is loaded) gives each distinct tensor its own dedicated
+    // kernel + weight buffers, so weight_ready's "quantize once, skip
+    // forever after" is now both safe (never shared across tensors) AND
+    // actually effective (the SAME layer's kernel is found and reused
+    // across all decode tokens, only quantizing once total instead of
+    // once per token).
+    void *weight_id;
     std::vector<std::shared_ptr<npu_task_multi_core>> npu_tasks;
     std::shared_ptr<A_bufs> inputs;
     std::shared_ptr<B_bufs> weights;
@@ -1169,8 +1343,8 @@ struct matmul_kernel {
         GGML_ASSERT(part <= max && part % align == 0);
         return part;
     }
-    matmul_kernel(int m, int n, int k, rknn_tensor_type type)
-        : m(m), n(n), k(k), type(type) {
+    matmul_kernel(int m, int n, int k, rknn_tensor_type type, void *weight_id)
+        : m(m), n(n), k(k), type(type), weight_id(weight_id) {
         // partition m, n, k into M, N, K;
 
         N = partition(n / NPU_CORE_NUM, MAX_N, ALIGN_N);
@@ -1355,7 +1529,14 @@ struct matmul_kernel {
         
         inputs = matmul_buffer_mgr.get_A_bufs(M, K, m, k, type);
 #ifdef MAT_COPY
-        weights = matmul_buffer_mgr.get_B_bufs(K, N, k, n, type);
+        // Construct B_bufs directly instead of going through
+        // matmul_buffer_mgr's shape-keyed shared map: this matmul_kernel
+        // is now itself unique per (m,k,n,type,weight_id) -- see
+        // weight_id's comment -- so its weight buffers must never be
+        // shared with any other kernel even if the shape happens to
+        // match (which it always does, across every layer of a uniform
+        // architecture).
+        weights = std::make_shared<B_bufs>(K, N, k, n, type);
 #else
         weights = nullptr;
 #endif
@@ -1423,9 +1604,10 @@ struct matmul_kernel {
 std::vector<std::shared_ptr<matmul_kernel>> matmul_kernels;
 
 static std::shared_ptr<matmul_kernel>
-ggml_rknpu2_matmul_kernel_find(int m, int k, int n, rknn_tensor_type type) {
+ggml_rknpu2_matmul_kernel_find(int m, int k, int n, rknn_tensor_type type, void *weight_id) {
     for (const auto &kernel: matmul_kernels) {
-        if (kernel->m == m && kernel->k == k && kernel->n == n && kernel->type == type) {
+        if (kernel->m == m && kernel->k == k && kernel->n == n && kernel->type == type
+            && kernel->weight_id == weight_id) {
             return kernel;
         }
     }
@@ -1433,13 +1615,13 @@ ggml_rknpu2_matmul_kernel_find(int m, int k, int n, rknn_tensor_type type) {
 }
 // first find from buffer, then reuse them
 static std::shared_ptr<matmul_kernel>
-ggml_rknpu2_matmul_kernel_create(int m, int k, int n, rknn_tensor_type type)
+ggml_rknpu2_matmul_kernel_create(int m, int k, int n, rknn_tensor_type type, void *weight_id)
 {
-    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, type);
+    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, type, weight_id);
     if (kernel != NULL)
         return kernel;
 
-    kernel = std::make_shared<matmul_kernel>(m, n, k, type);
+    kernel = std::make_shared<matmul_kernel>(m, n, k, type, weight_id);
     matmul_kernels.emplace_back(kernel);
     return kernel;
 }
@@ -1650,12 +1832,25 @@ void rknpu2_matmul_pre0(struct ggml_tensor * dst, int nth, int ith) {
     rknn_tensor_type tensor_type = ggml_type_to_rknn_type(type);
 
     if (ith == 0) {
-        auto kernel = ggml_rknpu2_matmul_kernel_create(m, k, n, tensor_type);
+        auto kernel = ggml_rknpu2_matmul_kernel_create(m, k, n, tensor_type, src0->data);
         GGML_ASSERT(kernel);
         memset(dst->data, 0, m * n * sizeof(float));
 
         float *A = (float*)src1->data;
         void *B = src0->data;
+
+        // See B_bufs::last_source's comment: this shape-keyed weight
+        // buffer group may be shared by many different layers' tensors.
+        // If the tensor actually populating it this call differs from
+        // whichever one populated it last, the cached quantized content
+        // is for the WRONG layer's weights -- invalidate and force a
+        // real re-quantize now, before deciding whether to skip below.
+        if (kernel->weights->last_source != B) {
+            kernel->weights->last_source = B;
+            kernel->weights->group_ready = false;
+            for (auto &[shape, mem]: kernel->weights->Bs)
+                mem->weight_ready = false;
+        }
 
         kernel->for_all_inputs(
             [&](int mm, int kk, int M, int K, std::shared_ptr<rknn_mem> input_mem) {
@@ -1667,6 +1862,10 @@ void rknpu2_matmul_pre0(struct ggml_tensor * dst, int nth, int ith) {
         );
         kernel->for_all_weights(
             [&](int nn, int kk, int N, int K, std::shared_ptr<rknn_mem> weight_mem) {
+                // Weight content doesn't change between calls (unlike
+                // inputs/outputs) -- once quantized, never reset again.
+                // See weight_ready's own comment for why this matters.
+                if (weight_mem->weight_ready) return;
                 if (tensor_type == RKNN_TENSOR_INT8) {
                     weight_mem->init_scale();
                 }
@@ -1694,7 +1893,7 @@ void rknpu2_matmul_pre_scale(struct ggml_tensor * dst, int nth, int ith) {
 
     rknn_tensor_type tensor_type = ggml_type_to_rknn_type(src0->type);
 
-    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type);
+    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type, src0->data);
     GGML_ASSERT(kernel);
 
     float *A = (float*)src1->data;
@@ -1717,16 +1916,28 @@ void rknpu2_matmul_pre_scale(struct ggml_tensor * dst, int nth, int ith) {
             }
         }
     );
+    // See B_bufs::group_ready's comment: compute the whole-tensor float
+    // conversion at most ONCE per call (not once per tile) -- previously
+    // this malloc+to_float() of the ENTIRE source tensor lived inside
+    // the for_all_weights() closure, which runs once per tile, so a
+    // shape split into e.g. 8 tiles (lm_head) did the same full-tensor
+    // conversion 8 times over on every single first-ever pass.
+    float *fB = nullptr;
+    if (tensor_type == RKNN_TENSOR_INT8 && !kernel->weights->group_ready) {
+        ggml_type_traits_t traits = ggml_internal_get_type_traits(src0->type);
+        GGML_ASSERT(traits.to_float != NULL);
+        int nele = k * n;
+        fB = (float *)malloc(nele * sizeof(*fB));
+        traits.to_float(B, fB, nele);
+    }
     kernel->for_all_weights(
         [&](int nn, int kk, int N, int K, std::shared_ptr<rknn_mem> weight_mem) {
+            // See weight_ready's comment: skip re-scaling already-
+            // quantized weight data instead of redoing it every token.
+            if (weight_mem->weight_ready) return;
             auto weight = weight_mem->ptr;
             if (tensor_type == RKNN_TENSOR_INT8) {
                 float scale = SCALE_MIN;
-                ggml_type_traits_t traits = ggml_internal_get_type_traits(src0->type);
-                GGML_ASSERT(traits.to_float != NULL);
-                int nele = k * n;
-                float *fB = (float *)malloc(nele * sizeof(*fB));
-                traits.to_float(B, fB, nele);
                 for (int i = weight_mem->pre_scale_cnt.fetch_add(1); i < N; i = weight_mem->pre_scale_cnt.fetch_add(1))
                     for (int j = 0; j < K; j++) {
                         int ii = nn + i;
@@ -1735,10 +1946,10 @@ void rknpu2_matmul_pre_scale(struct ggml_tensor * dst, int nth, int ith) {
                         scale = std::max(scale, std::abs(fB[ii * k + jj]));
                     }
                 weight_mem->commit_scale(scale / 127.f);
-                free(fB);
             }
         }
     );
+    free(fB);
     END_MEASURE_0;
 }
 
@@ -1759,7 +1970,7 @@ void rknpu2_matmul_pre1(struct ggml_tensor * dst, int nth, int ith) {
 
     rknn_tensor_type tensor_type = ggml_type_to_rknn_type(src0->type);
 
-    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type);
+    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type, src0->data);
     GGML_ASSERT(kernel);
 
     kernel->for_all_inputs(
@@ -1799,8 +2010,28 @@ void rknpu2_matmul_pre1(struct ggml_tensor * dst, int nth, int ith) {
             }
         }
     );
+    // See B_bufs::group_ready's comment (pre_scale has the fuller
+    // explanation): compute the whole-tensor float conversion at most
+    // ONCE per call instead of once per tile.
+    float *fB1 = nullptr;
+    if (tensor_type == RKNN_TENSOR_INT8 && !kernel->weights->group_ready) {
+        ggml_type_traits_t traits = ggml_internal_get_type_traits(src0->type);
+        GGML_ASSERT(traits.to_float != NULL);
+        int nele = k * n;
+        fB1 = (float *)malloc(nele * sizeof(*fB1));
+        traits.to_float(B, fB1, nele);
+    }
     kernel->for_all_weights(
         [&](int nn, int kk, int N, int K, std::shared_ptr<rknn_mem> weight_mem) {
+            // See weight_ready's comment: this is the stage that actually
+            // writes the final quantized weight data -- once done, never
+            // redo it. Setting the flag here (rather than only in pre0)
+            // is safe even though other threads may still be mid-loop on
+            // this same weight_mem: nothing reads weight_ready again
+            // until the ggml_barrier() after pre1 (ggml.c) has been
+            // crossed by every thread, by which point all of them have
+            // finished writing regardless of who set the flag first.
+            if (weight_mem->weight_ready) return;
             auto weight = weight_mem->ptr;
             if (tensor_type == RKNN_TENSOR_FLOAT32) {
                 for (int i = weight_mem->pre1_cnt.fetch_add(1); i < N; i = weight_mem->pre1_cnt.fetch_add(1))
@@ -1811,22 +2042,19 @@ void rknpu2_matmul_pre1(struct ggml_tensor * dst, int nth, int ith) {
                         ((__fp16 *)weight)[weight_fp16(K, i + 1, j + 1)] = ((__fp16 *)B)[ii * k + jj];
                     }
             } else if (tensor_type == RKNN_TENSOR_INT8) {
-                ggml_type_traits_t traits = ggml_internal_get_type_traits(src0->type);
-                GGML_ASSERT(traits.to_float != NULL);
-                int nele = k * n;
-                float *fB = (float *)malloc(nele * sizeof(*fB));
-                traits.to_float(B, fB, nele);
                 for (int i = weight_mem->pre1_cnt.fetch_add(1); i < N; i = weight_mem->pre1_cnt.fetch_add(1))
                     for (int j = 0; j < K; j++) {
                         int ii = nn + i;
                         int jj = kk + j;
                         if (ii >= n || jj >= k) continue;
-                        ((int8_t *)weight)[weight_int8(K, i + 1, j + 1)] = f32_to_i8(fB[ii * k + jj], weight_mem->scale);
+                        ((int8_t *)weight)[weight_int8(K, i + 1, j + 1)] = f32_to_i8(fB1[ii * k + jj], weight_mem->scale);
                     }
-                free(fB);
             }
+            weight_mem->weight_ready = true;
         }
     );
+    free(fB1);
+    kernel->weights->group_ready = true;
     END_MEASURE_0;
     finish = false;
 }
@@ -1848,7 +2076,7 @@ void rknpu2_matmul_submit(struct ggml_tensor * dst, int nth, int ith) {
 
     rknn_tensor_type tensor_type = ggml_type_to_rknn_type(src0->type);
 
-    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type);
+    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type, src0->data);
     GGML_ASSERT(kernel);
 
 #ifdef GGML_USE_CHCORE
@@ -1898,7 +2126,7 @@ void rknpu2_matmul_post(struct ggml_tensor * dst, int nth, int ith) {
 
     float *C = (float*)dst->data;
 
-    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type);
+    auto kernel = ggml_rknpu2_matmul_kernel_find(m, k, n, tensor_type, src0->data);
     GGML_ASSERT(kernel);
 
     BEGIN_MEASURE_0;

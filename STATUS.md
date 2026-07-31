@@ -1819,3 +1819,132 @@ enabled and is known-broken for `-s 0`; the CPU-only `-s 1` path from the previo
 - Pristine `decrypt-stage.cpp` runs real AES decryption and defaults `is_strawman = false`; both
   already intentionally overridden locally (decrypt disabled, strawman forced true) due to
   real stall bugs found and documented in earlier sessions — confirmed still the right call.
+
+## 2026-07-31 (later): NPU (-s 0) deep dive — 7 real issues found and fixed, still not producing output, root cause is now purely CPU-side quantization performance
+
+Continuing from the MAT_COPY revert earlier today (commit `8fb5bab90`), the user pushed back
+hard on "it's just slow" as an explanation and asked to keep digging. This paid off: found and
+fixed 7 distinct real issues, in order of discovery. **NPU still does not produce output within a
+reasonable time (tested up to 66 minutes without even finishing prefill), but every fix is real,
+necessary, and confirmed via direct evidence (not guessed) — none of them were the actual final
+blocker; each one revealed the next.**
+
+### Fix 1: `tzasc_cma` routing for real weight buffers (superseded by fixes 6/7's refinement)
+Re-enabled `MAT_COPY`, then routed `rknn_mem`'s weight-buffer allocation through the same
+`push_pages()`/`commit_tzasc()` mechanism real tensor loading uses, on a dedicated reserved index
+(`TZASC_NR_NPU_SCRATCH = TZASC_NR-1`, `chcore/llm.h`) that real tensor loading (`AllocStage`,
+`layer-sched.cpp`'s `get_cma_index()`) was restricted to never touch — avoiding a commit_tzasc()
+race between two uncoordinated subsystems on the same index. Confirmed working via
+`cma_index=3` push traces.
+
+### Fix 2: quantize-weights-once (`weight_ready`) — later found unsafe, see fix 6
+Added `rknn_mem::weight_ready` and `B_bufs::group_ready` flags so `pre0()`/`pre_scale()`/`pre1()`
+skip re-quantizing weight data that's already been converted, instead of redoing the full
+malloc+dequantize+scale+int8-pack cycle on every single token (previously: `pre0()` unconditionally
+called `reset_cnt()`/`init_scale()` on every weight tile on every call).
+
+### Fix 3: ENOMEM/EINTR retry in `push_pages()`
+Kernel driver's `cma_alloc()` can transiently fail (confirmed via dmesg: `ret: -4` = -EINTR, not
+real exhaustion — `158938/196608 pages free`). The old code hit `BUG_ON(ret < 0)` on any failure,
+which in `chcore/bug.h` prints once then spins in an infinite empty `for(;;) {}` — a silent,
+CPU-pegged, un-killable-looking hang that looks exactly like slow computation from outside. Added
+a bounded retry (200 attempts, `usys_yield()` between) with a `[PUSH_RETRY]` diagnostic print.
+
+### Fix 4: hoisted per-tile-redundant `to_float()` conversion
+`pre_scale()`/`pre1()`'s `for_all_weights()` closure ran once per THREAD per TILE, and each
+invocation independently did `malloc()`+`traits.to_float()` of the **entire source tensor**
+(not just its own tile) — for `lm_head` (8 tiles), that's 8x redundant conversion of 65M elements
+per call. Hoisted the conversion outside the per-tile closure, computed once per call (still once
+per thread, see fix 7 for why full dedup needs per-tensor buffers).
+
+### Fix 5: don't clear `B_map` on prefill→decode transition
+`matmul_buffer_mgr::clear()` (called once, when `m` first becomes 1) unconditionally cleared
+`A_map`/`B_map`/`C_map`. `A_map`/`C_map`'s keys include `M`/`m` (correctly invalidated across the
+prefill→decode batch-size change) but `B_map`'s key `(K,N,k,n,type)` does not depend on `M`/`m` at
+all — weight buffers don't need to be rebuilt just because the batch size changed. Now only
+`A_map`/`C_map` get cleared.
+
+### Fix 6 (CORRECTNESS, supersedes fix 2's safety): weight buffers were shared across DIFFERENT
+### LAYERS, not just across tokens
+The critical finding: `B_map`'s key is `(K,N,k,n,type)` — the weight tensor's *shape*, not its
+identity. Every layer of a uniform-architecture model (all 22 TinyLlama layers' `attn_q`, e.g.)
+shares the exact same shape and therefore **the exact same cached `B_bufs`/`rknn_mem` buffer
+objects**. `matmul_kernel_find()`'s own key `(m,k,n,type)` has the same problem, and since
+`matmul_kernel` holds a *fixed* reference to one `B_bufs` group set at construction, this collision
+is baked in for the kernel's whole lifetime, not just re-triggered per call. The **original**
+(pre-fix-2) design was correct-but-wasteful: `pre0()` unconditionally `reset_cnt()`'d weight tiles
+on every call, forcing genuine re-quantization every time regardless of caching — necessary,
+because the actual tensor differs between e.g. `blk.0.attn_q` and `blk.1.attn_q` even though they
+share a cache slot. Fix 2's "quantize once, skip forever" was therefore **unsafe for any multi-layer
+model**: layer 1 onward would have silently computed with layer 0's weights. Added
+`B_bufs::last_source` (tracks which tensor's raw `data` pointer last populated the group) and
+invalidate `group_ready`/`weight_ready` in `pre0()` whenever it changes. This is necessary and
+non-negotiable regardless of performance impact. Tested: confirmed via the `push #`/timing data
+that with only this fix, layers correctly invalidate every call (since 22 layers round-robin
+through one shared buffer, invalidation happens virtually always) — meaning fix 2's caching
+benefit is completely neutralized by the correctness requirement in this shared-buffer design.
+
+### Fix 7: per-tensor dedicated weight buffers (weight_id keying)
+To make fix 6's correctness compatible with real caching (the whole point), extended
+`matmul_kernel`'s cache key to include `void *weight_id` (the weight tensor's raw `data` pointer,
+stable for the whole run), passed at all 5 real call sites (`src0->data`). `B_bufs` is now
+constructed directly per-kernel (`std::make_shared<B_bufs>(...)`) instead of via
+`matmul_buffer_mgr`'s shape-keyed shared map, so it's never shared across different tensors even
+if the shape matches. This means each of the ~22×7+1 distinct (layer, shape) tensors gets its own
+dedicated buffer, safely reusable across all 32 decode tokens (only 22×7+1 ≈ 155 quantizations
+total instead of every-call). **Tested and NOT yet shown to help**: confirmed via `cma_index=3`
+push count (86 distinct buffer creations vs ~15-24 before) that this fix is working as designed
+(routing through the real allocation path), but the run still hadn't reached the first decode
+measure-dump after 66 minutes (worse than fix 6's ~65 minutes) — the extra ~155 individual
+`push_pages()`/`tzasc_cma` allocations (each its own SMC round-trip) appear to add real overhead
+to the one-time prefill pass, and this session ran out of time to confirm whether decode tokens
+2-32 are actually fast once that one-time cost is paid.
+
+### Root cause now fully isolated: CPU-side quantization, not NPU, not memory, not correctness
+Direct timing data (`ggml_rknpu_dump_measure()`, printed once at the prefill→decode transition,
+before fix 6/7 were applied) definitively separates the cost:
+- **`rknpu2_matmul_begin/end_measure_npu`** (wraps ONLY `submit()`, i.e. real NPU hardware
+  execution): **1.4 seconds** cumulative for the whole prefill. The NPU hardware itself is fast.
+- **`pre_scale()`**: 97.1s cumulative. **`pre1()`**: 97.3s cumulative. These two (CPU-side
+  dequantize/scale-find/int8-pack) are ~99% of the ~199s total prefill cost.
+- The per-element quantization loops (`weight_int8()`/`weight_fp16()` in `npu_matmul.c`) compute a
+  NPU-specific 32x32-tiled memory layout using integer division/modulo **per element** — slow on
+  ARM (~20-40 cycles vs ~1 for add/mul) and likely defeats auto-vectorization due to the
+  non-trivial index pattern.
+- Total real work that must happen at least once (correctly, unavoidably, regardless of caching):
+  ~935MB of Q8_0 weight data (22 layers × ~42.5MB of the 7 per-layer shapes) needs
+  dequantize+scale+repack. With no caching (fix 6 alone), this repeats **every token** (32x). With
+  fix 7's per-tensor caching, it should happen **once total** — assuming the per-buffer allocation
+  overhead fix 7 introduced doesn't outweigh the savings, which was not yet confirmed before the
+  session ended.
+
+### What a real fix looks like (not done, scoped for next session)
+1. **NEON/SIMD-vectorize** `weight_int8()`/`weight_fp16()`'s indexing and the surrounding
+   dequant/quant loops in `ggml-rknpu-re.cpp`'s `pre_scale()`/`pre1()` — the ~194s one-time cost is
+   the real, correctness-required floor; making it faster is a legitimate, safe optimization (same
+   computation, not a caching shortcut).
+2. Re-examine whether fix 7's ~155 individual `tzasc_cma` allocations can be reduced (e.g. batch
+   multiple tiles' worth of pages into fewer, larger `push_pages()` calls) since each one currently
+   costs its own SMC round-trip.
+3. Actually let a full run complete past the first decode measure-dump to confirm/refute whether
+   fix 7 delivers the expected decode-token-2-onward speedup once the one-time cost is paid.
+
+### Current repo state
+All 7 fixes are applied and committed to source (not yet git-committed as of this writing — see
+next session). MAT_COPY is currently **enabled**. The board is flashed with fix 7's build; `-s 1`
+(CPU-only, `081ead254`'s known-good path) is unaffected by any of tonight's changes and should
+still work if tested. `-s 0` does not crash or hang silently anymore (fixes 1-6 eliminated every
+crash/hang found), it is just not fast enough yet to produce output within a practical test window.
+
+### Operational note: this session bricked /tmp (tmpfs) to 100% full
+Accumulated scratchpad UART logs (`uart_npu_test.log` alone reached 648MB from repeated massive
+`[OOM]` benign-noise capture) plus several-days-old leftover extraction directories from earlier
+sessions (`/tmp/staros_extracted`, `/tmp/verify_userdata.img`, `/tmp/openssl_extracted`, etc. —
+none related to tonight's work) filled the 16G tmpfs, causing `flash/repack.sh`'s `mktemp -d` to
+fail with "No space left on device". Cleaned up by deleting the old unrelated directories (freed
+tmpfs from 100% to 54% used) and trimming/rotating the active UART log. Also: an `mv` used while
+trying to truncate the live-tailed UART log broke the `cat /dev/ttyUSB0 > file` redirection (the
+reader process kept its open fd to the now-unlinked old inode) — had to kill and restart the
+reader. And separately, one board boot cycle hit a `/dev/tc_ns_client` open failure
+(`fake_ca.cpp:99: GGML_ASSERT(fd > 0) failed`) that was environment-specific to that one boot
+(coincided with unusually slow WiFi association) and resolved by a plain reboot — not a code bug.
