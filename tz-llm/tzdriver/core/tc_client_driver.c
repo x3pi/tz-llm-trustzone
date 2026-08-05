@@ -1732,6 +1732,7 @@ static int llm_set_pages(struct file *file, void __user * argp) {
 	struct llm_client_op_pages *index_p = (struct llm_client_op_pages *)file->private_data;
 	index_p->cma_index = index.cma_index;
 	index_p->entry_index = index.entry_index;
+	index_p->offset = index.offset;
 	// tlogd("%s %d set index to %d\n", __func__, __LINE__, index);
 	return 0;
 }
@@ -1873,11 +1874,22 @@ static int llm_client_mmap(struct file *file, struct vm_area_struct *vma) {
 			return -EINVAL;
 		struct tzasc_cma_meta *g_tzasc_cma_meta = g_tzasc_cma_meta_arr + index_p->cma_index;
 		struct tzasc_cma_entry *entry = &g_tzasc_cma_meta->entry[index_p->entry_index];
-		if (size > entry->size) {
-			tloge("%s %d try to mmap size=%lx entry->size=%lx index=%d\n", __func__, __LINE__, size, entry->size, index_p->entry_index);
+		// offset: byte offset within this entry's own allocation to start
+		// mapping from -- lets one big push_pages() reservation be
+		// sub-mapped in pieces (AllocStage pooling) instead of needing a
+		// fresh entry_index per piece. offset=0 (every pre-existing call
+		// site) is exactly the old behavior. Bounds-checked against the
+		// entry's real size, same as the unmodified `size` check below.
+		if (index_p->offset % PAGE_SIZE != 0) {
+			tloge("%s %d offset=%lx not page-aligned\n", __func__, __LINE__, index_p->offset);
+			return -EINVAL;
+		}
+		if (index_p->offset > entry->size || size > entry->size - index_p->offset) {
+			tloge("%s %d try to mmap size=%lx offset=%lx entry->size=%lx index=%d\n", __func__, __LINE__, size, index_p->offset, entry->size, index_p->entry_index);
 			return -EINVAL;
 		}
 		pfn = page_to_phys(entry->cma_pages) >> PAGE_SHIFT;
+		pfn += index_p->offset >> PAGE_SHIFT;
 		if (remap_pfn_range(vma, vma->vm_start, pfn, size, vma->vm_page_prot)) {
 			tloge("%s %d\n", __func__, __LINE__);
 			printk(KERN_ERR "Failed to map memory\n");

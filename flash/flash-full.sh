@@ -48,7 +48,13 @@ SUDO_PW=${SUDO_PW:-}
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
 
-sudo_run() { if [ -n "$SUDO_PW" ]; then echo "$SUDO_PW" | sudo -S "$@"; else sudo "$@"; fi; }
+sudo_run() {
+    # udev rule (/etc/udev/rules.d/99-rockchip.rules, idVendor==2207,
+    # MODE=0666) grants direct USB access, so try unprivileged first and
+    # only fall back to sudo if that fails.
+    if "$@" 2>/dev/null; then return 0; fi
+    if [ -n "$SUDO_PW" ]; then echo "$SUDO_PW" | sudo -S "$@"; else sudo "$@"; fi
+}
 
 echo "=== entering loader mode (rk3588_spl_loader_v1.21.114.bin) ==="
 sudo_run timeout 8s "$RKDEV" db "$LOADER"

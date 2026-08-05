@@ -87,7 +87,14 @@ struct llm_client_op_pages {
 	int cma_index;
 	int entry_index;
 	unsigned long size;
+	// See tzdriver/tc_ns_client.h's copy of this struct for the full
+	// comment -- kept in sync by hand (no shared include path between
+	// this userspace build and the kernel driver). offset=0 (default,
+	// every pre-existing get_buf() caller) is the old behavior.
+	unsigned long offset;
 };
+static_assert(sizeof(struct llm_client_op_pages) == 24,
+    "llm_client_op_pages size drifted from tc_ns_client.h -- update all 3 hand-copies together");
 
 #define DEVICE_NAME "/dev/tc_ns_client"
 #define TC_NS_CLIENT_IOC_MAGIC  't'
@@ -125,17 +132,18 @@ void put_ctx(io_context_t ctx) {
 // multi-thread parallelism reach this code path for the first time).
 static std::mutex get_buf_mtx;
 
-static void *get_buf(int cma_index, int entry_index, size_t len) {
+static void *get_buf(int cma_index, int entry_index, size_t len, unsigned long offset = 0) {
     if (cma_index == -1)
         return NULL;
     std::lock_guard<std::mutex> _(get_buf_mtx);
     struct llm_client_op_pages index = {
         .cma_index = cma_index,
         .entry_index = entry_index,
+        .offset = offset,
     };
     int ret = ioctl(tzd_fd, LLM_CLIENT_IOCTL_SET_PAGES, &index);
     GGML_ASSERT(ret >= 0);
-    dbg_log_push(2, -1, cma_index, entry_index, len, 0, NULL);
+    dbg_log_push(2, -1, cma_index, entry_index, len, offset, NULL);
 
     void *addr = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, tzd_fd, 0);
     if (addr == MAP_FAILED) {
@@ -292,7 +300,7 @@ void io_step(all_ring_buffer *task_queue) {
             write_measurement(task);
             return;
         } else {
-            void *buf = get_buf(task.cma_index, task.entry_index, task.len);
+            void *buf = get_buf(task.cma_index, task.entry_index, task.len, task.entry_offset);
             launch_io(buf, fd, task.io_seg, task.pipeline);
         }
     }

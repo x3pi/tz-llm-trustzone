@@ -83,3 +83,21 @@ void ca_backend_set_strawman(bool is_strawman) {
     GGML_ASSERT(task_queues);
     task_queues->is_strawman = is_strawman;
 }
+
+// Real result channel: the TA (main.cpp) publishes the final generated
+// answer into this same shared command-queue page once inference
+// completes (see FINAL_ANSWER_MAX's comment, interface.h) -- this is the
+// only reliable way to get it out, since the TA's UART console output is
+// shared with every other concurrently-printing thread/kernel subsystem
+// and has repeatedly corrupted this exact text. Returns true exactly once
+// (the first call after the answer becomes available) so callers can poll
+// this from a busy loop without printing duplicates.
+bool ca_backend_poll_final_answer(char *out, size_t out_size) {
+    GGML_ASSERT(task_queues);
+    bool expected = true;
+    if (!task_queues->final_answer_ready.compare_exchange_strong(expected, false)) {
+        return false;
+    }
+    snprintf(out, out_size, "%s", task_queues->final_answer);
+    return true;
+}

@@ -14,7 +14,17 @@ struct llm_client_op_pages {
 	int cma_index;
 	int entry_index;
 	unsigned long size;
+	// MUST stay byte-identical to tzdriver/tc_ns_client.h's copy (and
+	// io-backend.cpp's) even though this file's own AllocTask never sets
+	// a nonzero .offset -- _IOWR() bakes sizeof(this struct) into the
+	// ioctl command number at compile time, so a size mismatch here would
+	// silently make LLM_CLIENT_IOCTL_SET_PAGES resolve to a DIFFERENT
+	// command number than the kernel's switch(cmd) case expects (ENOSYS,
+	// not a clean type error) -- see the static_assert below.
+	unsigned long offset;
 };
+static_assert(sizeof(struct llm_client_op_pages) == 24,
+    "llm_client_op_pages size drifted from tc_ns_client.h -- update all 3 hand-copies together");
 
 #define DEVICE_NAME "/dev/tc_ns_client"
 #define TC_NS_CLIENT_IOC_MAGIC  't'
@@ -105,7 +115,7 @@ bool AllocStage::submit(std::shared_ptr<Task> task)
     GGML_ASSERT(!addr);
     addr = alloc_task->addr;
     msg.buf = alloc_task->addr;
-    msg.cma_indexes.push_back({alloc_task->cma_index, alloc_task->entry_index, 0, size});
+    msg.cma_indexes.push_back({alloc_task->cma_index, alloc_task->entry_index, 0, 0, size});
     return true;
 }
 

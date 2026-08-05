@@ -291,7 +291,7 @@ int main(void)
      * userspace REE process needs to be running for that to work.
      */
     if (1) {
-        char *argv[] = {
+        const char *argv[] = {
             /*
              * tinyllama instead of Meta-Llama-3-8B: the 8B meta gguf plus its
              * weights do not fit the 768MiB TZASC pool on this board, and its
@@ -302,17 +302,10 @@ int main(void)
              */
             "llama-cli",
             "-m", "tinyllama-1.1b-chat-v1.0.Q8_0-meta.gguf",
-            // "-m", task_queue->inner_model_path,
             "--no-warmup",
-            // "--file", "question.txt",
-            // "-p", "hello",
-            "-p", "tinyllama#0",
-            // "-p", task_queue->prompt,
+            "-p", "tinyllama#Hello, how are you today?",
             "--cache", "0",
-            // "--cache", task_queue->cache_p,
-            // "--tee-shm-paddr", tee_shm_paddr,
             "-n", "64",
-            // "-n", task_queue->n,
             "-s", "123",
             "-ngl", "100",
             "-t", "4",
@@ -321,7 +314,7 @@ int main(void)
         };
         char argc = sizeof(argv) / sizeof(*argv);
         printf("%s %d: launching llama\n", __func__, __LINE__);
-        pid_t pid = create_process(argc, argv, NULL);
+        pid_t pid = create_process(argc, (char **)argv, NULL);
         int ret = waitpid(pid, NULL, 0);
 
         printf("%s %d: llama.cpp finished\n", __func__, __LINE__);

@@ -223,6 +223,19 @@ int main(int argc, char **argv)
     ggml_backend_rknpure_set_strawman(is_strawman);
 
     printf("%s: cache %d\ninner_model_path %s\n io_model_path %s\nn %d\nis_strawman %d\n", __func__, params.cache, params.model.c_str(), params.io_model_path.c_str(), params.n_predict, is_strawman);
+#else
+    // The CA-side (non-chcore) build never reads task_queue->is_strawman
+    // (that struct only exists on the TA side of the fake_ca.cpp/TA-llama-
+    // cli split) -- is_strawman (ggml-rknpu-re.cpp) therefore stays at its
+    // compiled-in default (`true`, i.e. CPU-emulation "strawman" branch)
+    // for every op this backend registers, regardless of -ngl. Explicitly
+    // route through the real NPU/TrustZone compute path here so this CLI
+    // actually exercises what -s 0 (fake_ca.cpp) exercises, instead of
+    // silently running the CPU-only branch under a different binary.
+    extern bool is_strawman;
+    is_strawman = false;
+    extern void ggml_backend_rknpure_set_strawman(bool strawman);
+    ggml_backend_rknpure_set_strawman(is_strawman);
 #endif /* LLAMA_USE_CHCORE_API */
 
     extern void set_io_model_path(const char *io_model_path);
@@ -234,16 +247,6 @@ int main(int argc, char **argv)
     set_cache_proportion(params.cache);
     std::cout << "after set_cache_proportion" << std::endl;
 
-    // TEMP DIAGNOSTIC: force CPU-only (no GPU/NPU offload) to isolate whether
-    // the tensor-load stall (io_step ring buffer goes silent ~15% into the
-    // model, see fake_ca.cpp's dbg_log_dump()) is specific to the NPU-offload
-    // path. `fake`'s CLI has no working -ngl passthrough (getopt doesn't
-    // define -g), so params.n_gpu_layers stays at its -1 default, which
-    // common.cpp's llama_model_default_params() then offloads via
-    // (n_gpu_layers != -1 check does NOT catch -1, so the model's own
-    // default -- offload everything -- applies). Remove once the NPU path
-    // itself is fixed.
-    params.n_gpu_layers = 0;
     std::cout << "before gpt_init" << std::endl;
     gpt_init();
     std::cout << "after gpt_init" << std::endl;
@@ -927,11 +930,73 @@ int main(int argc, char **argv)
                 is_pipelining = true;
 #endif
 
+                // DIAGNOSTIC: [POST_DIAG]/[DECODE_DIAG] already confirmed
+                // lm_head's post(), llama_decode(), and gpt_sampler_sample()
+                // all complete normally and repeatedly, but the SAMPLED
+                // token id was observed identical across multiple
+                // consecutive decode steps (see STATUS.md). This print adds
+                // the actual token id(s) about to be fed into THIS
+                // llama_decode() call, to directly confirm/deny whether the
+                // decode loop is feeding back a genuinely different token
+                // each step (pointing further downstream, at attention/
+                // KV-cache) or the same one (pointing at this loop itself,
+                // e.g. embd/gpt_sampler_accept not actually updating state
+                // used here).
+                printf("[DECODE_DIAG] before llama_decode n_eval=%d n_past=%d input_token=%d us=%lld\n",
+                    n_eval, n_past, (int)embd[i], (long long)ggml_time_us());
+                fflush(stdout);
                 if (llama_decode(
                         ctx,
                         llama_batch_get_one(&embd[i], n_eval, n_past, 0))) {
                     LOG_ERR("%s : failed to eval\n", __func__);
                     return 1;
+                }
+                printf("[DECODE_DIAG] after llama_decode us=%lld\n",
+                    (long long)ggml_time_us());
+                fflush(stdout);
+                // DIAGNOSTIC: [DECODE_DIAG]'s input_token= couldn't cleanly
+                // distinguish "decode loop bug" from "attention/KV-cache
+                // drift" once the sampler is already stuck (next input is
+                // trivially the previous stuck output). Printing the
+                // actual top-5 logits (value + token id) at every decode
+                // step instead gives directly comparable, independent
+                // data against the known-good CPU path (run the same
+                // prompt through plain `llama-cli -m ...` and diff the
+                // sequences by n_past) -- see STATUS.md. If both paths'
+                // top-5 sets are close-but-diverging by the point the NPU
+                // path locks onto a repeated token, that's evidence for
+                // gradual numerical drift; if the NPU path's own top-5
+                // set is already degenerate/flat from early on, that
+                // points elsewhere (e.g. a scale/precision bug specific
+                // to this path, independent of any "drift" over time).
+                {
+                    float *logits = llama_get_logits(ctx);
+                    int32_t n_vocab = llama_n_vocab(model);
+                    // Simple top-5 via partial selection -- n_vocab is
+                    // ~32000, this is O(5*n_vocab), negligible next to a
+                    // multi-second decode step.
+                    int top_idx[5] = {-1,-1,-1,-1,-1};
+                    float top_val[5] = {-1e30f,-1e30f,-1e30f,-1e30f,-1e30f};
+                    for (int32_t v = 0; v < n_vocab; v++) {
+                        float lv = logits[v];
+                        for (int r = 0; r < 5; r++) {
+                            if (lv > top_val[r]) {
+                                for (int s = 4; s > r; s--) {
+                                    top_val[s] = top_val[s-1];
+                                    top_idx[s] = top_idx[s-1];
+                                }
+                                top_val[r] = lv;
+                                top_idx[r] = v;
+                                break;
+                            }
+                        }
+                    }
+                    printf("[LOGIT_DIAG] n_past=%d top5=[%d:%.4f,%d:%.4f,%d:%.4f,%d:%.4f,%d:%.4f]\n",
+                        n_past,
+                        top_idx[0], top_val[0], top_idx[1], top_val[1],
+                        top_idx[2], top_val[2], top_idx[3], top_val[3],
+                        top_idx[4], top_val[4]);
+                    fflush(stdout);
                 }
 
                 n_past += n_eval;
@@ -969,7 +1034,13 @@ int main(int argc, char **argv)
                 LOG_DBG("saved session to %s\n", path_session.c_str());
             }
 
+            printf("[DECODE_DIAG] before gpt_sampler_sample us=%lld\n",
+                (long long)ggml_time_us());
+            fflush(stdout);
             const llama_token id = gpt_sampler_sample(smpl, ctx, -1);
+            printf("[DECODE_DIAG] after gpt_sampler_sample id=%d us=%lld\n",
+                id, (long long)ggml_time_us());
+            fflush(stdout);
 
             gpt_sampler_accept(smpl, id, /* accept_grammar= */ true);
 
@@ -1268,6 +1339,20 @@ int main(int argc, char **argv)
     std::cout << output_ss.str() << std::endl;
     std::cout << "===GENERATED_ANSWER_END===" << std::endl;
     std::cout << "step 5" << std::endl;
+#ifdef LLAMA_USE_CHCORE_API
+    // Real result channel for the CA (fake_ca.cpp) to relay onward -- see
+    // FINAL_ANSWER_MAX's comment (interface.h). The UART console print
+    // just above is left in place for interactive debugging, but nothing
+    // in this project could previously get the answer text out reliably
+    // (UART interleaving corruption, and the CA never read it anyway).
+    {
+        const std::string &ans = output_ss.str();
+        size_t len = std::min(ans.size(), (size_t)(FINAL_ANSWER_MAX - 1));
+        memcpy(task_queue->final_answer, ans.data(), len);
+        task_queue->final_answer[len] = '\0';
+        task_queue->final_answer_ready = true;
+    }
+#endif
     LOG("\n\n");
     gpt_perf_print(ctx, smpl);
     write_logfile(

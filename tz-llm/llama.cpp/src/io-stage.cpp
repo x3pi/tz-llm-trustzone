@@ -10,12 +10,13 @@ public:
     size_t len;
     int cma_index;
     int entry_index;
+    unsigned long entry_offset;
     std::shared_ptr<Pipeline> pipeline;
-    IOTask(size_t off, size_t len, int cma_index, int entry_index, std::shared_ptr<Pipeline> pipeline)
-        : off(off), len(len), cma_index(cma_index), entry_index(entry_index), pipeline(pipeline) {}
+    IOTask(size_t off, size_t len, int cma_index, int entry_index, std::shared_ptr<Pipeline> pipeline, unsigned long entry_offset = 0)
+        : off(off), len(len), cma_index(cma_index), entry_index(entry_index), entry_offset(entry_offset), pipeline(pipeline) {}
     void step(void) override {
         std::shared_ptr<Task> self = shared_from_this();
-        io_launch(off, len, cma_index, entry_index, task_entry(pipeline, self));
+        io_launch(off, len, cma_index, entry_index, task_entry(pipeline, self), entry_offset);
     }
 };
 
@@ -51,9 +52,9 @@ std::pair<std::shared_ptr<Task>, bool> IOStage::get_task(void *)
 {
     GGML_ASSERT(pipeline);
     GGML_ASSERT(!cma_indexes.empty());
-    auto [cma_index, entry_index, cma_offset, cma_size] = cma_indexes.back();
+    auto [cma_index, entry_index, cma_offset, entry_offset, cma_size] = cma_indexes.back();
     cma_indexes.pop_back();
-    return { std::make_shared<IOTask>(io_align_down(off) + cma_offset, cma_size, cma_index, entry_index, pipeline), cma_indexes.empty() };
+    return { std::make_shared<IOTask>(io_align_down(off) + cma_offset, cma_size, cma_index, entry_index, pipeline, entry_offset), cma_indexes.empty() };
 }
 
 bool IOStage::submit(std::shared_ptr<Task> task)

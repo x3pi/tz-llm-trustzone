@@ -83,7 +83,7 @@ std::atomic<size_t> io_size;
 
 int on_fly_cnt = 0;
 
-void io_launch(size_t off, size_t size, int cma_index, int entry_index, task_entry entry)
+void io_launch(size_t off, size_t size, int cma_index, int entry_index, task_entry entry, unsigned long entry_offset)
 {
 #ifdef TZ_LLM_MEASURE
     auto start = get_micro();
@@ -94,6 +94,7 @@ void io_launch(size_t off, size_t size, int cma_index, int entry_index, task_ent
     io_task task = {
         .cma_index = cma_index,
         .entry_index = entry_index,
+        .entry_offset = entry_offset,
         .len = seg_end - seg_begin,
         .io_seg = {
             .off = seg_begin,

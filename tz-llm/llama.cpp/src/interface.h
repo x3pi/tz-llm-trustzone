@@ -41,6 +41,7 @@ struct io_segs {
 struct io_task {
     int cma_index;
     int entry_index;
+    unsigned long entry_offset; // see pipeline.h's cma_indexes comment
     size_t len;
     struct io_seg io_seg;
     void *pipeline;
@@ -186,6 +187,22 @@ const int IO_BUFFER_SIZE = 10240;
 const int NPU_BUFFER_SIZE = 128;
 const int PAGE_BUFFER_SIZE = 128;
 
+// PRODUCTION GAP FOUND: this whole session's debugging relied on the TA's
+// own UART console for the generated answer text -- but that's a raw
+// hardware serial line shared with every other concurrently-printing
+// thread/kernel subsystem, and repeatedly corrupted the answer text itself
+// (START/END markers survived, the text between them consistently came
+// through empty) across many independent test runs. `fake_ca.cpp` (the
+// Normal-World CA) never actually reads or relays the generated text at
+// all today -- it's a pure SMC/IO relay pump with zero awareness of
+// inference results. There was NO reliable way for a real caller to get
+// the answer out. Fixed by giving the TA a place to publish the final
+// text into this ALREADY-SHARED, ALREADY-WORKING command-queue page (the
+// same one `cache_p`/`prompt`/`n` etc. use for the CA->TA direction) for
+// the CA to read back and print through its own plain stdout, which
+// (unlike the UART) reliably reaches a redirected log file untouched.
+const size_t FINAL_ANSWER_MAX = 8192;
+
 struct all_ring_buffer {
     char io_model_path[256];
     char cache_p[256];
@@ -193,6 +210,9 @@ struct all_ring_buffer {
     char prompt[256];
     char n[256];
     bool is_strawman;
+
+    char final_answer[FINAL_ANSWER_MAX];
+    std::atomic<bool> final_answer_ready;
 
     ring_buffer<io_task, IO_BUFFER_SIZE> io_tasks;
     ring_buffer<io_result, IO_BUFFER_SIZE> io_results;
@@ -208,6 +228,8 @@ struct all_ring_buffer {
         memset(inner_model_path, 0, sizeof(inner_model_path));
         memset(prompt, 0, sizeof(prompt));
         memset(n, 0, sizeof(n));
+        memset(final_answer, 0, sizeof(final_answer));
+        final_answer_ready = false;
         io_tasks.init();
         io_results.init();
         // npu_tasks.init();

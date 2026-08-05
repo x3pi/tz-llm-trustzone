@@ -423,7 +423,7 @@ void parse_prompt(gpt_params & params, const std::string & value) {
         bool is_numeric = !rest.empty() && std::all_of(rest.begin(), rest.end(), [](unsigned char c){ return std::isdigit(c); });
         if (!is_numeric) {
             params.prompt = rest;
-            params.wrap_user_chat = true;
+            params.wrap_user_chat = false;
             return;
         }
         int len = std::stoi(rest);

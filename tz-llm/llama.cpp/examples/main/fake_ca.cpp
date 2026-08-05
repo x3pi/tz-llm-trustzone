@@ -14,6 +14,7 @@
 #include <string>
 #include <sched.h>
 #include <csignal>
+#include "interface.h"
 
 extern void dbg_log_dump(void);
 
@@ -54,6 +55,7 @@ extern void ca_backend_set_prompt(const char *model, int len);
 extern void ca_backend_set_prompt_text(const char *model, const char *text);
 extern void ca_backend_set_n(int n);
 extern void ca_backend_set_strawman(bool is_strawman);
+extern bool ca_backend_poll_final_answer(char *out, size_t out_size);
 
 void ca_thread(int fd, int index) {
     cpu_set_t cpuset;
@@ -76,6 +78,27 @@ void ca_thread(int fd, int index) {
         //     GGML_ASSERT(false);
         //     break;
         // }
+        // PERFORMANCE: this relay loop runs at very high frequency (only
+        // a sched_yield() between iterations) and this atomic check
+        // touches a cache line in TA-shared secure-world memory --
+        // confirmed via direct measurement to add enough per-iteration
+        // cost, done this often, to stall the whole pipeline (a run that
+        // normally shows progress within 1-2 minutes produced ZERO
+        // progress markers after 12+ minutes with this checked every
+        // iteration). Rate-limit to once every ~2000 iterations -- still
+        // sub-second latency for the answer to actually get printed once
+        // ready, at a small fraction of the original polling rate.
+        if (index == 0) {
+            static int poll_ctr = 0;
+            if (++poll_ctr >= 2000) {
+                poll_ctr = 0;
+                static char answer[FINAL_ANSWER_MAX];
+                if (ca_backend_poll_final_answer(answer, sizeof(answer))) {
+                    printf("===FINAL_ANSWER_START===\n%s\n===FINAL_ANSWER_END===\n", answer);
+                    fflush(stdout);
+                }
+            }
+        }
         // Yield after each SMC round-trip so this busy-poll loop (pinned to
         // dedicated cores) doesn't monopolize the CPU enough to starve
         // unrelated kernel work (RCU grace periods, WiFi RX softirq, etc.)

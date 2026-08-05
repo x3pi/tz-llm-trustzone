@@ -51,7 +51,19 @@ struct llm_client_op_pages {
 	int cma_index;
 	int entry_index;
 	unsigned long size;
+	// Byte offset within entry_index's own physical allocation to start
+	// mapping from (SET_PAGES/mmap path only -- llm_alloc_pages/
+	// llm_push_pages ignore this, they use `size` for a fresh allocation
+	// request instead). Added to let one large push_pages() reservation
+	// be sub-allocated into many smaller logical buffers without a
+	// separate SMC round-trip per buffer -- see alloc-stage-chcore.cpp's
+	// AllocStage pooling. Zero-valued for every pre-existing call site,
+	// so this is purely additive: old behavior (map from the start of
+	// entry_index) is offset=0, unchanged.
+	unsigned long offset;
 };
+_Static_assert(sizeof(struct llm_client_op_pages) == 24,
+	"llm_client_op_pages size drifted -- update the userspace hand-copies (io-backend.cpp, alloc-stage.cpp) together");
 
 struct tc_ns_client_login {
 	__u32 method;

@@ -1945,6 +1945,7 @@ void rknpu2_matmul_pre_scale(struct ggml_tensor * dst, int nth, int ith) {
                         if (ii >= n || jj >= k) continue;
                         scale = std::max(scale, std::abs(fB[ii * k + jj]));
                     }
+                if (scale > 0.25f) scale = 0.25f; // Clamp to avoid entropy collapse on outliers
                 weight_mem->commit_scale(scale / 127.f);
             }
         }
@@ -2291,12 +2292,11 @@ GGML_CALL static bool ggml_backend_rknpure_supports_op(ggml_backend_t backend, c
         const int64_t k = src0->ne[0];
         const int64_t n = dst->ne[0];
         /* can not allocate large B buffers for large vocab_size. just use cpu to perform these matmuls */
-        if (k >= 50000 || n >= 50000)
+        if (k >= 30000 || n >= 30000)
             return false;
     }
 
     // printf("ggml_backend_rknpure_supports_op, %d, %d, %p\n", src1->type, dst->type, src0->extra);
-    // return false; // DEBUG: first, never use this backend
 
     const int64_t ne10 = src1->ne[0];
 
@@ -2308,7 +2308,6 @@ GGML_CALL static bool ggml_backend_rknpure_supports_op(ggml_backend_t backend, c
         src1->type == GGML_TYPE_F32 && dst->type == GGML_TYPE_F32) {
         const int64_t k = src0->ne[0];
         const int64_t n = src0->ne[1];
-        return true;
         // k > 8192 时，B 会被分成 T 段，int T = std::ceil(K / 8192)，推荐使用 rknn_B_normal_layout_to_native_layout 接口直接进行数据转换
         if(k > 8192 || n > 4096) // RKNPU2 limit （原来是10240）
         {
@@ -2324,10 +2323,18 @@ GGML_CALL static bool ggml_backend_rknpure_supports_op(ggml_backend_t backend, c
         }
 
         // make sure the tensor has assosiated data
+        // zzh: deprecated -- real weight tensors route through tzasc_cma
+        // (see push_pages/commit_tzasc), not the generic ggml buffer-type
+        // system, so this never reads "RKNPURE" for legitimately
+        // NPU-destined tensors anymore. Re-enabling it causes every real
+        // weight tensor to fail here and retry-storm (confirmed on
+        // hardware: push # frozen while SMC_EXIT_PREEMPTED spin climbed
+        // unbounded). Mirrors the same deprecated check already disabled
+        // in ggml_rknpure_can_mul_mat_b above.
         // printf("zzh: %s\n", src0->buffer->buft->iface.get_name(src0->buffer->buft));
-        if (strcmp(src0->buffer->buft->iface.get_name(src0->buffer->buft), "RKNPURE")) {
-            return 0;
-        }
+        // if (strcmp(src0->buffer->buft->iface.get_name(src0->buffer->buft), "RKNPURE")) {
+        //     return 0;
+        // }
 
         if(src0->type != GGML_TYPE_Q8_0 && src0->type != GGML_TYPE_F16)
         {

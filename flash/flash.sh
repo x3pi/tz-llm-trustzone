@@ -22,10 +22,17 @@ SUDO_PW=${SUDO_PW:-}
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
 
-sudo_run() { if [ -n "$SUDO_PW" ]; then echo "$SUDO_PW" | sudo -S "$@"; else sudo "$@"; fi; }
+sudo_run() {
+    # udev rule (/etc/udev/rules.d/99-rockchip.rules, idVendor==2207,
+    # MODE=0666) grants direct USB access, so try unprivileged first and
+    # only fall back to sudo if that fails (older machines without the
+    # rule, or a rule that didn't apply for some reason).
+    if "$@" 2>/dev/null; then return 0; fi
+    if [ -n "$SUDO_PW" ]; then echo "$SUDO_PW" | sudo -S "$@"; else sudo "$@"; fi
+}
 
 echo "=== entering loader mode ==="
-sudo_run timeout 8s "$RKDEV" db "$LOADER"
+sudo_run timeout 30s "$RKDEV" db "$LOADER" || true
 sleep 2
 sudo_run "$RKDEV" cs 2
 sleep 2

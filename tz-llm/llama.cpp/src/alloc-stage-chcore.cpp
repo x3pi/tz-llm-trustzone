@@ -1,6 +1,7 @@
 #include "ggml.h"
 #include "pipeline.h"
 #include <atomic>
+#include <vector>
 #include <io-frontend.h>
 #include <chcore/memory.h>
 #include <chcore/syscall.h>
@@ -50,7 +51,17 @@ static std::once_flag tzasc_flag;
 // bookkeeping (page tables, capability objects, etc.) versus leaves idle.
 static std::atomic<int> push_pages_call_ctr{0};
 
-int push_pages(size_t len, int cma_index) {
+// soft=false (default, existing behavior): after 200 retries, BUG_ON --
+// appropriate for callers with no fallback (a genuinely unrecoverable
+// situation for them). soft=true: after 200 retries, return a negative
+// value instead of crashing, so the caller can try a different cma_index
+// (used by tensor_pool_alloc/npu_scratch_alloc's incremental-growth,
+// overflow-to-next-index allocators, where "this index has no more room"
+// is an EXPECTED, recoverable outcome, not a fatal one -- 200 retries
+// with a yield between each is already enough to rule out the transient
+// -EINTR condition described below, so a failure surviving all 200 is a
+// reliable signal of genuine exhaustion, not bad luck).
+int push_pages_ex(size_t len, int cma_index, bool soft) {
     std::call_once(tzasc_flag, tzasc_cma_init);
 
     GGML_ASSERT(cma_index >= 0 && cma_index < TZASC_NR);
@@ -87,7 +98,15 @@ int push_pages(size_t len, int cma_index) {
             attempt, attempt == 1 ? "y" : "ies", cma_index, len);
         fflush(stdout);
     }
-    BUG_ON(ret < 0);
+    if (ret < 0) {
+        if (soft) {
+            printf("[PUSH_SOFT_FAIL] push_pages exhausted 200 retries (cma_index=%d, len=%#zx) -- reporting failure to caller instead of BUG_ON\n",
+                cma_index, len);
+            fflush(stdout);
+            return ret;
+        }
+        BUG_ON(ret < 0);
+    }
 
     int c = push_pages_call_ctr.fetch_add(1);
     if (c % 16 == 0) {
@@ -96,6 +115,9 @@ int push_pages(size_t len, int cma_index) {
         fflush(stdout);
     }
     return ret;
+}
+int push_pages(size_t len, int cma_index) {
+    return push_pages_ex(len, cma_index, false);
 }
 int pop_pages(int cma_index) {
     std::call_once(tzasc_flag, tzasc_cma_init);
@@ -130,15 +152,175 @@ extern bool is_strawman;
 // easier to satisfy from fragmented free space, at the cost of more SMC
 // round-trips per tensor - a pure tuning knob, doesn't change the
 // pipelined-restoration design itself (EuroSys'26 S4.1-4.2).
-#define BLOCK_SIZE (is_strawman ? (64UL << 20) : (1UL << 20))
+//
+// SUPERSEDED by AllocTask::step()'s pooled allocator (tensor_pool_alloc,
+// below): each cma_index now does exactly ONE real push_pages()/
+// cma_alloc() call for its entire ~768MiB bank, made once and reused via
+// sub-allocation (bump offset) for every AllocTask on that index --
+// BLOCK_SIZE is no longer a physical-contiguity request size at all, just
+// a bookkeeping/pipelining granularity. The fragmentation crash this
+// constant was originally tuned to avoid (see the retained comment
+// history in git log / STATUS.md) is now structurally impossible: there
+// is nothing left to fragment after the one whole-bank reservation.
+// Matches strawman's size since neither path's block size has any
+// remaining fragmentation implication.
+#define BLOCK_SIZE (is_strawman ? (64UL << 20) : (64UL << 20))
+
+// Pooled tensor-loading allocator: reserve the WHOLE physical bank for
+// each of the TZASC_NR_MODEL indices used for model-tensor loading, ONCE
+// per index (lazily, on first use), sub-allocated (bump allocator) from
+// then on instead of one push_pages()/cma_alloc() call per BLOCK_SIZE
+// chunk. This mirrors the exact pattern already proven safe tonight for
+// the NPU weight-scratch allocator (ggml-rknpu-re.cpp's
+// npu_scratch_alloc), applied here to remove indices 0-2's OWN
+// fragmentation risk (see BLOCK_SIZE's comment above) so BLOCK_SIZE can
+// go back up toward strawman's 64MiB without the "many small concurrent
+// cma_alloc() calls fragment the pool" crash this file's 1MiB/4MiB tuning
+// was defending against. Confirmed safe to map one physical range into
+// many different vaddrs: sys_map_tzasc_cma_pmo (tee_os_kernel/kernel/
+// object/memory.c) is a raw map_range_in_pgtbl() call with no exclusivity
+// tracking, so multiple AllocTasks aliasing the same pooled paddr range
+// into their own distinct vaddrs is a supported page-table pattern.
+// ADAPTIVE VERSION: instead of reserving a whole ~768MiB bank per index
+// up front (which starves ggml-rknpu-re.cpp's npu_scratch_alloc() of any
+// spare room in the same 4 banks -- confirmed on hardware: NPU-scratch
+// needs MORE than its own dedicated bank for TinyLlama's ~1.1GB of
+// NPU-tiled weight data, and hit GGML_ASSERT/an infinite spin once its
+// bank filled), each index grows INCREMENTALLY in fixed-size chunks,
+// each chunk its own push_pages() reservation, sub-allocated (bump
+// offset) same as before. Small models use few chunks; large models use
+// more -- no hardcoded total, no guessing another model's size ahead of
+// time. Concurrency/fragmentation stays safe because growth only
+// happens when the CURRENT chunk is exhausted (serialized by the pool's
+// own mutex), not many small concurrent allocations racing each other.
+struct tensor_pool_region_t {
+    int entry_index = -1;
+    unsigned long base_paddr = 0;
+    size_t total_size = 0;
+    size_t offset = 0;
+};
+struct tensor_pool_t {
+    std::mutex mtx;
+    std::vector<tensor_pool_region_t> regions;
+};
+static tensor_pool_t g_tensor_pool[TZASC_NR];
+static const size_t TENSOR_POOL_CHUNK_SIZE = 128UL << 20; // 128MiB/grow
+
+// SECOND BUG FOUND (same night, right after the first adaptive-pool
+// build): this pool and ggml-rknpu-re.cpp's npu_scratch_alloc() BOTH grow
+// into indices 0-2 (NPU-scratch overflows there once its own dedicated
+// index 3 fills up), but had entirely separate, uncoordinated bookkeeping
+// -- each only knows about ITS OWN chunks, not the other's. Not a data-
+// race at the physical level (push_pages_ex()/cma_alloc() is still the
+// single authoritative arbiter -- whichever caller asks first for the
+// last available space gets it, the other gets a clean failure), but
+// tensor-loading's OWN response to that failure was BUG_ON (a silent
+// infinite spin in this environment, not a clean abort) with no
+// fallback, on the theory that "each worker thread is permanently bound
+// to one index, there's nothing else to try". That's wrong: the POOL
+// BACKING for one more chunk doesn't have to come from the thread's
+// preferred index -- only which index a NEW GROW lands on needs to be
+// tracked and threaded back to the caller (AllocTask now carries its own
+// actual_cma_index, separate from the round-robin-assigned preferred
+// one, for exactly this). Mirrors npu_scratch_alloc()'s own overflow
+// try-order, just starting from whichever index this thread prefers.
+//
+// Returns the actual cma_index (via *out_cma_index -- may differ from
+// preferred_cma_index once overflow kicks in) and entry_index the
+// allocation landed in, and writes the byte offset within that entry to
+// *out_offset.
+static int tensor_pool_alloc(int preferred_cma_index, size_t size, unsigned long *out_offset, int *out_cma_index) {
+    // BUG FIX (found via a NULL+8 page fault on the very first call):
+    // tzasc_cma_meta_arr is NULL until push_pages()/pop_pages()'s own
+    // std::call_once(tzasc_flag, tzasc_cma_init) runs -- reading it
+    // BEFORE ever calling push_pages() dereferences a null pointer
+    // (offsetof(size)==8, matching the observed faulting address 0x8
+    // exactly). Trigger the same one-time init explicitly, first.
+    std::call_once(tzasc_flag, tzasc_cma_init);
+    size_t rounded = ROUND_UP(size, PAGE_SIZE);
+    {
+        auto &pool = g_tensor_pool[preferred_cma_index];
+        std::lock_guard<std::mutex> _(pool.mtx);
+        if (!pool.regions.empty()) {
+            auto &r = pool.regions.back();
+            if (r.offset + rounded <= r.total_size) {
+                *out_offset = r.offset;
+                *out_cma_index = preferred_cma_index;
+                r.offset += rounded;
+                return r.entry_index;
+            }
+        }
+    }
+    // Preferred index's current region (if any) is full -- try growing
+    // it, then overflow into the OTHER indices (including
+    // TZASC_NR_NPU_SCRATCH as a last resort -- by the time tensor-
+    // loading is scrambling for space, NPU-scratch allocation for
+    // earlier layers may not have started yet) in order.
+    size_t grow = std::max(TENSOR_POOL_CHUNK_SIZE, rounded);
+    int try_order[TZASC_NR];
+    try_order[0] = preferred_cma_index;
+    {
+        int j = 1;
+        for (int i = 0; i < TZASC_NR; i++)
+            if (i != preferred_cma_index) try_order[j++] = i;
+    }
+    for (int t = 0; t < TZASC_NR; t++) {
+        int cma_index = try_order[t];
+        auto &pool = g_tensor_pool[cma_index];
+        std::lock_guard<std::mutex> _(pool.mtx);
+        // Re-check: another thread may have already grown this index
+        // (including this SAME preferred index, if we're not the first
+        // to notice it was full) while we didn't hold its lock.
+        if (!pool.regions.empty()) {
+            auto &r = pool.regions.back();
+            if (r.offset + rounded <= r.total_size) {
+                *out_offset = r.offset;
+                *out_cma_index = cma_index;
+                r.offset += rounded;
+                return r.entry_index;
+            }
+        }
+        int entry_index;
+        {
+            std::lock_guard<std::mutex> __(cma_mtx[cma_index]);
+            entry_index = push_pages_ex(grow, cma_index, /*soft=*/true);
+        }
+        if (entry_index < 0) {
+            printf("[TENSOR_POOL] cma_index=%d full, trying next index\n", cma_index);
+            fflush(stdout);
+            continue;
+        }
+        tensor_pool_region_t r;
+        r.entry_index = entry_index;
+        r.base_paddr = tzasc_cma_meta_arr[cma_index].entry[entry_index].paddr;
+        r.total_size = grow;
+        r.offset = rounded;
+        pool.regions.push_back(r);
+        printf("[TENSOR_POOL] cma_index=%d grew: entry_index=%d paddr=%#lx size=%#zx (region #%zu, preferred was %d)\n",
+            cma_index, entry_index, r.base_paddr, grow, pool.regions.size(), preferred_cma_index);
+        fflush(stdout);
+        *out_offset = 0;
+        *out_cma_index = cma_index;
+        return entry_index;
+    }
+    // Every one of the TZASC_NR banks is genuinely full -- the real ~3GB
+    // combined physical ceiling (see STATUS.md's LRU-eviction discussion
+    // for what a fix beyond this point would need). Not recoverable here.
+    printf("[TENSOR_POOL] ALL %d indices full -- genuine total capacity exhaustion\n", TZASC_NR);
+    fflush(stdout);
+    BUG_ON(true);
+    return -1; // unreachable, silences -Wreturn-type
+}
 
 class AllocTask : public Task {
 public:
     int tzd_fd;
     size_t size;
     vaddr_t vaddr;
-    int cma_index;
+    int cma_index; // preferred (round-robin-assigned) index -- for locking/scheduling only now
+    int actual_cma_index = -1; // where tensor_pool_alloc() actually landed this chunk (may overflow)
     int entry_index;
+    unsigned long entry_offset = 0;
 
     AllocTask(size_t size, vaddr_t vaddr, int cma_index = -1): size(size), vaddr(vaddr), cma_index(cma_index) {
 
@@ -147,14 +329,20 @@ public:
 #ifdef TZ_LLM_MEASURE
         auto start = get_micro();
 #endif
-        std::lock_guard<std::mutex> _(cma_mtx[cma_index]);
-        entry_index = push_pages(size, cma_index);
-        auto tzasc_cma_meta = tzasc_cma_meta_arr + cma_index;
-        GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, size, tzasc_cma_meta->entry[entry_index].paddr) == 0);
-        // printf("%s %d: rgn %d paddr %p\n", __func__, __LINE__, cma_index, (void *)tzasc_cma_meta->entry[entry_index].paddr);
-        // sprintf((char *)vaddr, "okokokok %d", cma_index);
-        // GGML_ASSERT(usys_config_tzasc(8 + cma_index, tzasc_cma_meta->base >> 20, (tzasc_cma_meta->entry[entry_index].paddr + tzasc_cma_meta->entry[entry_index].size) >> 20) == 0);
-        // while (1);
+        // All AllocTasks sharing one (cma_index,entry_index) pair share
+        // ONE pooled entry (see tensor_pool_alloc), distinguished from
+        // each other by entry_offset instead of by separate entry_index
+        // values. Downstream (io-backend.cpp's get_buf(), the kernel's
+        // llm_client_mmap()) already thread entry_offset through for
+        // exactly this purpose. actual_cma_index may differ from the
+        // preferred cma_index once overflow-to-another-index kicks in --
+        // AllocStage::submit() must record actual_cma_index, not
+        // cma_index, or downstream physical-address bookkeeping
+        // (msg.paddr, commit_tzasc()'s aggregate ranges) silently points
+        // at the wrong bank.
+        entry_index = tensor_pool_alloc(cma_index, size, &entry_offset, &actual_cma_index);
+        unsigned long paddr = tzasc_cma_meta_arr[actual_cma_index].entry[entry_index].paddr + entry_offset;
+        GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, size, paddr) == 0);
 #ifdef TZ_LLM_MEASURE
         cma_size += ROUND_UP(size, BLOCK_SIZE);
         cma_time += get_micro() - start;
@@ -197,6 +385,13 @@ AllocStage::AllocStage(size_t off, size_t len): addr(NULL) {
     int test_sum = 0;
     for (int i = 0; i < TZASC_NR_MODEL; i++) {
         test_sum += block_nr[i];
+    }
+    if (test_sum != all_block_nr) {
+        printf("[ALLOC_STAGE_BUG] size=%zu BLOCK_SIZE=%lu all_block_nr=%d cur_start=%d cur_end=%d "
+            "block_nr=[%d,%d,%d,%d] test_sum=%d TZASC_NR_MODEL=%d\n",
+            size, (unsigned long)BLOCK_SIZE, all_block_nr, cur_start, cur_end,
+            block_nr[0], block_nr[1], block_nr[2], block_nr[3], test_sum, TZASC_NR_MODEL);
+        fflush(stdout);
     }
     GGML_ASSERT(test_sum == all_block_nr);
 }
@@ -274,10 +469,26 @@ bool AllocStage::submit(std::shared_ptr<Task> task)
     GGML_ASSERT(alloc_task);
     {
         std::lock_guard<std::mutex> _(gather_mtx);
-        msg.cma_indexes.push_back({alloc_task->cma_index, alloc_task->entry_index, alloc_task->vaddr - (vaddr_t)addr, alloc_task->size});
-        msg.paddr[alloc_task->cma_index].push_back({
-            tzasc_cma_meta_arr[alloc_task->cma_index].entry[alloc_task->entry_index].paddr,
-            tzasc_cma_meta_arr[alloc_task->cma_index].entry[alloc_task->entry_index].paddr + alloc_task->size
+        // Use actual_cma_index (where tensor_pool_alloc() really landed
+        // this chunk), NOT cma_index (the original round-robin
+        // preference) -- once overflow-to-another-index kicks in these
+        // can differ, and msg.paddr is indexed BY the physical bank, so
+        // recording under the wrong index would misfile this chunk's
+        // range under the wrong bank's commit_tzasc() aggregation.
+        GGML_ASSERT(alloc_task->actual_cma_index >= 0);
+        msg.cma_indexes.push_back({alloc_task->actual_cma_index, alloc_task->entry_index, alloc_task->vaddr - (vaddr_t)addr, (off_t)alloc_task->entry_offset, alloc_task->size});
+        // Pooled entries: entry->paddr is the START OF THE WHOLE POOL
+        // (shared by every AllocTask on this actual_cma_index), NOT this
+        // specific chunk's own address -- must add entry_offset to get
+        // this chunk's real physical range. Getting this wrong would
+        // silently under-report the committed TZASC range downstream
+        // (IOStage::start()'s cma_region min/max, see pipeline.h/
+        // io-stage.cpp) without any crash or error -- a correctness bug,
+        // not a crash, so this line needs to be exactly right.
+        unsigned long chunk_paddr = tzasc_cma_meta_arr[alloc_task->actual_cma_index].entry[alloc_task->entry_index].paddr + alloc_task->entry_offset;
+        msg.paddr[alloc_task->actual_cma_index].push_back({
+            chunk_paddr,
+            chunk_paddr + alloc_task->size
         });
     }
     auto old_nr = finished_nr.fetch_add(1);
@@ -285,8 +496,8 @@ bool AllocStage::submit(std::shared_ptr<Task> task)
     {
         int n = alloc_trace_ctr.fetch_add(1);
         std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
-        printf("[ALLOC_TRACE] #%d submit    this=%p cma=%d entry=%d old_nr=%d all_block_nr=%d is_done=%d\n",
-            n, (void *)this, alloc_task->cma_index, alloc_task->entry_index, old_nr, all_block_nr, is_done);
+        printf("[ALLOC_TRACE] #%d submit    this=%p cma=%d actual_cma=%d entry=%d old_nr=%d all_block_nr=%d is_done=%d\n",
+            n, (void *)this, alloc_task->cma_index, alloc_task->actual_cma_index, alloc_task->entry_index, old_nr, all_block_nr, is_done);
         fflush(stdout);
     }
     if (is_done)
@@ -302,11 +513,16 @@ void *AllocStage::get_msg(void)
 
 void AllocStage::rollback(void)
 {
-    int ret;
-
+    // Pooling (tensor_pool_alloc) means block_nr[cma_index] no longer
+    // equals the number of real push_pages() calls on that index -- it's
+    // now at most ONE real push per index, shared by every AllocStage
+    // ever constructed. Calling pop_pages() block_nr[cma_index] times
+    // here (the old behavior) would try to pop a shared entry that
+    // doesn't have that many independent lives, corrupting the pool for
+    // every OTHER in-flight/future AllocStage on the same index. Matches
+    // the NPU weight-scratch pool's own precedent (ggml-rknpu-re.cpp):
+    // pooled tzasc_cma entries are never individually freed, they live
+    // for the TA process's whole lifetime -- there is no correct partial-
+    // rollback for a pooled sub-allocation, only whole-process teardown.
     GGML_ASSERT(addr);
-
-    for (int cma_index = 0; cma_index < TZASC_NR; cma_index++)
-        for (int i = 0; i < block_nr[cma_index]; i++)
-            pop_pages(cma_index);
 }

@@ -29,7 +29,13 @@ struct Pipeline;
 
 struct alloc_io_msg {
     void *buf;
-    std::vector<std::tuple<int, int, off_t, size_t>> cma_indexes;
+    // tuple: (cma_index, entry_index, tensor_local_offset, entry_offset, size)
+    // entry_offset (new) is the byte offset WITHIN entry_index's own
+    // physical allocation to start at -- lets one entry (one push_pages()
+    // reservation) be sub-mapped in several pieces by AllocStage's pooled
+    // allocator instead of needing a fresh entry_index per piece. Zero for
+    // the non-pooled (one entry per piece) path, unchanged behavior.
+    std::vector<std::tuple<int, int, off_t, off_t, size_t>> cma_indexes;
     std::vector<std::vector<std::pair<unsigned long, size_t>>> paddr;
 };
 
@@ -42,9 +48,9 @@ private:
 
     std::mutex submit_pos_mtx;
     size_t submit_pos;
-    int get_nr[10];
-    int all_block_nr;
-    int block_nr[10];
+    int get_nr[10] = {0};
+    int all_block_nr = 0;
+    int block_nr[10] = {0};
     std::atomic<int> finished_nr;
 
 public:
@@ -70,7 +76,13 @@ private:
     io_decrypt_msg id_msg;
 
     void *buf;
-    std::vector<std::tuple<int, int, off_t, size_t>> cma_indexes;
+    // tuple: (cma_index, entry_index, tensor_local_offset, entry_offset, size)
+    // entry_offset (new) is the byte offset WITHIN entry_index's own
+    // physical allocation to start at -- lets one entry (one push_pages()
+    // reservation) be sub-mapped in several pieces by AllocStage's pooled
+    // allocator instead of needing a fresh entry_index per piece. Zero for
+    // the non-pooled (one entry per piece) path, unchanged behavior.
+    std::vector<std::tuple<int, int, off_t, off_t, size_t>> cma_indexes;
 
     std::atomic<int> cnt_to_finish;
 

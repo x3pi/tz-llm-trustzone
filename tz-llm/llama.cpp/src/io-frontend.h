@@ -15,5 +15,5 @@ struct task_entry {
 
 size_t io_align_up(size_t off);
 size_t io_align_down(size_t off);
-void io_launch(size_t off, size_t size, int cma_index, int entry_index, task_entry entry);
+void io_launch(size_t off, size_t size, int cma_index, int entry_index, task_entry entry, unsigned long entry_offset = 0);
 std::optional<task_entry> io_try_get(void);

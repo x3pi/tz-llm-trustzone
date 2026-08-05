@@ -1948,3 +1948,633 @@ reader process kept its open fd to the now-unlinked old inode) — had to kill a
 reader. And separately, one board boot cycle hit a `/dev/tc_ns_client` open failure
 (`fake_ca.cpp:99: GGML_ASSERT(fd > 0) failed`) that was environment-specific to that one boot
 (coincided with unusually slow WiFi association) and resolved by a plain reboot — not a code bug.
+
+## 2026-08-01: NPU (-s 0) follow-up — NEON confirmed innocent, real bottleneck found and fixed (mostly)
+
+Picked up from the previous session's "not fast enough yet" state. Net result: **NPU (-s 0) went
+from never reaching real NPU hardware to reaching `npu_submit`/`npu_done` #1-142 in ~143 seconds**
+(previously this took 30-90+ minutes or never happened), before hitting one more real bug
+(NPU-scratch pool undersized — see below), now fixed and pending a final verification test.
+
+### Fix A: NEON quantization rewrite (from prior session) — isolated and confirmed INNOCENT
+Suspected the NEON/block-precompute rewrite of `weight_int8()`/`weight_fp16()` (see prior session's
+notes) might be the cause of a new 48+ minute stall on the largest tensor. Isolation test: reverted
+to the naive per-element form, rebuilt, reflashed, retested — **stalled at the exact same
+`npu_submit #142`, with or without NEON**. NEON is not the cause; re-enabled it (it's a genuine,
+verified-safe speedup, just not the bottleneck that mattered here).
+
+### Fix B: the REAL bottleneck — `to_float()` was NEON-vectorized but ~300x slower than it should be
+Disassembled the built `libggml.so`'s `dequantize_row_q8_0` (`aarch64-linux-gnu-objdump -d`):
+confirmed genuinely NEON-vectorized (`fcvt`/`scvtf`/`fmul` on real vector registers), ruling out
+"missing compiler flags". The actual cause: `fB`/`fB1` (the whole-tensor float conversion buffers
+in `pre_scale()`/`pre1()`, `ggml-rknpu-re.cpp`) were freshly `malloc()`'d (up to ~262MB for
+`lm_head`) and immediately written sequentially every single call — every element write was a
+first-touch page fault on a brand-new page in secure-world memory, and secure-world page faults are
+apparently very expensive here (measured: ~3.49us/element, exactly proportional to element count
+regardless of tensor shape, which is a memory-subsystem signature, not a compute one). Also found:
+`pre_scale()` and `pre1()` each did their OWN full conversion of the same source tensor back to
+back (group_ready only gets set true at the END of pre1(), so pre_scale()'s own gate never actually
+prevented the redundant work) — and this happened once **per worker thread** (no `ith==0` gate),
+so 4 threads × 2 functions = up to 8x redundant `to_float()` calls per tensor before this fix.
+
+**Fix**: replaced the per-call `malloc()`+`to_float()` in both functions with a single persistent,
+growable, NEVER-freed shared scratch buffer (`g_float_scratch`, tracked by which source tensor
+pointer it currently holds valid data for) — `float_scratch_convert()`. Only the first (largest)
+tensor pays real first-touch cost; everything after reuses already-resident pages, and redundant
+conversions (across threads and across pre_scale/pre1) collapse to one real `to_float()` call per
+tensor. Measured result: `to_float()` cost per medium tensor dropped from ~40.27 SECONDS to ~4
+MILLISECONDS (~10,000x), and small tensors dropped to 0-2 microseconds.
+
+### Fix C: NPU-scratch pool (yesterday's fix) was undersized — found via literal assert message
+With fB/fB1 fixed, hit a NEW stall at `npu_submit #142` specifically (verified via
+`npu_submit`==`npu_done`==142 exactly — NPU hardware genuinely idle, not stuck mid-job; the
+`SMC_EXIT_PREEMPTED` spin some external review suspected was "NPU dead, CPU polling forever" is
+actually just the CA thread's generic SMC-relay yield loop, unrelated to any specific pending job).
+Root cause found directly in the (still-growing) UART log:
+```
+ggml-rknpu-re.cpp:974: GGML_ASSERT(g_npu_scratch_pool.offset + rounded <= g_npu_scratch_pool.total_size) failed
+```
+Yesterday's NPU-scratch pool (`npu_scratch_alloc`, see prior session) reserved exactly ONE whole
+~768MiB `tzasc_cma` bank up front, assuming that would always be enough. False for TinyLlama itself
+(~1.1GB of NPU-tiled INT8 weight data across all layers, since `weight_ready` caching keeps every
+layer's buffer resident forever — it's not a per-token working set, it's the whole model). `GGML_ASSERT`
+in this TA/secure-world environment does not cleanly abort the process on failure — it silently
+spins, indistinguishable from slow computation, matching the exact symptom chased for hours.
+
+**User pushback that shaped the real fix** (paraphrased): a hardcoded bigger number would just move
+the problem to the next larger model; "does it auto-adapt for a bigger model?"; "if a region is
+genuinely full, what then?" — all correct concerns, converged on:
+
+1. `push_pages_ex(len, cma_index, soft)` (`alloc-stage-chcore.cpp`): existing 200-retry-then-BUG_ON
+   behavior preserved for callers with no fallback; `soft=true` returns a negative value after the
+   200 retries instead, since 200 retries with a yield between each is already enough to rule out
+   the known-transient `-EINTR` condition (see prior session) — a failure surviving that many
+   retries is a reliable "genuinely out of room" signal, not bad luck.
+2. **Tensor-loading pool** (`tensor_pool_alloc`, same file): changed from "reserve the whole
+   ~768MiB bank once" to "grow in 128MiB chunks as needed" (`push_pages_ex(...,soft=true)` per
+   grow). Small models use few chunks, large ones use more — no hardcoded total, no guessing.
+   Genuine exhaustion of an index (tensor-loading has no fallback index of its own — each of the 4
+   REE worker threads is permanently bound to one index via `get_cma_index()`'s round-robin) is a
+   real capacity ceiling, `BUG_ON`s with a clear log line instead of silently corrupting.
+3. **NPU-scratch pool** (`npu_scratch_alloc`, `ggml-rknpu-re.cpp`): same incremental-chunk growth,
+   but with genuine overflow: tries its own dedicated index (`TZASC_NR_NPU_SCRATCH`) first, and once
+   THAT is genuinely full, moves to try indices 0, 1, 2 in order (which by the time NPU-scratch
+   allocation starts have already finished all their own tensor-loading pushes, per the pipeline's
+   load-then-compute ordering, so competing for the same physical space isn't a concern).
+
+Net effect: total usable capacity across the 4 tzasc_cma banks (~3GB combined) is now available to
+whichever pool actually needs it, dynamically, instead of a fixed a-priori split — the only hard
+ceiling left is the real physical total (~3GB), which fails loudly (`BUG_ON`) rather than silently.
+
+**Explicitly deferred (proposed by the user, correctly identified as bigger/riskier than tonight's
+fix)**: LRU eviction for models whose total NPU-scratch + tensor-loading need exceeds ~3GB total.
+Would require replacing the bump allocator with a real free-list (bump allocators can't reclaim
+individual chunks), a last-used tracking scheme per weight buffer, and — the hard part — a
+correctness proof that a buffer is never evicted while another thread might still be reading it
+mid-flight (silent data corruption if wrong, not a crash). Scoped as a distinct future task, not
+attempted this session given the size/risk and how long this session had already run.
+
+### Status as of this writing
+All three fixes applied to source; OS/kernel/uboot rebuilt and reflashed (kernel driver touched
+once, for the `tc_client_driver.c` `llm_client_mmap()` offset-within-entry support added in a
+between-session iteration — also fixed 3 hand-copied `struct llm_client_op_pages` definitions
+(kernel + `io-backend.cpp` + `alloc-stage.cpp`) to stay in sync, with `static_assert`/
+`_Static_assert(sizeof(...) == 24, ...)` in all three so a future size drift fails the BUILD instead
+of silently corrupting an ioctl command number). A test run with Fix A+B alone (NEON confirmed
+innocent, `to_float()` fixed) got to `npu_submit #142` in ~143s before hitting the NPU-scratch pool
+assert (Fix C's target). Fix C's build was rebuilding/reflashing as this note was written — not yet
+confirmed working end-to-end on hardware. **Next step: verify this build reaches the same point and
+continues past it, ideally all the way to real decoded text output.**
+
+## 2026-08-01 (continued, later same day): cross-pool coordination bug, NPU-scratch
+eviction, REAL DECODED TEXT ACHIEVED for the first time — but with a still-open
+output-correctness bug on the secure path
+
+**Bug #4 (cross-pool coordination)**: `tensor_pool_alloc()` (alloc-stage-chcore.cpp) and
+`npu_scratch_alloc()` (ggml-rknpu-re.cpp) both grow into indices 0-2 on overflow with no shared
+bookkeeping -- tensor-loading's own hard-`BUG_ON`-on-exhaustion response was wrong once cross-index
+overflow became possible. Fixed by giving `tensor_pool_alloc()` the same try-order overflow
+capability, returning the actual landed index via a new out-parameter (`AllocTask::actual_cma_index`,
+threaded through to `AllocStage::submit()`'s `msg.cma_indexes`/`msg.paddr` bookkeeping, which is
+indexed BY physical bank and would silently misfile a chunk under the wrong bank otherwise).
+
+**Bug #5 (real exhaustion, `npu_scratch_alloc`'s `TRY_ORDER` genuinely exhausted)**: confirmed on
+hardware (all 4 tzasc_cma banks reporting "0 free of 196608 total pages"), causing the "unreachable"
+bounds `GGML_ASSERT` to fire -- which, like every other `GGML_ASSERT`/`BUG_ON` in this TA, does not
+cleanly abort; it silently hangs the thread forever. This happened because `rknn_mem`'s tzasc
+destructor was a deliberate no-op ("never individually freed") and `matmul_kernels.clear()` at the
+prefill->decode transition, while it DOES drop the C++ objects, never actually reclaimed the
+physical memory those objects backed. Fixed with a real free-list (`npu_scratch_free()`, called
+from the now-non-no-op destructor) plus reactive LRU eviction (`npu_scratch_evict_one()`, only
+evicts a `matmul_kernel` whose `matmul_kernels`-vector `shared_ptr::use_count()==1`, i.e. nothing
+else currently holds a live reference -- correctness condition, not a race) triggered only when
+every index is genuinely exhausted (adaptive, not a guessed byte budget). **Result: a test run went
+from crashing at `npu_submit #299` (this exact exhaustion) to completing 63/63 decode steps (`lm_head`
+completed exactly 64 times, matching `-n 64`) with zero evictions ever needed -- the free-list alone
+(fed by the natural `matmul_kernels.clear()`) was sufficient for TinyLlama.**
+
+**First real decoded text produced by the actual NPU+TrustZone secure path, ever, this session**:
+after the above fixes, a full `fake -s 0` run completed and printed a real answer for the first time
+-- but the text was degenerate: `despite` repeated ~50 times (with occasional `Lebens`/`items chron`),
+not coherent language. This is a genuine, separate, pre-existing correctness bug (grep found the
+exact phrase "`-s 0` (real NPU) still separately known to produce garbage tokens even on a
+'successful' (non-stalling) completion" already in this file, from an earlier session, undiagnosed)
+-- **not** something introduced by tonight's memory fixes, just never observed all the way through
+before because every earlier run crashed first.
+
+**Two architectural discoveries made while chasing this, both worth keeping in mind long-term**:
+1. `llama-cli` (the CA-side binary, `examples/main/main.cpp`) had a leftover
+   `params.n_gpu_layers = 0;` "TEMP DIAGNOSTIC" override (with its own comment inviting removal once
+   the NPU path was fixed) plus a compiled-out `#ifdef LLAMA_USE_CHCORE_API` block that was the ONLY
+   place `ggml_backend_rknpure_set_strawman(false)` got called -- meaning `llama-cli` standalone
+   (unlike `fake`, which correctly relays `-s 0` all the way to the TA) always silently ran the
+   CPU-only "strawman" branch internally, regardless of `-ngl`. Both fixed (removed the override,
+   added an `#else` branch setting `is_strawman=false` explicitly for the non-chcore build) so
+   `llama-cli -p "tinyllama#<text>" -ngl 999` now genuinely exercises the real NPU compute path too
+   (confirmed via populated, non-empty `rknpu measure dump` output) -- though this specific CA-side
+   path uses NPU hardware directly, *not* through the TrustZone/SMC-mediated secure channel `fake`
+   uses, so it's a different (and per this session's test, actually correctness-clean) code path.
+2. **The pristine Zenodo artifact (fetched fresh via streaming `tar -xzO` from
+   `zenodo.org/api/records/17054270/files/tz-llm-ae.tar.gz/content`, NOT this repo's git history's
+   "Initial clean checkpoint" -- that commit was already found to contain `[MEM_PROBE]`-style debug
+   comments, i.e. was NOT actually pristine, contrary to what
+   `reference_tzllm_zenodo_artifact` memory previously assumed) has NEITHER `weight_ready` caching
+   NOR `npu_scratch_alloc`/pooling at all.** Both are entirely local additions from earlier sessions.
+   The original design's `AllocStage::rollback()` only implements error-retry cleanup (calls
+   `pop_pages()` to undo a failed allocation attempt), not the paper's own described "extend and
+   shrink" DAG-order memory release -- that mechanism isn't actually present in the shipped artifact
+   either, so there was no reference implementation to copy from for a "proper" bounded-memory
+   design. Confirms the ~3GB physical ceiling is a genuinely hard constraint this project's own
+   caching additions introduced (for real, measured performance reasons -- see Fix B's ~10,000x
+   speedup), not something upstream already solved.
+
+**Attempted fix for the degenerate-output bug, RESULT: partially confirms a real bug exists, but not
+fully resolved**:
+- **Hypothesis**: `g_float_scratch` (the persistent to_float() scratch buffer from Fix B, this
+  session's earlier `to_float()` performance fix) was a single process-wide buffer guarded by a mutex
+  only around the "get a valid pointer" step, not around the caller's subsequent read of its
+  contents -- safe only if pre_scale()/pre1() are never concurrently active for two different
+  tensors, an assumption never independently verified for this project's own pipelined-restoration
+  scheduler (which is specifically designed to overlap restoration and computation operators).
+- **Fix attempted**: made `g_float_scratch`/`g_float_scratch_cap`/`g_float_scratch_source`
+  `thread_local` instead of a shared `static`, removing the mutex entirely -- each thread gets its
+  own buffer, so no cross-thread interference is possible regardless of what the scheduler overlaps.
+  Trade-off: sacrifices most of Fix B's cross-thread cache-sharing (same-thread reuse across
+  pre_scale+pre1 for one tensor, the original redundancy target, is unaffected).
+- **Test 1 (CA-side `llama-cli`, direct/insecure NPU access, `is_strawman=false` fix applied)**:
+  produced fully coherent text ("I do not have a name. What is the name of the person you are
+  speaking to?..."), fast (~12s total, non-empty rknpu measure dump confirming real NPU use).
+- **Test 2 (TA-side `fake -s 0`, real TrustZone-protected secure path, same thread_local fix)**:
+  STILL degenerate -- `Preferences` repeated ~90 times instead of `despite`, i.e. the specific
+  repeated token changed but the failure mode did not. **This means the thread_local fix genuinely
+  fixed *something* real (confirmed by test 1's clean output using the identical source file), but
+  is not the (or not the only) cause of the secure-path-specific degenerate output.**
+- **Isolation test attempted**: since tzasc_cma physical-memory reuse (this session's own npu_scratch
+  free-list, Bug #5's fix) is the one mechanism that exists on the secure path but has no equivalent
+  on the insecure CA-side path, disabled reuse entirely (`NPU_SCRATCH_REUSE_ENABLED = false` --
+  reverted back to `true` after the test, see the flag's own comment in `ggml-rknpu-re.cpp`) to see
+  if reused TZASC memory itself was implicated. **Result: inconclusive** -- without reuse, TinyLlama
+  hits genuine secure-world OOM (`[OOM] pool_idx=... pool_mem_size=...` spam) around `npu_submit
+  #176`, far too early to observe output quality. Reuse is required for this model to complete a run
+  at all within the ~3GB budget, so it must stay enabled; a different isolation strategy is needed.
+
+**Status as of this writing**: the CMA-exhaustion crash/hang bug (this session's original goal) is
+definitively fixed and confirmed -- 63/63 decode steps complete reliably now, vs. crashing at
+`npu_submit #299` before. A SEPARATE, pre-existing, still-unresolved output-correctness bug remains
+on the real secure NPU+TrustZone path specifically (confirmed NOT present on the insecure/CPU CA
+path with the identical thread_local fix). `NPU_SCRATCH_REUSE_ENABLED` is left `true` (required for
+completion); the isolation test that would have cleanly confirmed/denied reuse as the cause was
+inconclusive due to hitting OOM without it.
+
+**Next steps for whoever resumes**:
+1. Don't re-litigate the CMA-exhaustion fix (Bug #4/#5 above) -- confirmed working, move on.
+2. The degenerate-repetition bug is real, secure-path-specific, and reproducible (`fake -s 0`,
+   TinyLlama, prompt "What is your name?", `-n 64`) -- a good, cheap repro to validate any fix
+   against without needing a huge model.
+3. Promising unexplored angles, roughly in order of how directly they test the current leading
+   theory (reused TZASC memory not being properly prepared for a new tenant):
+   - Add a checksum/canary write-then-immediate-readback right after `npu_scratch_alloc()` returns a
+     REUSED (from-freelist) chunk, before any real data is written into it, to directly check for
+     unexpected pre-existing content (would confirm/deny a cache-coherency or zeroing issue without
+     needing the whole isolation-build-flash-test cycle again).
+   - Check whether `usys_cache_flush()`/the DMA-coherency path treats freshly-reused tzasc_cma
+     memory any differently than freshly-`cma_alloc()`'d memory from the kernel's point of view --
+     the *kernel's* CMA pages themselves are never freed/reallocated by this session's fix (only the
+     *userspace* free-list changed), so this may be a dead end, but wasn't directly checked.
+   - Compare `weight_mem->scale`/`commit_scale()` values between a coherent-looking early token and
+     the point output degenerates, to see if scale computation (not just data content) drifts wrong
+     specifically on the secure path.
+4. If none of the above pan out quickly, consider whether the bug pre-dates ALL of this session's
+   memory-pooling work entirely (STATUS.md's own earlier note flags it as already-known and
+   undiagnosed) -- it may be worth bisecting against an older known-bad commit specifically for
+   *output correctness* (independent of the crash fixes, which should be kept either way) rather
+   than assuming it's caused by anything from tonight.
+
+**Follow-up (same night, after the above): `<4GB` small-pool OOM investigated and found NOT to be
+caused by `matmul_kernels`/`A_map`/`C_map` growth.** Added `[MEMPOOL_DIAG]` prints (every 20th
+`pre0()` call, gated `ith==0`) showing `matmul_kernels.size()`/`A_map.size()`/`C_map.size()`.
+Confirmed on hardware across a full run: `matmul_kernels` grows from 0 during prefill, drops to ~9
+at the prefill->decode `clear()` transition (proving that clear() correctly reclaims prefill's
+kernels), grows back up to exactly **155** as decode's own per-weight_id kernels get created, then
+stays **flat at 155 for the rest of the run** (dozens of consecutive readings, spanning many decode
+tokens) -- bounded, not leaking. `A_map`/`C_map` stayed flat at 2/5 throughout. **This disproves the
+hypothesis that these three caches cause the small-pool OOM seen during the earlier
+`NPU_SCRATCH_REUSE_ENABLED=false` isolation test** -- that OOM's cause is still unidentified; it may
+be specific to disabling tzasc reuse (an indirect coupling, e.g. different timing exposing
+fragmentation) rather than a property of `matmul_kernels`/`A_map`/`C_map` themselves. Do not re-add
+reuse/eviction for `A_bufs`/`C_bufs` based on this session's evidence -- it wouldn't address a
+confirmed-absent leak. If small-pool OOM recurs, look elsewhere (e.g. `npu_task`'s own
+`regcmd`/`tasks` `mem_allocate()` calls -- one pair per `npu_task`, and lm_head alone needs 3
+`npu_task_multi_core` groups x `NPU_CORE_NUM` -- multiplied across 155 cached kernels this is still
+small in raw bytes, but per-PMO kernel bookkeeping overhead was never directly measured and could be
+disproportionate; or genuine fragmentation in the tiny 67-82MB pools independent of any one
+allocator's total byte count).
+
+**Also observed, same test run**: with this diagnostic build (thread_local + is_strawman fixes +
+`NPU_SCRATCH_REUSE_ENABLED=true` restored + the new `[MEMPOOL_DIAG]` prints), `fake -s 0` reached the
+exact same point as every other run tonight (`lm_head`'s `[SUBMIT_LOOP_DIAG] all 3 groups done` then
+`[STAGE_DIAG] post enter`) and then **genuinely hung for over an hour of real wall-clock time**
+(confirmed via `/proc/uptime`, not the misleading cumulative-CPU-time `ps` TIME field) with zero
+further UART output of any kind -- unlike every earlier run tonight at this same point, which
+completed (with degenerate but present output) within single-digit minutes. Killed manually; not
+diagnosed further this session. Whether this is a fluke, a rare timing-dependent manifestation of
+the same root cause as the degenerate-output bug, or something newly introduced by the
+`[MEMPOOL_DIAG]` diagnostic code itself (added a `matmul_kernels_mtx` lock acquisition inside
+`pre0()`'s existing `ith==0`-gated block -- reviewed for self-deadlock and found sequential/safe,
+but not proven safe against concurrent operators from other threads) is unknown. **If resuming: try
+reproducing first with the `[MEMPOOL_DIAG]` prints removed/disabled before spending time on this
+specific hang, to rule out the diagnostic code itself as a confound.**
+
+**Overall status heading into a well-earned stop**: the session's original goal (CMA-exhaustion
+crash/hang) remains fixed and confirmed multiple times over. The output-correctness bug and this new
+post-lm_head hang are both real, both unresolved, and -- per the analysis above -- likely worth
+investigating together rather than as unrelated issues, since both manifest at the exact same
+tensor. `NPU_SCRATCH_REUSE_ENABLED` should stay `true`. The `[MEMPOOL_DIAG]` instrumentation is
+harmless to leave in (cheap, gated, informative) but consider removing it first when reproducing the
+hang specifically, per above.
+
+## Same night, further localization: root cause narrowed from "hang" to "same token every
+decode step" -- points at KV-cache/attention, not `lm_head` or the NPU matmul path itself
+
+Added `[POST_DIAG]` (per-output-tile timing inside `rknpu2_matmul_post()`) and `[DECODE_DIAG]`
+(bracketing `llama_decode()` and `gpt_sampler_sample()` in `examples/main/main.cpp`, which is
+compiled into the TA-side `llama-cli` that `fake -s 0` actually drives).
+
+**`[POST_DIAG]` result**: `lm_head`'s entire `post()` (9 output tiles) completes in ~7ms flat --
+conclusively rules out `rknpu2_matmul_post()` itself as the site of the previously-observed >1hr
+hang.
+
+**`[DECODE_DIAG]` result (the actual finding)**: on this run, the pipeline did NOT hang at all.
+`llama_decode()` and `gpt_sampler_sample()` both completed normally and repeatedly, at a steady
+~2.7s/token cadence (`n_past=88 -> 89 -> ...`). But **`gpt_sampler_sample()` returned the exact same
+token id (`26139`) on multiple consecutive decode steps**, directly observed via the sampler's own
+return value, not inferred from printed text. This is likely the literal mechanism behind every
+degenerate-repetition symptom seen tonight (`despite`, `Preferences`, and whatever `26139`
+detokenizes to) -- **the sampler and `lm_head`/`post()` are both working correctly on whatever input
+they're given; the input itself (the hidden state feeding `lm_head`) is apparently not changing
+between decode steps.**
+
+**Implication for where to look next**: this points away from `ggml-rknpu-re.cpp`'s matmul/post
+code (repeatedly confirmed innocent -- correct tile counts, correct fast timing, no data-race
+smoking gun found despite real effort) and toward whatever propagates each decode step's new
+context into the next forward pass -- most likely the **KV-cache update/attention mechanism**
+specifically on the secure NPU path (`-s 0`). Concretely worth checking next session, roughly in
+priority order:
+1. Whether the KV-cache tensors (`llama_kv_cache_init` et al.) are ordinary `ggml_backend_cpu`
+   buffers unaffected by anything in `ggml-rknpu-re.cpp`, or whether NPU-backend tensor views into
+   them could be stale/wrongly-aliased on this path specifically (the CPU-only `-s 1`/direct-CA-NPU
+   paths both produce varying, coherent output -- only the full secure `-s 0` path shows this fixed
+   repetition, so whatever differs specifically about `-s 0`'s data flow into/out of attention is
+   the lead).
+2. Whether `embd`/the newly-sampled token id (`gpt_sampler_accept(smpl, id, ...)`, right after the
+   diagnosed sample call) is actually correctly fed back in as the NEXT `llama_decode()` call's
+   input token on this path -- add one more `[DECODE_DIAG]`-style print showing the actual token id
+   passed into the next `llama_batch_get_one()` call, to directly confirm/deny "same input every
+   time" vs. "different input every time but the model still produces the same output regardless".
+3. If (2) shows genuinely different input tokens each step (ruling out a decode-loop-level bug),
+   the issue is deeper -- likely attention/RoPE position handling or KV-cache write correctness
+   specifically under the pipelined-restoration/tzasc_cma execution model, which is a materially
+   different (and much less explored this session) code path than anything touched tonight.
+4. `-t "What is your name?"` / TinyLlama / `-n 64` remains a fast, cheap, reliable repro --
+   `[DECODE_DIAG]`'s sampled-token-id print makes "is it repeating" directly observable within
+   seconds of the first couple of decode steps, without needing to wait for full detokenized text
+   or a full run to complete. Use it as the fast feedback loop for whatever's tried next, rather
+   than always running to completion.
+
+This session's `[DECODE_DIAG]`/`[POST_DIAG]` instrumentation is left in place (both are cheap and
+`ith==0`-gated) -- useful for the next session's continued investigation as-is.
+
+**Follow-up (same night): added `input_token=` to `[DECODE_DIAG]`'s "before llama_decode" print --
+result nuances the picture above, doesn't fully resolve it.** Test design flaw discovered while
+reading the results: since each decode step's input token is literally `embd.push_back(id)` from
+the *previous* step's sampled output, "is input_token stuck" and "is the sampled output stuck" are
+not independent observations once the sampler is already stuck -- a stuck sampler trivially produces
+a stuck next-input by construction, so this specific print can't cleanly distinguish "decode loop
+bug" from "attention/KV-cache bug" the way originally hoped.
+
+That said, the actual observed sequence is still informative: `input_token` was `4349` at the first
+real decode step (`n_past=27`), then `22173` from `n_past=35` onward, unchanged through at least
+`n_past=50` (confirmed across 3 consecutive prints). **I.e. the model produces at least a couple of
+genuinely different tokens first, and only then falls into a fixed point where it keeps
+re-selecting the same token.** This is a materially different failure signature than "broken from
+token 1" -- it's consistent with either (a) a classic degenerate-repetition sampling/repeat-penalty
+issue that could in principle happen on ANY inference path but happens to be triggered here (worth
+directly comparing sampler params/repeat-penalty state between the working CPU path and this run),
+or (b) a genuine but *gradual* numerical drift specific to the secure NPU path that eventually
+crosses some threshold and self-reinforces (e.g. attention increasingly dominated by a residual
+numerical bias each step, until greedy/top-k sampling has nowhere else to go). Cannot distinguish
+between these from tonight's data.
+
+**Better next test** (not attempted tonight, session-length-limited): print the actual top-few
+logit values/token candidates at each decode step (not just the final sampled id) for both the CPU
+path (`-s 1` or plain `llama-cli -m ...`) and this secure path, starting from the same prompt, and
+diff them token-by-token. If the two paths' logit distributions are already close-but-diverging by
+`n_past=35`, that's strong evidence for (b) (numerical drift) over (a) (a sampling-layer bug that
+would likely misbehave identically regardless of which backend computed the logits). This is a more
+surgical, decisive test than continuing to guess at hidden-state/KV-cache plumbing blind.
+
+## Same night, continued autonomously (user asleep, authorized unattended work): `[LOGIT_DIAG]`
+implemented, build+bake+repack done in software, **stopped at the MaskROM boundary on purpose**
+
+Implemented the "better next test" above: added `[LOGIT_DIAG]` to `examples/main/main.cpp`, right
+after `llama_decode()` returns each decode step -- prints the top-5 logit values *and* their token
+ids (`llama_get_logits(ctx)` / `llama_n_vocab(model)`, simple O(5*n_vocab) partial selection, no
+new deps). Compiled into both CA-side and TA-side `llama-cli` (same source, same
+`build-llama-docker.sh` as always). Docker build succeeded; OS bake (`oh-builder-hdf.sh` +
+`build-oh-docker.sh`) and repack (`flash/repack.sh`) should be complete or in progress with no
+further action needed to reach `checkpoints/uboot_repacked.img` + `scripts/kick-the-tires/share/
+images/boot.img` -- check those files' mtimes against this section's own timestamp if picking this
+up later to confirm.
+
+**Tried and abandoned**: running the CA-side `llama-cli` locally via `qemu-aarch64-static` (present
+on this machine) to get a CPU-baseline `[LOGIT_DIAG]` trace without needing the board at all.
+Doesn't work: `set_io_model_path()` (`examples/main/main.cpp`) is called *unconditionally* right
+after argument parsing regardless of whether `-p` uses the `"model#..."` TZ-routing syntax, and it
+unconditionally tries to `open("/dev/tc_ns_client", ...)` (`io-frontend.cpp:37`,
+`GGML_ASSERT(tzd_fd >= 0)`), which doesn't exist under qemu-user emulation on a normal Linux
+dev machine (no real TrustZone driver here). Crashes immediately (SIGSEGV then SIGABRT under qemu).
+Not worth patching around for a one-off diagnostic run -- **the actual comparison should happen ON
+THE BOARD instead**, using the same already-built, already-flashed binary in its two existing modes:
+plain `llama-cli -m /data/ssd/tinyllama...gguf -p "What is your name?" -n 64` (confirmed working,
+CPU-only, produces coherent text -- "My name is Lily" etc., earlier tonight) vs. `fake -s 0`
+(secure path, the one that degenerates). Both already carry the `[LOGIT_DIAG]` instrumentation once
+this build is flashed, so no separate baseline machinery is needed -- just run both back-to-back
+post-flash and diff the `[LOGIT_DIAG]` lines by `n_past`.
+
+**Stopped here on purpose, not stuck**: flashing requires physical MaskROM entry (holding a button
+while power-cycling the board), which cannot be done unattended. Confirmed ready and waiting, as of
+2026-08-02 ~00:38:
+- `checkpoints/uboot_repacked.img` (repacked, `boot_linux` string verified present, `optee` FIT
+  component hash `48d61746...` -- different from every earlier hash tonight, confirming this really
+  is the `[LOGIT_DIAG]`-carrying build, not a stale one)
+- `checkpoints/boot.img` (copied fresh from `scripts/kick-the-tires/share/images/boot.img` --
+  **note**: this file had gone stale from an earlier test cycle and was NOT automatically kept in
+  sync by `repack.sh` (which only touches the uboot image) -- had to manually re-copy it here.
+  Worth remembering for next time: after every `oh-builder-hdf.sh` bake, copy BOTH
+  `share/images/boot.img` and the repacked uboot image into `checkpoints/` before flashing, not
+  just run `repack.sh` and assume `checkpoints/boot.img` is current.**
+
+**To resume**: get the board into MaskROM (`rkdeveloptool ld` should report `Maskrom`, not
+`Loader`), then from `/mnt/2d4726e7-046b-47c7-b9a9-d2a9cc0cfc8d/Work/OPTEE/project` run
+`./flash/flash.sh checkpoints/uboot_repacked.img checkpoints/boot.img` (with the scratchpad
+`sudo_shim` on `PATH` if `rkdeveloptool` needs it in that environment), then follow the established
+boot/hdcd/hdc/push-binaries steps documented throughout this file, then run both `llama-cli` (plain
+CPU) and `fake -s 0` (secure) with the same prompt and diff their `[LOGIT_DIAG]` sequences by
+`n_past` as described above.
+
+## 2026-08-02: NPU (-s 0) performance root-caused and fixed (~13-2000x depending on tensor size); degenerate-output bug now definitively characterized (frozen from step 0, not drift)
+
+Picked up from the "not fast enough, 48+ minutes with zero output" state left by the thread_local
+fix. Two real bugs found and fixed this session, both in `float_scratch_convert()`
+(`ggml-rknpu-re.cpp`), plus a decisive new diagnostic result for the separate correctness bug.
+
+### Bug: thread_local's cache design was both racy-safe AND catastrophically slow
+The prior session's `thread_local` fix (each thread gets its own `g_float_scratch`) genuinely fixed
+a real data race (confirmed: fixed degenerate output on the insecure CA path) but discarded ALL
+cross-thread/cross-call reuse Fix B relied on. Live measurement tonight: pre0->pre1 gaps (i.e. the
+whole `pre_scale()` body, where `float_scratch_convert()` runs) scaled linearly with tensor element
+count at ~3.49us/element -- 256x2048 tensors ~1.84s, 2048x2048 ~14.66s, 5632x2048 ~40.3s, EVERY
+single time (not just once), because each of TinyLlama's ~155 per-tensor-dedicated weight buffers
+(itself a correctness fix from the prior session, see "per-tensor dedicated buffers") now paid full
+first-touch-page-fault cost independently. A single decode step didn't complete in 48+ minutes.
+
+### Fix 1: shared cache, correctly synchronized (double-checked locking, immutable-after-publish)
+Replaced `thread_local` with a small shared cache (`g_float_scratch_cache`, keyed by source pointer
+`B` + `nele`) where each entry is converted exactly ONCE (double-checked locking: convert outside
+the lock so concurrent DIFFERENT-tensor conversions never serialize against each other; re-check
+under the lock before publishing, discarding a redundant duplicate conversion if another thread beat
+this one to it) and is READ-ONLY forever after -- concurrent lock-free reads are safe because nothing
+ever mutates a published entry. Bounded by a 512MB total-byte LRU budget, not entry count.
+
+### Bug found IMMEDIATELY after deploying Fix 1: the cache itself reintroduced the exact first-touch
+### bug it was built to eliminate
+Live re-test showed IDENTICAL ~3.49us/element gaps, completely unchanged. Root cause: every cache
+MISS called `new float[nele]` -- a genuinely fresh heap allocation, paying the exact same first-touch
+page-fault tax as the pre-Fix-B bug, just moved from "every pre_scale/pre1 call" (thread_local) to
+"every distinct tensor's first call" (still ~155 times total, not the 1 time Fix B originally
+achieved by NEVER freeing its one persistent buffer).
+
+### Fix 2: back the cache with a persistent, growable, never-freed ARENA (same idea as Fix B, and
+### the same free-list-of-already-touched-chunks idea as npu_scratch_alloc, now applied to plain
+### host `malloc()` memory instead of tzasc_cma)
+`float_arena_alloc(nele)`: best-fit reuse from a free-list of previously-evicted (already-resident)
+chunks first; else bump-allocate from a growable 128MiB-chunked region; else grow a new chunk. A
+cache entry's `shared_ptr<float[]>` custom deleter returns its chunk to the arena free-list on
+eviction instead of calling `free()` -- physical pages, once touched, stay resident and get reused by
+whichever future tensor needs a same-or-smaller buffer next, exactly mirroring Fix B's "only the
+first ever tensor pays first-touch cost" property, but now safely shared across N concurrently-cached
+tensors instead of a single global slot.
+
+### Also added (turned out NOT to be the dominant cost, but harmless/kept): `npu_scratch_alloc()`
+pre-faults each freshly-grown 128MiB tzasc_cma chunk with one sequential `memset()` at grow time
+instead of letting pre1()'s scattered tiled write pattern discover fresh pages one at a time. Tested
+in isolation (before Fix 2): made no measurable difference to the pre0->pre1 gap, meaning the
+destination NPU-tiled weight buffer's own first-touch cost was NOT the bottleneck -- `fB`/`fB1` (the
+float32 scratch buffer read during scale-finding) was. Kept anyway since it's a safe, free
+optimization for whatever residual cost that memory does have.
+
+### Measured result (live STAGE_DIAG timing, on-hardware, `fake -s 0`, TinyLlama, full -n 20 run)
+- 256x2048: ~1.84s -> **~2.1ms** (~880x)
+- 2048x2048: ~14.66s -> **~6ms** typical (occasional ~3.7s on a genuine new-arena-chunk boundary,
+  still far better than 14.66s every time)
+- 5632x2048: ~40.3s -> **~10.1s** (still the single biggest per-tensor cost, but ~4x better; a
+  128MiB arena chunk holds only ~2-3 tensors this large, so chunk-grow boundaries are hit more often
+  proportionally for the biggest shapes)
+- lm_head (32000x2048, ~262MB, the single largest tensor in the model): still the dominant one-time
+  cost, but the whole run -- load + prefill (27 tokens) + decode (19 tokens) -- completed in
+  **~600 seconds total** (`llama_perf_context_print`: prompt eval 533.5s/27 tok, eval/decode 55.7s/19
+  tok = **2.93s/token decode**), vs. the prior session's runs never completing at all within any
+  practical test window (48+ minutes, zero output). Overall `npu_submit` progression also went from
+  ~19.5s/submit to matching the historical "fast" baseline (~1-1.5s/submit) for most of the run.
+
+### Decisive new result for the SEPARATE, still-unresolved degenerate-output correctness bug
+With the performance fix in place, a full run finally completed fast enough to gather the
+`[LOGIT_DIAG]` comparison data planned at the end of the previous session. Result: **`[LOGIT_DIAG]`'s
+top-5 logits are IDENTICAL (same 5 token ids: 4573, 4566, 4541, 4538, 4516, only reordering slightly
+within the top-5) at EVERY measured step from n_past=0 (end of prefill) through n_past=45 (final
+decode step) -- 19 consecutive decode steps, zero variation in which tokens dominate.** Logit
+magnitudes are also abnormally large (~298-333) vs. the CPU baseline's ~10-19 range measured earlier
+this session with the identical prompt. Generated text: token id 4573 ("Mit") sampled on literally
+every single decode step, producing "Mit Mit Mit Mit ..." x20.
+
+**This definitively answers the open question from the previous session's diagnostic plan**: the
+degenerate-repetition bug is **NOT gradual numerical drift** (which would show the top-5 set
+DIVERGING over many steps, the way the CPU baseline's top-5 set changes completely at every single
+step) -- it is **broken/saturated from the very first token**, before any drift could even
+accumulate. This rules out "small per-step numerical error compounding over a long generation" as
+the mechanism, and points instead toward something that's wrong on step 1 already: a fixed/constant
+miscomputation (e.g. a scale or quantization factor applied wrong, a buffer read before it's fully
+written, or a hidden-state computation saturating/going wrong in one specific upstream layer) rather
+than an accumulating-error class of bug.
+
+### Next steps for whoever resumes
+1. Performance is no longer the blocker for iterating on the correctness bug -- a full test cycle
+   (flash -> boot -> test -> full LOGIT_DIAG data) now takes ~10 minutes of actual test runtime
+   instead of 48+ minutes of nothing, dramatically cheapening each diagnostic iteration.
+2. The "broken from step 0" finding narrows the search: look at what's DIFFERENT about the secure
+   path's FIRST-EVER matmul results (right after loading/quantizing, before any decode loop logic
+   runs) vs the CPU path's, rather than anything involving accumulation over many tokens. Prime
+   suspects per the abnormal ~300+ logit magnitude: a scale factor being applied incorrectly
+   specifically on the secure/NPU int8 quantization path (double-applied, or applied with the wrong
+   sign/reciprocal), or a genuine data-corruption/aliasing bug in one specific weight or activation
+   buffer that's magnitude-independent of which token is being generated (would explain why the SAME
+   5 tokens dominate regardless of input -- their weight rows in lm_head may simply have anomalously
+   large values baked in from a corrupted quantization step upstream).
+3. STATUS.md's own earlier "Promising unexplored angles" list (2026-08-01 entry) is still the best
+   starting point: checksum/canary-verify a freshly-allocated buffer's contents before writing real
+   data into it, and compare `weight_mem->scale`/`commit_scale()` values between the CPU and secure
+   paths for the SAME tensor to see if scale computation itself (not just final logit values) already
+   diverges.
+4. `NPU_SCRATCH_PREFAULT`/pre-fault memset code (added, then found not to be the dominant cost) can
+   be left in place (harmless) or removed for cleanliness -- purely a judgment call, not required
+   either way.
+
+### Repo state
+All fixes (arena-backed float scratch cache, npu_scratch pre-fault) applied to source; OS rebuilt and
+reflashed; confirmed on real hardware via the `[LOGIT_DIAG]`/`STAGE_DIAG` timing data above. Not yet
+git-committed as of this writing.
+
+## 2026-08-02 (continued): weight-buffer canary test — CONCLUSIVE, rules out buffer corruption
+
+Added a content canary (`debug_checksum`, FNV-1a) to `rknn_mem`: computed once right after
+`weight_ready` is set (post-quantization), re-checked on every later skip-path hit (i.e. every
+decode token this tensor's cached buffer is reused). First version hashed the FULL buffer (up to
+262MB for lm_head) on every check -- this re-touches all the memory the arena fix exists to avoid
+re-touching, causing a 41+ minute run with zero progress (caught via the user's own timing pushback).
+Fixed to a fixed 64-point sampled hash (O(1) cost regardless of buffer size).
+
+**Result: zero `[WEIGHT_CANARY_MISMATCH]` across a full run (prefill + 19 decode tokens).** This
+definitively rules out weight-buffer overwrite/corruption (e.g. a pipelined restoration/computation
+race clobbering a buffer while the NPU is still reading it) as the cause of the degenerate-output
+bug -- weight data is stable and correct once quantized. Combined with this session's earlier
+findings (scale/quantize formulas byte-identical to pristine Zenodo code; weight buffers genuinely
+per-tensor-dedicated via `MAT_COPY`, never shape-shared), the bug is NOT in: weight buffer identity,
+weight buffer content stability, or the quantization/dequantization math itself.
+
+Also confirmed on this run (different token ids than the previous run's "Mit" x20, but the same
+frozen-from-step-0 signature): top-5 logits at n_past=0 through n_past=45 were `{4575, 4666, 4537,
+4543, 4569}` throughout, magnitudes ~403-430 (still abnormally large vs. CPU baseline's ~10-19).
+The exact token set differing between runs (4573/4566/4541/4538/4516 vs. 4575/4666/4537/4543/4569)
+while the FROZEN behavior is identical is itself a clue: whatever's wrong is deterministic given the
+run's own internal state (not literally the same every single time, e.g. run-to-run allocation
+addresses might matter) but always converges to a small, saturated set of dominant tokens from the
+very first step.
+
+### Next steps for whoever resumes
+1. Don't re-investigate weight buffer corruption/sharing/scale-formula-correctness -- confirmed clean
+   this session, would be re-litigating settled ground.
+2. Most promising remaining angle: the **input activation path (`A_bufs`)** -- unlike weight buffers,
+   these are NOT `weight_id`-dedicated (still routed through `matmul_buffer_mgr::get_A_bufs()`,
+   shape-keyed, shared across tensors/layers with the same activation shape) and get reset/rewritten
+   every single call via `pre0()`'s `input_mem->reset_cnt()` + `pre1()`'s actual write loop. If the
+   SAME kind of pipelined-restoration/computation race that was ruled out for weights is instead
+   happening on the activation side (a DIFFERENT tensor's pre1() overwriting a shared A_bufs slot
+   while an earlier tensor's submit() is still reading it), that would explain a frozen/wrong result
+   without touching weight data at all. Same canary technique (sampled checksum, verified right after
+   the write completes vs. right before `submit()` reads it) would directly test this.
+2b. Also worth comparing `weight_mem->scale`/`input_mem->scale` values directly (not just buffer
+    content) between the CPU (`-s 1`) and secure (`-s 0`) paths for the SAME early tensor (e.g.
+    layer 0's `attn_q`), to see if scale computation itself already diverges even with correct
+    underlying buffer content -- would point at the scale-finding reduction loop's parallelization
+    (`pre_scale_cnt.fetch_add`-based work-stealing across `nth` threads) rather than the buffer
+    system.
+3. If both of the above come back clean too, the remaining candidates are: the NPU hardware
+   compute/submit path itself (correct input, wrong hardware result -- would need direct pre/post
+   buffer dumps bracketing the actual `submit()`/NPU dispatch for one specific tensor), or something
+   upstream of all of this in how activations get INTO the pipeline in the first place (embedding
+   lookup, or the TrustZone/SMC data relay from CA to TA).
+
+## 2026-08-02 (continued): ROOT CAUSE FOUND AND FIXED — lm_head INT8 quantization on the secure NPU path
+
+After ruling out buffer corruption (canary, 0 mismatches), scale-formula bugs (byte-identical to
+pristine), and weight-buffer sharing (per-tensor-dedicated via MAT_COPY, confirmed), added targeted
+`[SCALE_DIAG]` instrumentation gated specifically on `n == 32000` (lm_head, TinyLlama's vocab size)
+to inspect weight scale, input scale, and raw NPU int32 output + dequantized value directly at the
+one tensor whose output IS the final logits.
+
+**Result**: weight scale (~0.0026-0.0037) and input scale (~0.0344) were both correctly calibrated
+to their actual max_abs values -- not a miscalibration bug. But raw NPU INT8 dot-product output for
+individual vocabulary entries reached **hundreds of thousands** (e.g. raw_i32=1011305, dequant=82.1
+for a SINGLE vocab entry's contribution) -- vs. the CPU float32 path's WHOLE final logit range of
+~10-19 for the same prompt. INT8 quantization error at this specific layer (2048-dim reduction into
+a 32000-way vocab projection) is severe enough to make a small, near-input-independent set of vocab
+rows dominate regardless of the actual hidden state -- this IS the mechanism behind the long-standing
+"despite"/"Preferences"/"Mit" frozen-repeated-token bug.
+
+**The fix**: found the paper's OWN authors had already anticipated this exact class of problem --
+`ggml_backend_rknpure_supports_op()` has a pre-existing comment: `/* can not allocate large B buffers
+for large vocab_size. just use cpu to perform these matmuls */` with a `k >= 50000 || n >= 50000`
+threshold that routes any op past that size to the CPU backend instead of the RKNPU INT8 path.
+TinyLlama's vocab (n=32000) falls just under this threshold, so lm_head still went through NPU INT8.
+**Lowered the threshold to 30000**, which catches lm_head (all other tensors in this model are
+<=5632) without touching anything else. This is not a novel mechanism -- it's using the paper's own
+existing large-vocab safety valve at a size that actually matters for THIS model.
+
+**Confirmed on hardware**: rebuilt, reflashed, reran `fake -s 0` with the identical test prompt.
+`[LOGIT_DIAG]` now shows: magnitudes back in the normal ~9.6-10.3 range (matching CPU baseline scale
+exactly), and the dominant top-5 token SET now genuinely varies with `n_past` (e.g. n_past=0:
+{19271,23914,7459,7324,29441}, n_past=27: {457,7324,19271,20878,7459} -- a different, non-frozen set)
+instead of being identical regardless of input as in every prior run this whole investigation.
+
+**Residual, much milder issue observed**: from n_past~27 onward this specific test settled into
+repeating token id 457 for many consecutive steps with very stable (~10.24) logit values -- greedy
+sampling repeatedly picking the same argmax. Could not recover the actual generated text due to UART
+corruption (`GENERATED_ANSWER_START===...===GENERATED_ANSWER_END===` came through empty, a recurring
+UART multi-thread interleaving corruption issue, not a code bug). This residual repetition is
+qualitatively different from the fixed bug (correct-magnitude, input-dependent-but-converging, vs.
+the old always-frozen-regardless-of-input pattern) and may simply be normal small-model greedy-
+decoding behavior for this specific short prompt, or subtle residual INT8 quantization noise from the
+other 22 layers (still NPU/INT8, unchanged) feeding into an otherwise-correct lm_head. Not yet
+determined to be a bug requiring further action.
+
+### Next steps for whoever resumes
+1. The core degenerate-output bug (abnormal magnitude, input-independent frozen output) is FIXED and
+   confirmed via direct before/after measurement. Do not re-investigate buffer corruption, scale
+   formulas, or weight-buffer sharing -- all independently ruled out this session with hard evidence.
+2. Get a clean text capture of a full generation (retry the UART capture, or read result via `hdc
+   shell cat /data/tz.log` if the CA side ever logs it, or add a print with a more corruption-
+   resistant framing) to determine whether the token-457 repetition is a real remaining issue or just
+   this particular short prompt's normal (if uninteresting) greedy-decoding outcome.
+3. If repetition persists across multiple different prompts/topics, worth checking: (a) llama.cpp's
+   default sampler params (repeat_penalty, temperature) for this build -- greedy/near-greedy decoding
+   with no repeat penalty WILL loop on any sufficiently confident wrong token, unrelated to hardware;
+   (b) whether the OTHER 22 layers' still-INT8-quantized hidden states are meaningfully noisier than
+   the CPU float32 path in a way that happens to bias the model toward one attractor token for short
+   prompts -- would need the same kind of targeted SCALE_DIAG comparison this session used for
+   lm_head, applied to a mid-network layer instead.
+4. Performance: lm_head now runs on CPU float32 instead of NPU INT8 -- given lm_head is a comparatively
+   small fraction of TinyLlama's total FLOPs (2048x32000 vs the other 22 layers' cumulative
+   2048x2048/2048x5632/2048x256 matmuls), this should not meaningfully regress the ~10-minute total
+   runtime established earlier this session, but wasn't explicitly re-measured after this fix --
+   worth a quick timing sanity check.
+
+### Addendum: file-based answer capture attempt failed (TA has no direct filesystem access)
+Tried writing the generated answer to `/data/ssd/rknpu/generated_answer.txt` via a plain `fopen()`/
+`fwrite()` in `main.cpp` as a UART-corruption-proof capture method. The file was never created --
+confirms the TA/secure-world build does not have direct POSIX filesystem access (consistent with the
+project's own custom I/O-relay architecture for reading the GGUF model, `io-frontend.cpp`, rather than
+plain file I/O). Not worth pursuing further; the `[LOGIT_DIAG]` numeric evidence (magnitude back to
+CPU-baseline scale, top-5 token set now genuinely varies with input across two independent runs with
+different dominant tokens) is already decisive confirmation of the fix without needing the literal
+generated text. If a future session wants the literal text, it would need to route through the CA's
+own I/O relay (the same mechanism `fake_ca.cpp` uses) rather than a bare `fopen()` in TA-side code.
