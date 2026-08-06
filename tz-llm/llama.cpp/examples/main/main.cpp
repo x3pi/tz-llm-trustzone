@@ -997,6 +997,15 @@ int main(int argc, char **argv)
                         top_idx[2], top_val[2], top_idx[3], top_val[3],
                         top_idx[4], top_val[4]);
                     fflush(stdout);
+                    // DIAGNOSTIC: on the secure/TrustZone path this printf
+                    // never reliably reaches UART (confirmed on hardware
+                    // this session), so relay the same top-5 through the
+                    // already-shared command-queue page for the CA to
+                    // print via its own working stdout -- lets this exact
+                    // [LOGIT_DIAG] data be compared directly against the
+                    // CA-direct (non-secure) NPU path's own printf output.
+                    extern void io_frontend_set_logit_diag(int n_past, const int *top_idx, const float *top_val);
+                    io_frontend_set_logit_diag(n_past, top_idx, top_val);
                 }
 
                 n_past += n_eval;

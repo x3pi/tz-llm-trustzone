@@ -214,6 +214,22 @@ struct all_ring_buffer {
     char final_answer[FINAL_ANSWER_MAX];
     std::atomic<bool> final_answer_ready;
 
+    // Diagnostic-only: relay main.cpp's own [LOGIT_DIAG] top-5 logits (see
+    // that file's comment) out of the secure world, since TA-side printf
+    // does not reliably reach UART here (confirmed on hardware this
+    // session) -- same "publish into this already-shared page, let the CA
+    // print it to its own working stdout" pattern as final_answer above.
+    // Lets us directly compare the secure/TrustZone NPU path's real
+    // computed logits against the same prompt's logits on the CA-direct
+    // (non-secure) NPU path and the CPU path, to localize the
+    // degenerate-output bug to the actual matmul computation (if the
+    // secure path's top-5 is already nonsensical from n_past=0) versus
+    // something downstream of it (if the secure path's top-5 looks sane
+    // but the final sampled/decoded text still comes out wrong).
+    std::atomic<int> logit_diag_n_past;
+    int logit_diag_top_idx[5];
+    float logit_diag_top_val[5];
+
     ring_buffer<io_task, IO_BUFFER_SIZE> io_tasks;
     ring_buffer<io_result, IO_BUFFER_SIZE> io_results;
     // ring_buffer<npu_task, NPU_BUFFER_SIZE> npu_tasks;
@@ -230,6 +246,9 @@ struct all_ring_buffer {
         memset(n, 0, sizeof(n));
         memset(final_answer, 0, sizeof(final_answer));
         final_answer_ready = false;
+        logit_diag_n_past = -1;
+        memset(logit_diag_top_idx, 0, sizeof(logit_diag_top_idx));
+        memset(logit_diag_top_val, 0, sizeof(logit_diag_top_val));
         io_tasks.init();
         io_results.init();
         // npu_tasks.init();

@@ -56,6 +56,7 @@ extern void ca_backend_set_prompt_text(const char *model, const char *text);
 extern void ca_backend_set_n(int n);
 extern void ca_backend_set_strawman(bool is_strawman);
 extern bool ca_backend_poll_final_answer(char *out, size_t out_size);
+extern int ca_backend_poll_logit_diag(int *top_idx, float *top_val);
 
 void ca_thread(int fd, int index) {
     cpu_set_t cpuset;
@@ -95,6 +96,19 @@ void ca_thread(int fd, int index) {
                 static char answer[FINAL_ANSWER_MAX];
                 if (ca_backend_poll_final_answer(answer, sizeof(answer))) {
                     printf("===FINAL_ANSWER_START===\n%s\n===FINAL_ANSWER_END===\n", answer);
+                    fflush(stdout);
+                }
+                static int last_logit_n_past = -1;
+                int top_idx[5];
+                float top_val[5];
+                int n_past = ca_backend_poll_logit_diag(top_idx, top_val);
+                if (n_past != last_logit_n_past) {
+                    last_logit_n_past = n_past;
+                    printf("[SECURE_LOGIT_DIAG] n_past=%d top5=[%d:%.4f,%d:%.4f,%d:%.4f,%d:%.4f,%d:%.4f]\n",
+                        n_past,
+                        top_idx[0], top_val[0], top_idx[1], top_val[1],
+                        top_idx[2], top_val[2], top_idx[3], top_val[3],
+                        top_idx[4], top_val[4]);
                     fflush(stdout);
                 }
             }

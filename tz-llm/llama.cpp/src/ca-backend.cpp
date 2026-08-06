@@ -101,3 +101,17 @@ bool ca_backend_poll_final_answer(char *out, size_t out_size) {
     snprintf(out, out_size, "%s", task_queues->final_answer);
     return true;
 }
+
+// Diagnostic: same reasoning as ca_backend_poll_final_answer -- relays
+// main.cpp's [LOGIT_DIAG] top-5 out of the secure world via the shared
+// page (see interface.h's logit_diag_* comment). Returns the current
+// n_past (-1 if none published yet); caller compares against its own
+// last-seen value to detect a new one (mirrors mul_mat_progress's pattern
+// from earlier this session, minus that field, which isn't in this build).
+int ca_backend_poll_logit_diag(int *top_idx, float *top_val) {
+    GGML_ASSERT(task_queues);
+    int n_past = task_queues->logit_diag_n_past.load();
+    memcpy(top_idx, task_queues->logit_diag_top_idx, sizeof(int) * 5);
+    memcpy(top_val, task_queues->logit_diag_top_val, sizeof(float) * 5);
+    return n_past;
+}

@@ -910,9 +910,164 @@ extern "C" {
     int usys_map_tzasc_cma_pmo(unsigned long vaddr, unsigned long len, unsigned long paddr);
 }
 extern int push_pages(size_t len, int cma_index);
+extern int push_pages_ex(size_t len, int cma_index, bool soft);
 extern struct tzasc_cma_meta *tzasc_cma_meta_arr;
 extern std::mutex cma_mtx[TZASC_NR];
 extern void commit_tzasc(int cma_index, unsigned long _base_addr, unsigned long _top_addr);
+
+// NPU-scratch pooled allocator: real per-tensor NPU weight buffers
+// (rknn_mem's tzasc constructor below) used to call push_pages() directly,
+// once per buffer -- exactly one push_pages()/cma_alloc() call (and one
+// dedicated physical range) per weight tile. For TinyLlama's ~1.1GB of
+// NPU-tiled INT8 weight data, that exhausts TZASC_NR_NPU_SCRATCH's single
+// ~768MiB bank after ~100-150 tiles (confirmed on hardware: push_pages()
+// starts returning -ENOMEM at cma_index=3 partway through prefill), and
+// since GGML_ASSERT/BUG_ON in this TA does not cleanly abort -- it spins
+// forever in SMC_EXIT_PREEMPTED, indistinguishable from slow computation.
+//
+// Mirrors alloc-stage-chcore.cpp's tensor_pool_alloc(): grow in fixed-size
+// chunks (one push_pages_ex(soft=true) call per chunk, not per buffer),
+// sub-allocate (bump offset) from the current chunk, and overflow into the
+// other 3 indices once TZASC_NR_NPU_SCRATCH's own chunks are full (by the
+// time NPU-scratch needs more room, real tensor-loading for earlier layers
+// has typically already finished with indices 0-2, per the pipeline's
+// load-then-compute ordering).
+//
+// Additionally (real weight buffers ARE freed and re-requested, unlike
+// tensor-loading's data): a free-list of already-pushed, now-unused chunks
+// lets a later allocation of the SAME size reuse an earlier one with zero
+// new syscalls -- no new push_pages(), no new chcore_alloc_vaddr()/
+// usys_map_tzasc_cma_pmo() (ChCore's map_range_in_pgtbl has no exclusivity
+// tracking, so re-handing out the exact same already-mapped (vaddr,paddr)
+// pair is safe, see alloc-stage-chcore.cpp's own comment on this). This is
+// what actually keeps total usage bounded across the prefill->decode
+// transition: matmul_kernels.clear() (further down this file) drops every
+// prefill-phase matmul_kernel (and, via shared_ptr refcounting, its
+// B_bufs/rknn_mem tzasc tiles) right as decode needs its OWN full set of
+// per-layer buffers of the exact same sizes -- this natural reuse alone
+// (no active eviction) is the design point; see the exhaustion branch
+// below for what's NOT implemented yet.
+struct npu_scratch_chunk_t {
+    unsigned long vaddr;
+    unsigned long paddr;
+    size_t size;
+};
+struct npu_scratch_region_t {
+    unsigned long base_paddr;
+    size_t total_size;
+    size_t offset;
+};
+static std::mutex npu_scratch_mtx;
+static std::vector<npu_scratch_chunk_t> npu_scratch_free_list;
+static std::vector<npu_scratch_region_t> npu_scratch_regions[TZASC_NR];
+static const size_t NPU_SCRATCH_CHUNK_SIZE = 128UL << 20; // 128MiB/grow
+
+static npu_scratch_chunk_t npu_scratch_alloc(size_t size) {
+    size_t rounded = (size + 0xfff) & ~0xfffUL;
+    std::lock_guard<std::mutex> _(npu_scratch_mtx);
+
+    // 1. Exact-size free-list hit: zero new syscalls, just hand back the
+    // already-mapped (vaddr,paddr) pair from an earlier, now-freed buffer.
+    //
+    // BUG FIX: real NPU weight tiles are sized/laid out for the matmul
+    // kernel's fixed (M,N,K) tile geometry (see partition()/B_buf_size
+    // above), which almost never evenly divides the real tensor's (n,k) --
+    // rknpu2_matmul_pre1()'s quantization loop only writes IN-BOUNDS
+    // elements (`if (ii >= n || jj >= k) continue;`), leaving the tile's
+    // "padding" region untouched. A freshly cma_alloc()'d physical page
+    // happens to read as all-zero in practice (fresh CMA reservation /
+    // freshly-booted RAM), which is why the original never-reused design
+    // silently got away with never zeroing this padding. Once a chunk is
+    // REUSED for a different tensor, that padding region still holds the
+    // PREVIOUS tenant's real, syntactically-valid quantized weight bytes --
+    // the NPU's fixed-geometry read doesn't know they're stale, so it
+    // silently mixes a prior tensor's real weight data into the current
+    // tensor's matmul, producing self-consistent-looking but wrong output
+    // (confirmed on hardware: NPU path completes all 64 decode steps with
+    // zero crash but degenerate/repeated-token output, while the identical
+    // model on the CPU path -- which never goes through this reuse -- is
+    // coherent). Zero the whole chunk before handing it to a new tenant so
+    // its padding is always well-defined, matching the fresh-allocation
+    // case's effective (if accidental) invariant.
+    for (size_t i = 0; i < npu_scratch_free_list.size(); i++) {
+        if (npu_scratch_free_list[i].size == rounded) {
+            npu_scratch_chunk_t c = npu_scratch_free_list[i];
+            npu_scratch_free_list.erase(npu_scratch_free_list.begin() + i);
+            memset((void *)c.vaddr, 0, c.size);
+            return c;
+        }
+    }
+
+    // Own dedicated index first, then overflow into the other 3 (indices
+    // tensor-loading uses, but only once that pipeline stage is done with
+    // the layers it's already loaded).
+    int try_order[TZASC_NR];
+    try_order[0] = TZASC_NR_NPU_SCRATCH;
+    { int j = 1; for (int i = 0; i < TZASC_NR; i++) if (i != TZASC_NR_NPU_SCRATCH) try_order[j++] = i; }
+
+    // 2. Bump-allocate from the last (only ever-growing) region of a
+    // preferred index, if it has room.
+    for (int t = 0; t < TZASC_NR; t++) {
+        int idx = try_order[t];
+        auto &regions = npu_scratch_regions[idx];
+        if (regions.empty()) continue;
+        auto &r = regions.back();
+        if (r.offset + rounded <= r.total_size) {
+            unsigned long vaddr = chcore_alloc_vaddr(rounded);
+            GGML_ASSERT(vaddr != 0);
+            unsigned long paddr = r.base_paddr + r.offset;
+            GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, rounded, paddr) == 0);
+            r.offset += rounded;
+            return {vaddr, paddr, rounded};
+        }
+    }
+
+    // 3. Every existing region (across all 4 indices) is full -- grow one,
+    // in try_order, with a fresh push_pages_ex(soft=true) call.
+    size_t grow = std::max(NPU_SCRATCH_CHUNK_SIZE, rounded);
+    for (int t = 0; t < TZASC_NR; t++) {
+        int idx = try_order[t];
+        int entry_index;
+        {
+            std::lock_guard<std::mutex> __(cma_mtx[idx]);
+            entry_index = push_pages_ex(grow, idx, /*soft=*/true);
+        }
+        if (entry_index < 0) {
+            printf("[NPU_SCRATCH] cma_index=%d full, trying next index\n", idx);
+            fflush(stdout);
+            continue;
+        }
+        unsigned long region_paddr = tzasc_cma_meta_arr[idx].entry[entry_index].paddr;
+        commit_tzasc(idx, region_paddr, region_paddr + grow);
+        npu_scratch_region_t r;
+        r.base_paddr = region_paddr;
+        r.total_size = grow;
+        r.offset = rounded;
+        npu_scratch_regions[idx].push_back(r);
+        printf("[NPU_SCRATCH] cma_index=%d grew: entry_index=%d paddr=%#lx size=%#zx (region #%zu)\n",
+            idx, entry_index, region_paddr, grow, npu_scratch_regions[idx].size());
+        fflush(stdout);
+        unsigned long vaddr = chcore_alloc_vaddr(rounded);
+        GGML_ASSERT(vaddr != 0);
+        GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, rounded, region_paddr) == 0);
+        return {vaddr, region_paddr, rounded};
+    }
+
+    // 4. Genuine exhaustion: real ~3GB combined physical ceiling reached.
+    // No active LRU eviction implemented (yet) -- matmul_kernels.clear()'s
+    // natural free-list reuse at the prefill->decode boundary was
+    // sufficient for TinyLlama on hardware (see STATUS.md); a larger model
+    // may need real eviction here.
+    printf("[NPU_SCRATCH] ALL %d indices full -- genuine total capacity exhaustion\n", TZASC_NR);
+    fflush(stdout);
+    GGML_ASSERT(false);
+    return {0, 0, 0}; // unreachable, silences -Wreturn-type
+}
+
+static void npu_scratch_free(unsigned long vaddr, unsigned long paddr, size_t size) {
+    std::lock_guard<std::mutex> _(npu_scratch_mtx);
+    npu_scratch_free_list.push_back({vaddr, paddr, size});
+}
 #endif
 
 inline size_t rknn_type_size_A(rknn_tensor_type type) {
@@ -995,20 +1150,10 @@ struct rknn_mem {
             return;
         }
         size_t rounded = (size + 0xfff) & ~0xfffUL;
-        unsigned long vaddr = chcore_alloc_vaddr(rounded);
-        GGML_ASSERT(vaddr != 0);
-        int entry_index;
-        {
-            std::lock_guard<std::mutex> _(cma_mtx[TZASC_NR_NPU_SCRATCH]);
-            entry_index = push_pages(rounded, TZASC_NR_NPU_SCRATCH);
-        }
-        GGML_ASSERT(entry_index >= 0);
-        unsigned long paddr = tzasc_cma_meta_arr[TZASC_NR_NPU_SCRATCH].entry[entry_index].paddr;
-        GGML_ASSERT(usys_map_tzasc_cma_pmo(vaddr, rounded, paddr) == 0);
-        commit_tzasc(TZASC_NR_NPU_SCRATCH, paddr, paddr + rounded);
-        dma = paddr;
-        obj = vaddr;
-        ptr = dma_ptr = (void *)vaddr;
+        npu_scratch_chunk_t chunk = npu_scratch_alloc(rounded);
+        dma = chunk.paddr;
+        obj = chunk.vaddr;
+        ptr = dma_ptr = (void *)chunk.vaddr;
         GGML_ASSERT(dma_ptr);
         scale = 1.0;
         pthread_spin_init(&scale_lock, 0);
@@ -1019,12 +1164,17 @@ struct rknn_mem {
         dma_buf_free(size, &fd, ptr);
 #endif
 #ifdef GGML_USE_CHCORE
-        // tzasc_cma buffers are never individually freed, same as real
-        // tensor loading's own AllocTask mappings (alloc-stage-chcore.cpp)
-        // -- both live for the TA process's whole lifetime in practice
-        // (matmul_buffer_mgr's cache never evicts), so there is no
-        // established unmap/pop_pages path to reuse here safely.
-        if (use_tzasc) return;
+        // tzasc_cma buffers: returned to npu_scratch's free-list for reuse
+        // by a same-size future allocation (see npu_scratch_alloc's
+        // comment) -- never popped/unmapped at the kernel/page-table
+        // level, since pop_pages() is LIFO-only (can't reclaim an
+        // arbitrary earlier chunk) and there's no reason to undo ChCore's
+        // page-table mapping while the TA process is still alive.
+        if (use_tzasc) {
+            size_t rounded = (size + 0xfff) & ~0xfffUL;
+            npu_scratch_free((unsigned long)dma_ptr, dma, rounded);
+            return;
+        }
 #endif
         mem_destroy(dma_ptr, size, handle, obj);
     }
@@ -2279,6 +2429,32 @@ GGML_CALL static bool ggml_backend_rknpure_supports_op(ggml_backend_t backend, c
 
     if (op->op != GGML_OP_MUL_MAT) {
         // printf("zzh: op is %d, not mul mat\n", op->op);
+        return false;
+    }
+
+    // BUG FIX (degenerate/repeated-token NPU output, secure path only):
+    // this paper's own design (EuroSys'26 TZ-LLM, S4/Fig.4: "layer
+    // normalization and self-attention run on CPUs, while... matrix
+    // multiplication[s] run on the NPU") never intends self-attention's
+    // own matmuls (Q@K^T and attn_weights@V, llm_build_kqv() in
+    // src/llama.cpp) to go through the NPU -- only the real static
+    // weight-matrix multiplications (Q/K/V/O projections, FFN, lm_head).
+    // Those two attention matmuls read the KV-cache (kv_self.k_l[il]/
+    // v_l[il]) through a ggml_view_3d() each layer/token, and the KV
+    // cache defaults to GGML_TYPE_F16 -- the exact same type real F16
+    // weight tensors use -- so the src0->type check below (Q8_0/F16)
+    // cannot tell them apart and was silently routing attention onto
+    // this weight-restoration NPU path too. Confirmed on hardware via a
+    // dedicated logit-diagnostic channel: top-5 logits barely changed
+    // across ~10 consecutive decode steps (n_past=6..16), i.e. the model
+    // was effectively not incorporating new tokens into attention at
+    // all -- exactly what "attention silently computed over
+    // stale/quantized-once KV data" would produce. A real GGUF-loaded
+    // weight tensor is always a plain leaf (view_src == NULL); the KV
+    // cache's view here always has view_src pointing at the base
+    // cache_k_l%d/cache_v_l%d tensor, so this is safe, minimal, and
+    // doesn't touch fresh_scale/lora_mm's real weight path at all.
+    if (src0->view_src != NULL) {
         return false;
     }
 

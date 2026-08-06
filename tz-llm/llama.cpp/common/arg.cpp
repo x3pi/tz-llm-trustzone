@@ -423,7 +423,17 @@ void parse_prompt(gpt_params & params, const std::string & value) {
         bool is_numeric = !rest.empty() && std::all_of(rest.begin(), rest.end(), [](unsigned char c){ return std::isdigit(c); });
         if (!is_numeric) {
             params.prompt = rest;
-            params.wrap_user_chat = false;
+            // REVERT (2026-08-06): this was silently flipped to false in
+            // commit 4eb45d612 with no explanation, disabling TinyLlama-
+            // chat's <|system|>/<|user|>/<|assistant|> template for every
+            // -t/--text free-text prompt since. Confirmed via hardware
+            // test: with the view_src attention-routing bug now fixed
+            // (logits genuinely vary with n_past), the remaining
+            // digit/punctuation-heavy FINAL_ANSWER garbage is consistent
+            // with feeding a chat-tuned model a raw, unwrapped sentence.
+            // Restoring the original (5b4d68f55) behavior to test whether
+            // proper chat formatting resolves it.
+            params.wrap_user_chat = true;
             return;
         }
         int len = std::stoi(rest);

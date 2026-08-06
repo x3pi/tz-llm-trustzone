@@ -46,6 +46,14 @@ void set_io_model_path(const char *io_model_path) {
     strcpy(task_queue->io_model_path, io_model_path);
 }
 
+void io_frontend_set_logit_diag(int n_past, const int *top_idx, const float *top_val) {
+    std::call_once(task_queue_once, init);
+    if (!task_queue) return;
+    memcpy(task_queue->logit_diag_top_idx, top_idx, sizeof(int) * 5);
+    memcpy(task_queue->logit_diag_top_val, top_val, sizeof(float) * 5);
+    task_queue->logit_diag_n_past = n_past;
+}
+
 size_t io_align_up(size_t off)
 {
     return ROUND_UP(off, PAGE_SIZE);

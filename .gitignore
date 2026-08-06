@@ -8,6 +8,8 @@ scripts/kick-the-tires/share*/
 tz-llm/**/*.o
 tz-llm/**/build-chcore/
 tz-llm/**/build-rknpure/
+tz-llm/**/build-rknpure-no-chcore/
+tz-llm/**/build-rknpure2/
 tz-llm/tee_os_kernel/ramdisk-dir/
 tz-llm/tee_os_kernel/oh_tee/
 tz-llm/tee_os_kernel/oh_tee_bak/
@@ -20,3 +22,8 @@ tools/rkdeveloptool/log/
 # last good state") -- do not add a blanket checkpoints/ ignore here. If a
 # checkpoint image gets too large for comfortable git history, replace it
 # in place (same filename) rather than accumulating many dated copies.
+#
+# Exception: golden-image/ (3.4GB idbloader-through-vendor recovery backup,
+# see DEPLOYED_STATE.md) is far too large for git -- keep it on disk only,
+# copy it manually when setting up a new environment.
+checkpoints/golden-image/
