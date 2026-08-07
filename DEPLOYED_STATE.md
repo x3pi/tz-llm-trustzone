@@ -17,7 +17,27 @@ Xem `CLAUDE.md` (rule/footgun tổng hợp) trước khi bắt đầu bất kỳ
 (quá lớn, xem `.gitignore`) — vẫn nằm trên disk cùng thư mục, cần copy thủ công nếu dựng
 môi trường mới.
 
-## Cập nhật lần cuối: 2026-08-06 — CẢ NPU (`-s 0`) LẪN CPU (`-s 1`) ĐỀU CHO OUTPUT MẠCH LẠC
+## Cập nhật lần cuối: 2026-08-07 — CẢNH BÁO `flash-full.sh` MẶC ĐỊNH (không `SKIP_USERDATA=1`) + KHÔI PHỤC THÀNH CÔNG
+
+**Sự cố (2026-08-07)**: chạy thử `flash-full.sh` (không đặt `SKIP_USERDATA=1`) trên board đang
+hoạt động tốt để kiểm chứng full-flash dùng đúng bản đã fix — script ghi cả `assets/full-flash/
+userdata.img` (template F2FS trống) đè lên userdata thật đang chạy tốt (đã có account
+activated, wifi config...). Sau khi flash xong và power-cycle, board **im lặng hoàn toàn trên
+UART** trong nhiều phút và USB liên tục re-enumerate — nghi ngờ reset-loop do userdata trắng
+không tương thích với combo system/vendor cụ thể của board. **Đã khắc phục**: ghi lại
+`checkpoints/golden-image/idbloader_through_vendor.img` (LBA 0, không đụng vùng userdata) để
+khôi phục idbloader+GPT+system+vendor về bản đã biết ổn định, sau đó `flash/flash.sh` lại để
+đảm bảo uboot/boot_linux vẫn là bản đã fix. Board boot lại bình thường (dù userdata vẫn là bản
+trắng mới từ full-flash — `/data/ssd` cần `mkdir -p` lại trước khi mount, không tồn tại sẵn như
+trước). **Xác nhận lại NPU và CPU đều chạy đúng** ("Sure! My name is Alex." cả 2 path).
+
+**Bài học cho tương lai**: `flash-full.sh`'s `UBOOT`/`BOOT` args mặc định đã đúng trỏ tới
+`checkpoints/uboot_repacked.img`/`boot.img` (bản đã fix) — **không cần nghi ngờ phần này**.
+Nhưng **luôn dùng `SKIP_USERDATA=1`** khi chạy `flash-full.sh` trên một board **đang có
+userdata thật/đã hoạt động tốt** (không phải thẻ trắng hoàn toàn) — script tự có flag này
+chính vì lý do này, đừng bỏ qua nó chỉ vì đang muốn "test cho chắc".
+
+## Lịch sử: 2026-08-06 — CẢ NPU (`-s 0`) LẪN CPU (`-s 1`) ĐỀU CHO OUTPUT MẠCH LẠC
 
 **Cả hai bug gốc rễ của "output rác" đã được tìm ra và fix, xác nhận trên phần cứng:**
 1. `ggml_backend_rknpure_supports_op()` (`ggml-rknpu-re.cpp`): loại view tensor của KV-cache
