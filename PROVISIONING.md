@@ -1,289 +1,223 @@
 # Quy trình cấp nguồn (provisioning) — build lại từ đầu, flash một board Orange Pi 5 Max mới
 
-Tài liệu này hướng dẫn từng bước cho hai việc:
-1. **Build lại toàn bộ phần mềm từ mã nguồn** (TEE-OS/ChCore, kernel Linux,
-   U-Boot/ATF/OP-TEE) chỉ dùng những gì có trong repo `project/` này.
-2. **Cấp nguồn (provision) cho một board** — có thể là thẻ SD hoàn toàn
-   trắng (thiết bị mới) hoặc cập nhật lại một thẻ đã cấp nguồn từ trước.
+Tài liệu này hướng dẫn: build lại toàn bộ phần mềm từ mã nguồn, và cấp
+nguồn (provision) cho một board — bao gồm cách triển khai nhất quán cho
+**nhiều board khác nhau**.
 
-Về *lịch sử* mỗi bước được phát hiện/debug ra sao (bug nào, thử nghiệm nào
-thất bại, nguyên nhân gốc là gì), xem `STATUS.md`. Tài liệu này chỉ nói về
-*quy trình thực hiện* — chạy gì, theo thứ tự nào, và làm sao biết đã thành
-công.
+Về *lịch sử* mỗi bước được phát hiện/debug ra sao, xem `STATUS.md`. Về
+*checklist rule/footgun* ngắn gọn, xem `CLAUDE.md`. Tài liệu này nói về
+*quy trình thực hiện đầy đủ* — chạy gì, theo thứ tự nào, cái nào build
+được cái nào không, và làm sao biết đã thành công.
 
 ## 0. Cần chuẩn bị gì
 
 - **Phần cứng**: một board Orange Pi 5 Max (RK3588), một cáp USB-A sang
   USB-C cắm vào cổng MaskROM/OTG của board, một mạch chuyển USB-to-TTL UART
   nối vào chân UART của board (baud **1500000**, không phải 115200 như
-  thường thấy), và một thẻ SD (dung lượng bất kỳ — partition `userdata`
-  trong GPT tự động giãn ra để lấp đầy phần còn trống).
+  thường thấy), và một thẻ SD/eMMC.
 - **Máy host**: Linux có `docker`, `rkdeveloptool` (hoặc dùng bản có sẵn
   trong `tools/rkdeveloptool/`), và quyền `sudo` để truy cập thiết bị USB.
+- **Docker images** (kéo về sẵn từ Docker Hub, **không phải build bởi repo
+  này** — xem mục 1 bên dưới để biết tên chính xác từng image).
 - **Repo này**: đã clone/checkout ở một commit đã biết là tốt. Chạy `git log
   --oneline -1` để xác nhận đang ở đâu; `git status` nên sạch trước khi bắt
-  đầu (thay đổi chưa commit thường là trạng thái debug còn sót lại, không
-  phải chủ ý).
+  đầu.
 
-## 1. Build phần mềm từ mã nguồn
+## 1. Kiến trúc: cái gì build từ code, cái gì là asset cố định
 
-Việc build chạy bên trong container Docker (`tzllm_fixed_builder`, image
-`vectorxj0553/tz-llm-oh-builder:latest`) đã được tạo sẵn một lần và nên
-được tái sử dụng (`docker start`), không nên tạo lại mỗi lần build — build
-từ số 0 sẽ mất thời gian lâu hơn nhiều so với build incremental mà container
-này cho phép.
+Đây là câu hỏi quan trọng nhất khi triển khai lên máy/board mới — nhầm lẫn
+giữa hai loại này là nguồn gốc phần lớn các sự cố trong lịch sử project.
 
-```
-docker start tzllm_fixed_builder   # nếu chưa chạy
-```
+### 1a. Build được từ source trong repo này (tái tạo lại bất cứ lúc nào)
 
-**Cái bẫy cần biết trước khi sửa mã nguồn**: các bind mount của container
-vẫn đang trỏ vào đường dẫn cũ `tz-llm-ae/tz-llm/...` trên host, không phải
-`project/tz-llm/...` (xem `STATUS.md` mục "Container bind-mount trap"). Nếu
-bạn sửa bất cứ thứ gì trong `project/tz-llm/{tee_os_kernel,
-linux-5.10-opi,tzdriver}/`, bạn **bắt buộc** phải chạy lệnh dưới đây trước,
-nếu không container sẽ âm thầm build tiếp nội dung cũ chưa sửa:
+| Artifact | Build bằng | Nguồn code |
+|---|---|---|
+| `checkpoints/uboot_repacked.img` (chứa TEE-OS/ChCore, component `optee`) | `./rebuild.sh` rồi `./flash/repack.sh` | `tz-llm/tee_os_kernel/`, `tz-llm/llama.cpp/` (phần TA/chcore-API) |
+| `checkpoints/boot.img` (kernel Linux + ramdisk + tzdriver.ko) | `./rebuild.sh` (copy thủ công từ `scripts/kick-the-tires/share_build/images/boot.img`) | `tz-llm/linux-5.10-opi/`, `tz-llm/tzdriver/` |
+| CA binaries (`fake`, `libggml.so`, `libllama.so`, `libremoting_backend.so`, `llama-cli` trong `scripts/kick-the-tires/share/build-rknpure/`) | `./scripts/kick-the-tires/llama-builder.sh scripts/kick-the-tires/share bash -c ./build-llama-docker.sh` | `tz-llm/llama.cpp/` (phần CA/rknpure) |
 
-```
-./scripts/kick-the-tires/sync-to-container.sh
-```
+**Cả 2 loại binary (TA nhúng trong `uboot_repacked.img` và CA trên
+`scripts/kick-the-tires/share/build-rknpure/`) đều biên dịch từ CÙNG một
+thư mục source `tz-llm/llama.cpp/`** — chỉ khác cấu hình CMake
+(`LLAMA_USE_CHCORE_API=ON` cho TA vs `OFF` cho CA). Sửa file trong
+`tz-llm/llama.cpp/` luôn cần build lại **cả hai**, không chỉ một.
 
-Sau đó chạy build thật sự — có thể chạy toàn bộ qua script đã có sẵn. **Lưu
-ý cờ `-i` là bắt buộc** — thiếu nó, `docker exec` không forward stdin vào
-container, và `bash -s < file` sẽ chạy như một no-op hoàn toàn im lặng
-(exit code 0 nhưng không có gì được thực thi cả — đã kiểm chứng thực tế,
-không phải suy đoán):
+### 1b. Asset cố định — KHÔNG build được, phải lấy sẵn/copy nguyên trạng
 
-```
-docker exec -i tzllm_fixed_builder bash -s < scripts/kick-the-tires/build-oh-docker.sh
-```
+| Asset | Là gì | Lấy từ đâu |
+|---|---|---|
+| `assets/full-flash/rk3588_spl_loader_v1.21.114.bin` | SPL loader của Rockchip cho chế độ full-flash | Vendor Rockchip (đã có sẵn trong repo, đã commit) |
+| `assets/full-flash/MiniLoaderAll_official.bin` | idbloader chính thức từ gói RKDevTool của Rockchip | Vendor Rockchip (đã có sẵn trong repo) — **đừng thay bằng file khác cùng tên**, xem mục 4 |
+| `assets/full-flash/parameter_custom.txt` | Bảng định nghĩa GPT partition | Hand-authored (config, không phải code build) |
+| `assets/full-flash/system_real.img`, `vendor_real.img` | Ảnh partition OpenHarmony hệ thống | **Trích xuất/dump từ một board đã chạy tốt trước đó** — repo này không build OpenHarmony userland từ source |
+| `assets/full-flash/userdata.img` | Template F2FS trống cho partition `userdata` | Tạo sẵn — **⚠️ xem cảnh báo quan trọng ở mục 2c, chưa được xác nhận tự boot lên được một cách đáng tin cậy** |
+| `assets/full-flash/secure_storage.img` | Ảnh partition secure storage | Trích xuất/dump sẵn |
+| `checkpoints/golden-image/idbloader_through_vendor.img` (3.4GB, **không nằm trong git**) | Bản backup thô nguyên khối (LBA 0 → hết vendor) từ một thẻ SD đã biết chạy tốt | Snapshot chụp lại bằng `dd`/`rkdeveloptool rl`, không phải build. **Đây là artifact quan trọng nhất để triển khai board mới — xem mục 2c** |
+| GGUF model files (`tinyllama-1.1b-chat-v1.0.Q8_0.gguf`, v.v., trên `/data/ssd/`) | Trọng số model đã huấn luyện sẵn | Tải về từ nguồn công khai (HuggingFace...), không phải build |
+| `tools/bin/mkimage-rkbin`, các binary trong `scripts/kick-the-tires/repack/` | U-Boot/ATF/BL31 đã biết là tốt, dùng để repack | Đã build/lấy sẵn 1 lần, giữ cố định — xem `flash/repack.sh`'s comment |
+| Docker images `vectorxj0553/tz-llm-oh-builder:latest`, `vectorxj0553/tz-llm-llama-builder:latest` | Toolchain build (cross-compiler, SDK OpenHarmony...) | Kéo về từ Docker Hub, không build từ Dockerfile trong repo này |
 
-hoặc nếu chỉ cần build thô (không copy ảnh ra, không patch IRQ NPU, không
-build idblock phụ), chạy 3 lệnh bên trong mà script đó thực hiện (dùng
-`bash -c` với lệnh truyền trực tiếp thì không cần `-i`, vì không có stdin
-nào cần forward):
+## 2. Quy trình build + flash
 
-```
-docker exec tzllm_fixed_builder bash -c '
-  cd /home/vectorxj/openharmony/
-  ./chcore.sh
-  ./linux.sh
-  ./chcore.sh
-'
-```
+### 2a. Build từ source
 
-Cách thứ hai (3 lệnh thô) là cách đã thực tế dùng và kiểm chứng trong
-project này (ví dụ khi chỉ cần rebuild sau khi đổi `LOG_LEVEL` trong
-`tz-llm/tee_os_kernel/kernel/Makefile`). Cách thứ nhất (script wrapper đầy
-đủ) đúng về mặt cú pháp nhưng **chưa được chạy thử thực tế trong project
-này** — nếu dùng, hãy quan sát kỹ output để chắc chắn nó thực thi đúng.
+```bash
+# 1. Build CA/TA binaries từ tz-llm/llama.cpp/ (LUÔN làm trước nếu sửa gì trong llama.cpp)
+docker run --rm \
+    -v $(pwd)/tz-llm/tee_os_kernel:/home/vectorxj/openharmony/base/tee/tee_os_kernel \
+    -v $(pwd)/tz-llm/llama.cpp:/home/vectorxj/chcore/opentrustee_llm/llama.cpp \
+    -v $(pwd)/scripts/kick-the-tires/share:/home/vectorxj/share \
+    -w /home/vectorxj/share \
+    vectorxj0553/tz-llm-llama-builder:latest \
+    bash -c ./build-llama-docker.sh
+# (lưu ý: KHÔNG dùng `-it` nếu chạy không tương tác/qua script tự động —
+# cần TTY thật, sẽ hang/lỗi nếu không có. `docker run --rm` không cần
+# container thường trực, không cần bước "sync-to-container" nào cả.)
 
-**Luôn chạy `chcore.sh` cả trước lẫn sau `linux.sh`.** Nếu chỉ chạy
-`chcore.sh` một mình, hoặc bỏ qua lần gọi thứ hai, `uboot.img` tạo ra sẽ có
-FIT hash không khớp với kernel/`boot.img` vừa build, và board sẽ từ chối
-boot (`FIT: No boot partition` hoặc lỗi kiểm tra hash). Đây không phải bước
-tùy chọn, và thông báo lỗi cũng không nói rõ nguyên nhân thật.
+# 2. Rebake TEE-OS/kernel (tự động lấy CA/TA binaries mới nhất từ bước 1)
+./rebuild.sh
 
-Kết quả nằm ở `/home/vectorxj/openharmony/out/uboot/src_tmp/{boot.img,
-uboot.img}` bên trong container. Nếu bạn chạy bằng script wrapper, nó đã tự
-copy ra `scripts/kick-the-tires/share_build/images/{boot.img, uboot.img}`
-trên host rồi (đường dẫn này được bind-mount vào container ở
-`/home/vectorxj/share`) — không cần làm gì thêm. Nếu bạn chạy 3 lệnh thô ở
-trên, cần copy ra thủ công:
+# 3. Repack uboot với TEE-OS mới
+./flash/repack.sh
 
-```
-docker cp tzllm_fixed_builder:/home/vectorxj/openharmony/out/uboot/src_tmp/boot.img  <dest>/boot.img
-docker cp tzllm_fixed_builder:/home/vectorxj/openharmony/out/uboot/src_tmp/uboot.img <dest>/uboot_fresh.img
+# 4. Copy boot.img mới (repack.sh KHÔNG tự làm bước này)
+cp scripts/kick-the-tires/share_build/images/boot.img checkpoints/boot.img
 ```
 
-**`uboot.img` thô này không thể tự boot được** — bản U-Boot do pipeline
-Docker build ra là bản release/production, không có CLI và dùng sai quy ước
-tên partition (`boot` thay vì `boot_linux` mà project này dùng). Cần đóng
-gói lại (repack) với một bản U-Boot đã biết là tốt trước khi dùng:
-
-```
-bash flash/repack.sh
-# mặc định dùng scripts/kick-the-tires/share_build/images/uboot.img -- nếu
-# bạn đã copy uboot.img ra thủ công thì truyền đường dẫn tường minh làm $1
-# -> ghi ra checkpoints/uboot_repacked.img
-```
-
-`repack.sh` chỉ trích xuất phần OP-TEE/TEE-OS (`tee.bin`) từ bản build mới
-của bạn, rồi kết hợp với các binary U-Boot/ATF cố định, đã biết là tốt,
-được commit sẵn trong `scripts/kick-the-tires/repack/`. Bạn không cần (và
-không nên cố) làm cho U-Boot tự build đúng từ pipeline Docker này — phần đó
-đã được giải quyết và giữ cố định.
-
-Đến đây bạn đã có 2 file sẵn sàng để flash:
-- `checkpoints/uboot_repacked.img`
-- `<dest>/boot.img` (copy vào `checkpoints/boot.img` nếu muốn đây là file
-  mặc định mà `flash.sh`/`flash-full.sh` sẽ dùng)
-
-## 2. Cấp nguồn cho board
-
-**Trước khi flash, nên xác minh 2 file checkpoint trên đĩa khớp với commit
-git bạn nghĩ mình đang ở** — trong quá trình debug, rất dễ vô tình để lại
-một bản build thử nghiệm (ví dụ bản bật thêm log debug) đè lên
-`checkpoints/uboot_repacked.img`/`checkpoints/boot.img` mà không nhận ra:
-
-```
+**Xác minh trước khi flash**: `checkpoints/uboot_repacked.img`/`boot.img`
+nên khớp git HEAD nếu bạn không cố ý build bản mới:
+```bash
 sha256sum checkpoints/uboot_repacked.img checkpoints/boot.img
 git show HEAD:checkpoints/uboot_repacked.img | sha256sum
 git show HEAD:checkpoints/boot.img | sha256sum
 ```
 
-Hai cặp hash phải khớp nhau từng đôi một. Nếu không khớp, hoặc bạn cố ý
-đang dùng một bản chưa commit, hãy chắc chắn đó là *chủ ý*, không phải sót
-lại từ một lần debug trước.
+### 2b. Board đã có sẵn OpenHarmony của project này (chỉ cập nhật uboot/TEE-OS/kernel)
 
-### 2a. Thẻ SD trắng / mới (chưa từng chạy ảnh của project này)
+Đây là đường **nhanh và đã kiểm chứng nhiều lần** trong project này:
 
-Đưa board vào chế độ MaskROM: giữ nút MaskROM, cấp nguồn, rồi thả nút ra.
-Xác nhận bằng `lsusb | grep 2207` — bạn sẽ thấy thiết bị Rockchip
-`2207:350b` **không** có hậu tố `USB-MSC` (xem phần "Những cái bẫy cần biết"
-bên dưới nếu thấy hậu tố đó).
+```bash
+# Board vào MaskROM: giữ nút MaskROM, cấp nguồn, thả nút. Xác nhận:
+lsusb | grep 2207   # KHÔNG được có hậu tố "USB-MSC"
 
-```
-SUDO_PW=matkhaucuaban bash flash/flash-full.sh \
-  checkpoints/uboot_repacked.img checkpoints/boot.img
+SUDO_PW=matkhaucuaban ./flash/flash.sh
 ```
 
-Lệnh này thực hiện theo thứ tự: ghi GPT từ
-`assets/full-flash/parameter_custom.txt` → ghi idbloader
-(`assets/full-flash/MiniLoaderAll_official.bin`) → ghi uboot → ghi
-boot_linux → ghi system → ghi vendor → ghi userdata. uboot/boot_linux được
-ghi theo chunk kèm verify bằng đa số phiếu bầu 3 lần đọc lại (nhỏ, được
-kiểm tra hash lúc boot, chỉ cần sai 1 byte là hỏng); system/vendor/userdata
-chỉ được spot-check đầu/giữa/cuối (ảnh filesystem lớn, verify toàn bộ không
-khả thi về mặt thời gian — khối dữ liệu hỏng ở đó sẽ được fsck bắt lúc boot
-thật thay vì kiểm tra trước).
+Chỉ ghi `uboot`+`boot_linux`, verify chunk-by-chunk đầy đủ, nhanh (vài phút).
 
-**Nếu bạn đang cấp nguồn lại cho một thẻ đã có dữ liệu người dùng thật**
-(model GGUF đã tải về từ trước, v.v.) và không muốn ghi đè nó bằng
-`assets/full-flash/userdata.img` (chỉ là một F2FS mẫu rỗng nhỏ, không phải
-dữ liệu thật), thêm `SKIP_USERDATA=1`:
+### 2c. Board hoàn toàn mới / thẻ SD trắng — ⚠️ ĐỌC KỸ TRƯỚC KHI LÀM
 
-```
-SUDO_PW=matkhaucuaban SKIP_USERDATA=1 bash flash/flash-full.sh \
-  checkpoints/uboot_repacked.img checkpoints/boot.img
+**Có 2 cách, và chỉ 1 cách hiện đã được kiểm chứng đáng tin cậy:**
+
+**Cách A — Clone golden-image (ĐÃ KIỂM CHỨNG, khuyến nghị dùng để nhân
+bản board mới)**: ghi thẳng `checkpoints/golden-image/
+idbloader_through_vendor.img` (3.4GB, idbloader+GPT+system+vendor từ một
+board đã biết chạy tốt) vào thẻ SD/eMMC mới, sau đó flash uboot/boot_linux
+đã fix lên trên:
+
+```bash
+# Board vào MaskROM
+./flash/recover-golden-image.sh
 ```
 
-Phần idbloader (`MiniLoaderAll_official.bin`, loader chính thức của
-Rockchip từ RKDevTool) đã mất 5 lần thử thất bại mới tìm ra — xem
-`STATUS.md` các attempt #1-#8 nếu sau này cần xem lại. **Đừng thay bằng một
-file `MiniLoaderAll.bin` khác** mà không verify lại từ đầu đến cuối — các
-file cùng tên nhưng khác nguồn không thể dùng thay cho nhau (file
-`device_opi5plus_REAL/loader/MiniLoaderAll.bin` của chính project này là
-một file khác, cũ hơn, đã thử và thất bại).
+Script này (ban đầu viết để khôi phục sau sự cố, nhưng dùng được y hệt để
+cấp nguồn board mới) tự làm 2 việc: ghi golden-image raw vào LBA 0, rồi
+gọi `flash.sh` để đảm bảo uboot/boot_linux là bản đã fix mới nhất. **Đã
+xác nhận 2 lần trên phần cứng thật boot lên đúng và chạy NPU+CPU thành
+công** (2026-08-06, 2026-08-07).
 
-### 2b. Thẻ đã cấp nguồn từ trước (chỉ cập nhật uboot/TEE-OS/kernel)
+Nhược điểm: dùng chung `userdata` từ golden-image (đã có account/wifi
+config của lần chụp gốc) — không phải "trắng hoàn toàn" theo đúng nghĩa,
+cần đổi wifi credentials / account nếu deploy cho môi trường khác.
 
-Nhanh hơn nhiều — chỉ động vào `uboot` và `boot_linux`:
+**Cách B — `flash-full.sh` từ asset thật sự trắng — ⚠️ CHƯA ĐÁNG TIN CẬY,
+KHÔNG khuyến nghị cho tới khi điều tra thêm**:
 
+```bash
+SUDO_PW=matkhaucuaban ./flash/flash-full.sh
 ```
-SUDO_PW=matkhaucuaban bash flash/flash.sh \
-  checkpoints/uboot_repacked.img checkpoints/boot.img
-```
+
+Mặc định (từ 2026-08-07) **không ghi đè `userdata`** — an toàn cho board
+đã có dữ liệu thật. Nhưng nếu bạn **chủ động** thêm `FORCE_USERDATA=1` để
+ghi `assets/full-flash/userdata.img` (dùng cho trường hợp muốn thật sự
+trắng hoàn toàn): **đã thử nghiệm 2 lần (2026-08-07) và cả 2 lần board
+không boot lên OS được** (lần 1: UART im lặng + USB liên tục
+re-enumerate, giống reset-loop; lần 2: UART im lặng ~35+ phút dù USB ổn
+định — cả 2 lần đều phải khôi phục bằng Cách A). **Chưa xác định được
+nguyên nhân gốc** (có thể `userdata.img` thiếu feature `encrypt` cần
+thiết cho StorageDaemon — xem lịch sử fix tương tự hồi 2026-07-20 ở
+memory/`STATUS.md`, hoặc không tương thích với `system_real.img`/
+`vendor_real.img` hiện tại). **Việc cần làm nếu muốn dùng Cách B**: điều
+tra tại sao `userdata.img` không tự boot được, có thể cần build lại nó
+bằng đúng công thức `mke2fs -O encrypt`/mkfs.f2fs đã dùng để fix lockscreen
+trước đây, rồi test lại độc lập trước khi tin dùng cho nhiều board.
+
+**Tóm lại: dùng Cách A (`recover-golden-image.sh`) để triển khai board
+mới cho tới khi Cách B được điều tra và xác nhận lại.**
 
 ## 3. Boot lần đầu / kiểm tra
 
-Sau khi một trong hai script flash chạy xong, nó sẽ tự reset mềm
-(`rkdeveloptool rd`), nhưng **lệnh này không đáng tin cậy** — coi nó như
-một cú hích, không phải phép test thật. Để test boot thật sự, hãy rút và
-cắm lại điện board (**không** giữ nút MaskROM lần này).
+Sau khi flash xong, rút và cắm lại điện board (**không** giữ nút MaskROM
+lần này — `rkdeveloptool rd` không đáng tin cậy để tự boot).
 
-Theo dõi UART:
-
-```
+```bash
 tools/uart/uart_cmd.sh "" 30
 ```
 
-Một lần boot thành công sẽ hiện, theo thứ tự: kiểm tra hash ảnh OP-TEE
-thành công, banner khởi tạo ATF/BL31 (`NOTICE: BL31: v2.3()...`), sau đó là
-log cold-boot của chính ChCore/TEE-OS (`[ChCore] lock init finished`,
-`uart init finished`, `per-CPU info init finished`, `mm init finished`,
-... cuối cùng `chanmgr` khởi chạy `llama-cli`).
+Boot thành công sẽ hiện: kiểm tra hash OP-TEE thành công, banner ATF/BL31,
+log cold-boot ChCore/TEE-OS, cuối cùng `chanmgr` khởi chạy `llama-cli`.
 
-**Lưu ý**: U-Boot trên ảnh của project này không tự động boot (autoboot) —
-nếu cần tự tay nạp và boot kernel từ U-Boot prompt, các lệnh là:
+Sau đó (mỗi lần boot, không tự động):
+```bash
+tools/uart/uart_cmd.sh "param set persist.hdc.port 8710" 4
+tools/uart/uart_cmd.sh "param set ohos.ctl.stop hdcd" 4
+tools/uart/uart_cmd.sh "/system/bin/hdcd -t &" 4
+hdc tconn <ip-board>:8710
+hdc -t <ip-board>:8710 shell "mkdir -p /data/ssd && mount -t ext4 /dev/block/nvme0n1p1 /data/ssd"
+```
 
-```
-mmc dev 0
-mmc read 0x10000000 0x39000 0x20000
-bootm 0x10000000
-```
+Rồi push CA binaries mới nhất (nếu chưa có/không khớp) và chạy test xác
+nhận NPU+CPU — xem `TESTING_GUIDE.md`.
 
 ## 4. Những cái bẫy cần biết trước (đọc trước khi gặp phải)
 
-- **`lsusb` hiện thiết bị Rockchip với hậu tố `USB-MSC` và mọi lệnh
-  `rkdeveloptool` bị treo hoặc lỗi.** Thử lại bằng phần mềm không giải
-  quyết được — cần rút/cắm điện vật lý thật, không phải lệnh `rd`/reset.
-- **Kênh USB/MaskROM thỉnh thoảng làm hỏng dữ liệu** — cả đọc lẫn ghi, tỷ
-  lệ hỏng quan sát được khoảng 10-20% mỗi lần đơn lẻ. Đây chính là *lý do*
-  `flash-full.sh`/`flash.sh` ghi theo chunk kèm verify bằng đa số phiếu bầu
-  3 lần đọc, thay vì tin vào mã thoát (exit code) của `rkdeveloptool`. Đừng
-  "đơn giản hóa" phần này đi.
-- **Không bao giờ để script tự suy ra LBA của partition uboot/boot_linux
-  một cách động** (ví dụ bằng cách parse output của `rkdeveloptool ppt`).
-  Một phiên bản trước của `flash.sh` đã làm vậy qua `awk`, một ký tự `\r`
-  lạc đã làm sai kết quả so khớp, và nó âm thầm ghi 64MB bắt đầu từ LBA
-  0x0 — phá hỏng MBR/GPT và idbloader. Hãy dùng các hằng số cố định từ
-  `parameter_custom.txt` (`uboot@0x2000`, `boot_linux@0x88000`) — các giá
-  trị này không đổi giữa các thẻ; chỉ có kích thước/điểm kết thúc của
-  `userdata` là thay đổi.
-- **`sudo` cần mật khẩu thật** để `rkdeveloptool` truy cập USB thô. Truyền
-  qua biến `SUDO_PW=...`, đừng bao giờ hardcode mật khẩu vào một script có
-  thể bị commit.
-- **Board có thể rơi về MaskROM dù nội dung đã ghi và verify hash khớp
-  100%.** Đã gặp thực tế: cùng một bộ file (`checkpoints/uboot_repacked.img`
-  + `checkpoints/boot.img` + `MiniLoaderAll_official.bin`, đã verify hash
-  khớp từng byte) — có lần boot thành công sâu vào tới ChCore init, có lần
-  rơi thẳng về MaskROM ngay ở lần cắm điện tiếp theo, dù không hề đổi file
-  nào. Rất có thể là chập chờn phần cứng/kênh USB-MaskROM, không phải lỗi
-  nội dung. **Đừng vội kết luận "file sai" hay bắt đầu sửa lại code/script
-  chỉ vì một lần rơi MaskROM** — trước tiên hãy: (1) xác minh lại hash trên
-  đĩa vẫn khớp git HEAD (mục 2 ở trên), (2) rút/cắm điện thật vài lần nữa,
-  (3) nếu vẫn thất bại liên tục ≥3-4 lần với đúng file đã biết là tốt, khi
-  đó mới nghi ngờ có gì thay đổi thật (xem `STATUS.md` để so sánh với các
-  lần thất bại đã ghi nhận).
+- **`lsusb` hiện thiết bị Rockchip với hậu tố `USB-MSC`**: mọi lệnh
+  `rkdeveloptool` sẽ treo (đặc biệt lệnh `cs 2`, không có timeout). Rút/cắm
+  điện vật lý thật để vào lại đúng MaskROM, không có cách sửa bằng phần mềm.
+- **Kênh USB/MaskROM thỉnh thoảng làm hỏng dữ liệu** (10-20% mỗi lần đơn
+  lẻ) — đây là lý do `flash.sh`/`flash-full.sh` ghi theo chunk kèm verify
+  đa số phiếu 3 lần đọc. Đừng đơn giản hóa phần này.
+- **Không để script tự suy ra LBA động** (parsing `rkdeveloptool ppt`) —
+  dùng hằng số cố định từ `parameter_custom.txt`.
+- **`flash-full.sh` mặc định (từ 2026-08-07) không ghi userdata** — phải
+  chủ động `FORCE_USERDATA=1` mới ghi đè, và xem cảnh báo mục 2c trước khi
+  làm vậy.
+- **Nếu board im lặng/reset-loop sau bất kỳ lần flash nào**: chạy
+  `./flash/recover-golden-image.sh` (cần MaskROM) — không cần tự ghép lại
+  quy trình thủ công.
+- **`sudo` cần mật khẩu thật** cho `rkdeveloptool` — truyền qua
+  `SUDO_PW=...`, đừng hardcode vào script có thể bị commit.
+- **Board có thể rơi về MaskROM dù nội dung đã ghi/verify hash khớp
+  100%** — nghi chập chờn phần cứng/kênh USB, không phải lỗi nội dung.
+  Đừng vội sửa code chỉ vì 1 lần rơi MaskROM; verify lại hash, thử rút/cắm
+  điện vài lần, chỉ nghi ngờ thật khi thất bại liên tục ≥3-4 lần.
 
-## 5. Tái sử dụng cho nhiều board Orange Pi 5 Max tiếp theo
+## 5. Tái sử dụng cho nhiều board Orange Pi 5 Max khác
 
-Mọi thứ ở trên nên hoạt động không cần sửa đổi cho một board Orange Pi 5
-**Max** khác (không phải Plus — nhiều fix trong project này là đặc thù cho
-5-Max, ví dụ số IRQ của NPU trong patch `set-npu-irq.sh` của
-`scripts/kick-the-tires/build-oh-docker.sh`, 27/28/29 cho Max so với
-29/30/31 cho Plus). Những thứ cần kiểm tra lại lần đầu khi cấp nguồn cho
-một **board vật lý mới**:
-
-- **Số IRQ của NPU** — đã xác nhận đúng cho toàn bộ dòng 5-Max qua
-  `/proc/interrupts` (`fdab0000.npu` ở IRQ 27/28/29) trên đúng 1 board đã
-  test suốt lịch sử project này. Nếu một board mới báo số IRQ khác, patch
-  `set-npu-irq.sh` trong `build-oh-docker.sh` cần được cập nhật lại.
-- **Idbloader (`MiniLoaderAll_official.bin`) mới chỉ được chứng minh boot
-  được trên đúng 1 tổ hợp board+thẻ vật lý cho tới nay.** Đây là loader
-  *chính thức* của Rockchip (không trích xuất từ một thẻ cụ thể nào), nên
-  về lý thuyết không có lý do gì để nó gắn với một thẻ/board cụ thể, nhưng
-  điều này chưa được kiểm chứng qua nhiều board vật lý khác nhau. Nếu một
-  board mới rơi về MaskROM với đúng file này, đó là thông tin mới — xem
-  các attempt #1-#8 trong `STATUS.md` để có quy trình chẩn đoán (treo im
-  lặng và bị từ chối "sạch" về MaskROM là hai kiểu lỗi khác nhau, nguyên
-  nhân khác nhau).
-- **Dung lượng thẻ SD** — partition `userdata` trong `parameter_custom.txt`
-  là kiểu `grow` (lấp đầy phần còn trống), nên các dung lượng thẻ khác nhau
-  không cần sửa gì. Thẻ nhỏ hơn khoảng 4GB sẽ không đủ chỗ cho các
-  partition cố định (`uboot` 256M + `boot_linux` 96M + `system` 2G +
-  `vendor` 1G + vài partition quản trị nhỏ) — không phải mối lo thực tế với
-  bất kỳ thẻ nào đáng dùng ở đây.
-- **Backup trước khi cấp nguồn, nếu thẻ nguồn có dữ liệu thật**: một thẻ có
-  thể đọc/ghi trực tiếp như một block device Linux thông thường qua đầu
-  đọc thẻ USB (bỏ qua hoàn toàn `rkdeveloptool`/MaskROM, nhanh và đáng tin
-  cậy hơn nhiều):
-  ```
+- **Cách triển khai khuyến nghị**: Cách A (mục 2c) — `recover-golden-image.sh`
+  rồi push CA binaries. Đã kiểm chứng lặp lại được, không phụ thuộc vào
+  `assets/full-flash/userdata.img` (chưa đáng tin cậy).
+- **Số IRQ của NPU** — đã xác nhận đúng cho dòng 5-Max (`fdab0000.npu` ở
+  IRQ 27/28/29) trên 1 board test suốt lịch sử project. Board mới báo số
+  khác thì cần cập nhật `set-npu-irq.sh` trong `build-oh-docker.sh`.
+- **Idbloader** — `MiniLoaderAll_official.bin` (dùng trong `flash-full.sh`)
+  mới chỉ chứng minh boot được trên đúng 1 tổ hợp board+thẻ. Golden-image
+  (Cách A) tránh vấn đề này hoàn toàn vì nó dùng idbloader đã build sẵn
+  trong chính bản backup, không cần tách riêng.
+- **Dung lượng thẻ SD** — partition `userdata` kiểu `grow`, không cần sửa
+  gì cho thẻ khác dung lượng (miễn ≥4GB).
+- **Backup trước khi cấp nguồn cho thẻ có dữ liệu thật**:
+  ```bash
   sudo dd if=/dev/sdX of=backup.img bs=1M count=3445   # idbloader..vendor, ~3.6GB
   ```
-  (`3445` MiB phủ từ sector 0 đến `0x6BA000`, tức mọi thứ trước `sys-prod`
-  — đủ để khôi phục một hệ thống boot được, không phải bản sao toàn bộ ổ
-  đĩa. Hãy xác minh đúng thiết bị trước — kiểm tra qua `lsblk`/dung lượng —
-  trước khi tin vào `/dev/sdX`, vì đầu đọc thẻ USB có thể nhận ký tự ổ đĩa
-  khác nhau mỗi lần cắm.)
+  (xác minh đúng thiết bị qua `lsblk` trước khi tin `/dev/sdX`.)
