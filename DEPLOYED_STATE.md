@@ -17,25 +17,29 @@ Xem `CLAUDE.md` (rule/footgun tổng hợp) trước khi bắt đầu bất kỳ
 (quá lớn, xem `.gitignore`) — vẫn nằm trên disk cùng thư mục, cần copy thủ công nếu dựng
 môi trường mới.
 
-## Cập nhật lần cuối: 2026-08-07 — CẢNH BÁO `flash-full.sh` MẶC ĐỊNH (không `SKIP_USERDATA=1`) + KHÔI PHỤC THÀNH CÔNG
+## Cập nhật lần cuối: 2026-08-07 — SỰ CỐ `flash-full.sh` GHI ĐÈ USERDATA + ĐÃ SỬA DEFAULT + KHÔI PHỤC THÀNH CÔNG
 
-**Sự cố (2026-08-07)**: chạy thử `flash-full.sh` (không đặt `SKIP_USERDATA=1`) trên board đang
-hoạt động tốt để kiểm chứng full-flash dùng đúng bản đã fix — script ghi cả `assets/full-flash/
-userdata.img` (template F2FS trống) đè lên userdata thật đang chạy tốt (đã có account
-activated, wifi config...). Sau khi flash xong và power-cycle, board **im lặng hoàn toàn trên
-UART** trong nhiều phút và USB liên tục re-enumerate — nghi ngờ reset-loop do userdata trắng
-không tương thích với combo system/vendor cụ thể của board. **Đã khắc phục**: ghi lại
-`checkpoints/golden-image/idbloader_through_vendor.img` (LBA 0, không đụng vùng userdata) để
-khôi phục idbloader+GPT+system+vendor về bản đã biết ổn định, sau đó `flash/flash.sh` lại để
-đảm bảo uboot/boot_linux vẫn là bản đã fix. Board boot lại bình thường (dù userdata vẫn là bản
-trắng mới từ full-flash — `/data/ssd` cần `mkdir -p` lại trước khi mount, không tồn tại sẵn như
-trước). **Xác nhận lại NPU và CPU đều chạy đúng** ("Sure! My name is Alex." cả 2 path).
+**Sự cố (2026-08-07)**: chạy thử `flash-full.sh` (default cũ: ghi cả userdata trừ khi tự set
+`SKIP_USERDATA=1`) trên board đang hoạt động tốt để kiểm chứng full-flash dùng đúng bản đã fix
+— script ghi `assets/full-flash/userdata.img` (template F2FS trống) đè lên userdata thật đang
+chạy tốt (đã có account activated, wifi config...). Sau khi flash xong và power-cycle, board
+**im lặng hoàn toàn trên UART** trong nhiều phút và USB liên tục re-enumerate — nghi ngờ
+reset-loop do userdata trắng không tương thích với combo system/vendor cụ thể của board.
 
-**Bài học cho tương lai**: `flash-full.sh`'s `UBOOT`/`BOOT` args mặc định đã đúng trỏ tới
-`checkpoints/uboot_repacked.img`/`boot.img` (bản đã fix) — **không cần nghi ngờ phần này**.
-Nhưng **luôn dùng `SKIP_USERDATA=1`** khi chạy `flash-full.sh` trên một board **đang có
-userdata thật/đã hoạt động tốt** (không phải thẻ trắng hoàn toàn) — script tự có flag này
-chính vì lý do này, đừng bỏ qua nó chỉ vì đang muốn "test cho chắc".
+**Đã khắc phục 2 việc**:
+1. **Khôi phục board**: chạy `flash/recover-golden-image.sh` (script mới, tự động hoá đúng quy
+   trình đã dùng để cứu board lần này) — ghi lại `checkpoints/golden-image/
+   idbloader_through_vendor.img` raw vào LBA 0 (không đụng userdata) rồi tự gọi `flash/flash.sh`
+   để đảm bảo uboot/boot_linux vẫn là bản đã fix. Board boot lại bình thường (dù userdata vẫn là
+   bản trắng mới từ full-flash — `/data/ssd` cần `mkdir -p` lại trước khi mount, không tồn tại
+   sẵn như trước). **Xác nhận lại NPU và CPU đều chạy đúng** ("Sure! My name is Alex." cả 2 path).
+2. **Sửa `flash-full.sh` an toàn hơn**: đã **đảo ngược default** — giờ userdata **mặc định được
+   bỏ qua** (không ghi đè), phải chủ động đặt `FORCE_USERDATA=1` mới thực sự ghi đè userdata.
+   `UBOOT`/`BOOT` args mặc định vẫn đúng trỏ tới `checkpoints/uboot_repacked.img`/`boot.img`
+   (bản đã fix) — phần đó không có vấn đề gì, chỉ userdata là nguồn gốc sự cố.
+
+**Nếu gặp lại tình trạng board im lặng/reset-loop sau flash**: chạy ngay
+`./flash/recover-golden-image.sh` (cần board ở MaskROM) — không cần tự tay ghép lại quy trình.
 
 ## Lịch sử: 2026-08-06 — CẢ NPU (`-s 0`) LẪN CPU (`-s 1`) ĐỀU CHO OUTPUT MẠCH LẠC
 

@@ -108,21 +108,26 @@ all 4 together before rebuilding; nothing enforces this automatically.
   flaky (~10-20% single-shot corruption) — this is *why* `flash.sh` writes
   in 4MiB chunks with majority-of-3-vote verification. Don't simplify that
   away even though it looks paranoid.
-- **`flash-full.sh` on a board that already has a working userdata (real
-  activated account, wifi config, etc.) MUST be run with `SKIP_USERDATA=1`.**
-  Without it, the default `assets/full-flash/userdata.img` (an empty F2FS
-  template) silently overwrites the real userdata partition — confirmed
-  2026-08-07 to cause the board to sit completely silent on UART with the
-  USB device continuously re-enumerating after power-cycle (looked exactly
-  like a reset-loop/brick). Recovered by rewriting
+- **`flash-full.sh` skips userdata by default** (flipped 2026-08-07, was the
+  opposite before) — pass `FORCE_USERDATA=1` only when you genuinely intend
+  to wipe it (e.g. a truly blank/new card). The old default (write userdata
+  unless `SKIP_USERDATA=1`) silently overwrote a board's real working
+  userdata (activated account, wifi config) with an empty F2FS template —
+  confirmed 2026-08-07 to cause the board to sit completely silent on UART
+  with the USB device continuously re-enumerating after power-cycle (looked
+  exactly like a reset-loop/brick). `flash-full.sh`'s `UBOOT`/`BOOT` default
+  args are and always were correct (point at the fixed `checkpoints/`
+  files) — only the userdata overwrite was ever the problem.
+- **If the board goes silent/reset-loops after any flash**: run
+  `./flash/recover-golden-image.sh` (board must be in MaskROM) — it
+  automates the exact recovery used 2026-08-07: rewrites
   `checkpoints/golden-image/idbloader_through_vendor.img` raw to LBA 0
-  (restores idbloader+GPT+system+vendor, does *not* touch userdata) then
-  reflashing `checkpoints/uboot_repacked.img`/`boot.img` on top via
-  `flash.sh`. Note: `flash-full.sh`'s `UBOOT`/`BOOT` default args already
-  correctly point at the fixed `checkpoints/` files — that part was never
-  the problem, only the userdata overwrite was. After this kind of
-  recovery, `/data/ssd` won't exist yet on a fresh userdata (`mkdir -p`
-  it before mounting the NVMe SSD, don't assume it's pre-created).
+  (restores idbloader+GPT+system+vendor, does *not* touch userdata), then
+  calls `flash.sh` to reflash the current fixed uboot/boot_linux on top.
+  After this kind of recovery, `/data/ssd` won't exist yet if userdata was
+  wiped (`mkdir -p` it before mounting the NVMe SSD, don't assume it's
+  pre-created) — CA binaries themselves live on the separate NVMe SSD so
+  they usually survive regardless.
 
 ## Runtime / testing checklist (do this every single boot)
 

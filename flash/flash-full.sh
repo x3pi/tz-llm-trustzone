@@ -130,14 +130,25 @@ write_verified uboot "$UBOOT" "$UBOOT_LBA"
 write_verified boot_linux "$BOOT" "$BOOT_LBA"
 write_spotcheck system "$SYSTEM" "$SYSTEM_LBA"
 write_spotcheck vendor "$VENDOR" "$VENDOR_LBA"
-if [ "${SKIP_USERDATA:-}" = "1" ]; then
-    echo "--- userdata: SKIPPED (SKIP_USERDATA=1) -- existing userdata on the"
-    echo "    card (e.g. real GGUF model files) is left untouched. Use this"
-    echo "    when reprovisioning a card that already has real user data you"
-    echo "    don't want to overwrite with assets/full-flash/userdata.img"
-    echo "    (which is just a small empty F2FS template, not real data). ---"
-else
+# SAFE BY DEFAULT (flipped 2026-08-07 after a real incident): userdata is
+# skipped unless FORCE_USERDATA=1 is explicitly set. Running this against a
+# board that already has a working userdata (real activated account, wifi
+# config, GGUF models, etc.) with the OLD default silently overwrote it with
+# assets/full-flash/userdata.img (an empty F2FS template) -- the board then
+# sat completely silent on UART with USB continuously re-enumerating after
+# power-cycle, looking exactly like a brick/reset-loop. See DEPLOYED_STATE.md
+# and CLAUDE.md ("flash-full.sh on a board that already has a working
+# userdata...") for the full incident writeup and recovery procedure
+# (flash/recover-golden-image.sh). Only set FORCE_USERDATA=1 when you
+# genuinely intend to wipe userdata (e.g. provisioning a brand new/blank
+# card from scratch).
+if [ "${FORCE_USERDATA:-}" = "1" ]; then
     write_spotcheck userdata "$USERDATA" "$USERDATA_LBA"
+else
+    echo "--- userdata: SKIPPED (default -- pass FORCE_USERDATA=1 to write it)."
+    echo "    Existing userdata on the card (real activated account, wifi"
+    echo "    config, GGUF models, etc.) is left untouched. Only override this"
+    echo "    when provisioning a genuinely blank/new card from scratch. ---"
 fi
 
 echo "=== resetting board ==="
