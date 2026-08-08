@@ -202,6 +202,16 @@ int main(int argc, char **argv)
     printf("Main thread is waiting for smc\n");
     usys_tee_wait_switch_req(&req);
     printf("Main thread is awaken from smc\n");
+    /* DIAGNOSTIC (2026-08-08): mirrors the SHM-INIT "msg from tee" marker
+     * this same buffer already carries -- writes a second, distinct marker
+     * near the very end of the CMD_QUEUE_SHM region (far from any real
+     * all_ring_buffer field) right after this second wake succeeds, so the
+     * NWd side (tc_client_driver.c) can directly confirm -- without
+     * guessing -- whether this specific wake (the one a ca_thread's very
+     * first ioctl() is responsible for delivering) actually happened,
+     * independently of the earlier boot-time SHM-INIT handshake fixed
+     * separately in llm_tee_os_init(). */
+    sprintf((char *)vaddr + CMD_QUEUE_SHM_SIZE - 64, "2nd wake ok\n");
     printf("raw cache_p bytes: ");
     for (int i = 0; i < 16; i++) printf("%02x ", (unsigned char)task_queue->cache_p[i]);
     printf("\nraw n bytes: ");

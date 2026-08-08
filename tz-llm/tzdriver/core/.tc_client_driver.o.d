@@ -299,8 +299,9 @@ tc_client_driver.o: drivers/tzdriver/core/tc_client_driver.c \
   include/linux/security.h include/linux/kernel_read_file.h \
   include/linux/file.h include/linux/namei.h include/linux/highmem.h \
   arch/arm64/include/generated/asm/kmap_types.h \
-  include/asm-generic/kmap_types.h include/linux/acpi.h \
-  include/linux/resource_ext.h include/acpi/acpi.h \
+  include/asm-generic/kmap_types.h include/linux/delay.h \
+  arch/arm64/include/generated/asm/delay.h include/asm-generic/delay.h \
+  include/linux/acpi.h include/linux/resource_ext.h include/acpi/acpi.h \
   include/acpi/platform/acenv.h include/acpi/platform/acgcc.h \
   include/acpi/platform/aclinux.h include/linux/ctype.h \
   include/acpi/acnames.h include/acpi/actypes.h include/acpi/acexcep.h \

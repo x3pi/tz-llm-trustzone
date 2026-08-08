@@ -1161,6 +1161,9 @@ deps_drivers/tzdriver/core/tc_client_driver.o := \
     $(wildcard include/config/debug/highmem.h) \
   arch/arm64/include/generated/asm/kmap_types.h \
   include/asm-generic/kmap_types.h \
+  include/linux/delay.h \
+  arch/arm64/include/generated/asm/delay.h \
+  include/asm-generic/delay.h \
   include/linux/acpi.h \
     $(wildcard include/config/acpi/debugger.h) \
     $(wildcard include/config/acpi/processor/cstate.h) \

@@ -41,6 +41,7 @@
 #include <linux/namei.h>
 #include <linux/thread_info.h>
 #include <linux/highmem.h>
+#include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/kernel.h>
 #include <linux/file.h>
@@ -1503,6 +1504,13 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 	int ret;
 	int ret_tee = 0;
 	unsigned long req_thread = this_cpu_xchg(on_fly_io_thread, 0);
+	/* DIAGNOSTIC (2026-08-08): pairs with the SAVE print in case 4 below --
+	 * confirms whether the resume token this invocation picked up (if any)
+	 * matches what was actually saved for THIS cpu, or whether it's reading
+	 * zero (nothing pending / token was consumed by a different cpu/call). */
+	if (req_thread)
+		pr_info("[TZLLM_TRACE] on_fly_io_thread READ cpu=%d thread=%#lx\n",
+			raw_smp_processor_id(), req_thread);
 	/*
 	 * BUG FIX: this loop can spin through many SMC_EXIT_SHADOW round trips
 	 * (e.g. per-page tzasc_cma_push/pop for a large tensor) without ever
@@ -1529,6 +1537,26 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 		struct smc_out_params out;
 		// tlogd("%s %d cpu %d\n", __func__, __LINE__, raw_smp_processor_id());
 		do_smc_transport(&in, &out, 0);
+
+		/* DIAGNOSTIC (2026-08-07, real-root-cause investigation): unconditional,
+		 * rate-limited trace of every do_smc_transport() return -- the existing
+		 * TZLLM_TRACE prints only fire for specific recognized out.exit_reason
+		 * values deep inside the SMC_EXIT_SHADOW case below, so a hang where
+		 * do_smc_transport() either never returns at all, or returns some
+		 * out.ret this loop doesn't have a case for, produces ZERO trace output
+		 * -- exactly the "0 push events, 0 DBG_LOG_DUMP events" signature seen
+		 * on every hang tonight regardless of smc.c/decrypt-stage.cpp fix state.
+		 * This print fires on the VERY FIRST iteration unconditionally (no
+		 * rate-limit skip until iter>1) specifically so a hang stuck on
+		 * iteration 1 still produces at least one line proving whether
+		 * do_smc_transport() returned at all. */
+		{
+			static atomic_t smc_iter_ctr = ATOMIC_INIT(0);
+			int ic = atomic_inc_return(&smc_iter_ctr);
+			if (ic == 1 || (ic % 20000) == 1)
+				pr_info("[TZLLM_TRACE] smc_call_cpu_resume: iter#%d cpu=%d ret=%#lx exit_reason=%#lx\n",
+					ic, raw_smp_processor_id(), out.ret, out.exit_reason);
+		}
 
 		if (++spin_iters >= smc_resume_yield_every) {
 			spin_iters = 0;
@@ -1567,6 +1595,15 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 			case 4:
 				ret = SMC_LOOP_EXIT_IO_STEP;
 				this_cpu_write(on_fly_io_thread, req_thread);
+				/* DIAGNOSTIC (2026-08-08): pairs with the xchg-read print
+				 * below -- if a SAVE here is never matched by a READ on the
+				 * SAME cpu (or the READ sees a different/zero value), the
+				 * parked compute thread's resume token was silently lost
+				 * and that thread stays parked forever (matches the "core
+				 * runs chanmgr's idle thread forever" symptom -- confirmed
+				 * live tonight via unconditional SMC_EXIT_NORMAL tracing). */
+				pr_info("[TZLLM_TRACE] on_fly_io_thread SAVE cpu=%d thread=%#lx\n",
+					raw_smp_processor_id(), req_thread);
 				break;
 			case 3: {
 				/* TEMP DIAGNOSTIC: trace NPU job-done relay -- pairs with
@@ -1649,12 +1686,45 @@ unsigned long smc_resume_npu_thread(int npu_core, void *job) {
 EXPORT_SYMBOL(smc_resume_npu_thread);
 
 static int llm_run(void __user * argp) {
-	
+
 	// tlogd("%s %d\n", __func__, __LINE__);
 	struct out_result result;
 	int copy_ret;
+	/* DIAGNOSTIC (2026-08-08): every ioctl() into here is a fresh
+	 * smc_call_cpu_resume() invocation -- log, for the first several
+	 * calls of this boot session, whether main.cpp's "2nd wake ok" marker
+	 * (written right after the TA main thread's SECOND
+	 * usys_tee_wait_switch_req() returns, i.e. after it receives
+	 * cache/prompt/n/is_strawman) is present in g_llm_shm *before* this
+	 * call's own do_smc_transport() runs. This directly answers whether
+	 * the TA main thread's second wake -- which only the very first
+	 * ca_thread ioctl() of a session can ever deliver -- actually
+	 * succeeds, independently of the (already confirmed working)
+	 * boot-time SHM-INIT handshake fixed separately in llm_tee_os_init(). */
+	{
+		static atomic_t llm_run_ctr = ATOMIC_INIT(0);
+		int c = atomic_inc_return(&llm_run_ctr);
+		if (c <= 10) {
+			bool marker_present = g_llm_shm && memcmp(
+				(const void *)(g_llm_shm + CMD_QUEUE_SHM_SIZE - 64),
+				"2nd wake ok", 11) == 0;
+			pr_info("[TZLLM_TRACE] llm_run: call #%d cpu=%d, '2nd wake ok' marker %s BEFORE this call's smc_call_cpu_resume()\n",
+				c, raw_smp_processor_id(), marker_present ? "PRESENT" : "absent");
+		}
+	}
 	// while (true) smc_call_cpu_resume(&result);
 	unsigned long ret = smc_call_cpu_resume(&result);
+	{
+		static atomic_t llm_run_ctr2 = ATOMIC_INIT(0);
+		int c = atomic_inc_return(&llm_run_ctr2);
+		if (c <= 10) {
+			bool marker_present = g_llm_shm && memcmp(
+				(const void *)(g_llm_shm + CMD_QUEUE_SHM_SIZE - 64),
+				"2nd wake ok", 11) == 0;
+			pr_info("[TZLLM_TRACE] llm_run: call #%d cpu=%d, '2nd wake ok' marker %s AFTER this call's smc_call_cpu_resume() (ret=%lu)\n",
+				c, raw_smp_processor_id(), marker_present ? "PRESENT" : "absent", ret);
+		}
+	}
 	switch (ret) {
 	case SMC_LOOP_EXIT_FINISH:
 		// tlogd("%s %d finish llm inference\n", __func__, __LINE__);
@@ -2135,22 +2205,72 @@ static int llm_tee_os_init(void)
 		return ret;
 	}
 
-	while (true) {
-		struct smc_in_params in = {
-			.x0 = TSP_REQUEST,
-			.x1 = virt_to_phys((const volatile void *)g_llm_shm),
-			.x2 = CMD_QUEUE_SHM_SIZE,
-			.x3 = virt_to_phys((const volatile void *)g_s2_l0_meta),
-			.x4 = virt_to_phys((const volatile void *)g_tzasc_cma_meta_arr),
-		};
-		struct smc_out_params out;
-		do_smc_transport(&in, &out, 0);
+	/*
+	 * BUG FIX (2026-08-08, real root cause of the long-standing probabilistic
+	 * "TA never makes progress" hang): this handshake runs exactly once, at
+	 * Linux kernel module_init time -- i.e. potentially before ChCore's own
+	 * userspace has even created the llama-cli TA process, let alone reached
+	 * the point where its main thread parks in usys_tee_wait_switch_req()
+	 * waiting for this exact paddr. handle_yield_smc() on the secure side
+	 * only wakes percpu->waiting_thread if something is ALREADY parked when
+	 * this SMC arrives -- if the TA main thread isn't parked yet, this SMC
+	 * instead falls through to running whatever else is runnable (chanmgr's
+	 * own idle thread, which replies with x1=0/SMC_EXIT_NORMAL every time,
+	 * see chanmgr's `idle()`). Since SMC_EXIT_NORMAL != SMC_EXIT_PREEMPTED,
+	 * the old code treated that as "done" and never retried -- silently
+	 * dropping the handshake forever, so the TA's main thread stays parked
+	 * on its first wait for the rest of the boot session and never creates
+	 * its compute threads (confirmed live: dmesg showed 0/79.7M SMC round
+	 * trips ever returning anything but SMC_EXIT_NORMAL from the idle
+	 * thread, for an entire multi-minute hang).
+	 *
+	 * The SMC return value alone can't distinguish "genuinely delivered to
+	 * the TA" from "wasted on idle thread" (both can legitimately end in an
+	 * SMC_EXIT_NORMAL-shaped response once ChCore's internal scheduling
+	 * chain runs out of runnable work). Instead, verify success the same
+	 * way the CA side already does: main.cpp/chanmgr's master() both
+	 * sprintf() "msg from tee\n" into the very start of this same shared
+	 * page immediately after successfully receiving paddr and mapping it --
+	 * check for that literal marker. If it's not there yet, the real
+	 * recipient wasn't ready; retry (bounded, with a sleep so ChCore's
+	 * userspace boot sequence gets a real chance to catch up) rather than
+	 * silently giving up after one attempt.
+	 */
+	{
+		const char *marker = "msg from tee";
+		const int marker_len = 12;
+		int attempt;
 
-		if (out.ret == SMC_EXIT_PREEMPTED) {
-			cond_resched();
-		} else {
-			tlogd("%s %d shm init DONE\n", __func__, __LINE__);
-			break;
+		for (attempt = 0; attempt < 300; attempt++) {
+			while (true) {
+				struct smc_in_params in = {
+					.x0 = TSP_REQUEST,
+					.x1 = virt_to_phys((const volatile void *)g_llm_shm),
+					.x2 = CMD_QUEUE_SHM_SIZE,
+					.x3 = virt_to_phys((const volatile void *)g_s2_l0_meta),
+					.x4 = virt_to_phys((const volatile void *)g_tzasc_cma_meta_arr),
+				};
+				struct smc_out_params out;
+				do_smc_transport(&in, &out, 0);
+
+				if (out.ret == SMC_EXIT_PREEMPTED) {
+					cond_resched();
+				} else {
+					tlogd("%s %d shm init attempt %d: smc returned, checking for TA marker\n",
+						__func__, __LINE__, attempt);
+					break;
+				}
+			}
+
+			if (memcmp((const void *)g_llm_shm, marker, marker_len) == 0) {
+				pr_info("[TZLLM_TRACE] llm_tee_os_init: TA marker confirmed after %d attempt%s\n",
+					attempt + 1, attempt == 0 ? "" : "s");
+				break;
+			}
+
+			pr_info("[TZLLM_TRACE] llm_tee_os_init: attempt %d got no TA marker (SMC likely landed on an unrelated idle thread) -- retrying\n",
+				attempt);
+			msleep(50);
 		}
 	}
 	ret = 0;
