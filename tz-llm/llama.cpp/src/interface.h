@@ -213,6 +213,7 @@ struct all_ring_buffer {
 
     char final_answer[FINAL_ANSWER_MAX];
     std::atomic<bool> final_answer_ready;
+    std::atomic<bool> request_ready;
 
     // Diagnostic-only: relay main.cpp's own [LOGIT_DIAG] top-5 logits (see
     // that file's comment) out of the secure world, since TA-side printf
@@ -246,6 +247,7 @@ struct all_ring_buffer {
         memset(n, 0, sizeof(n));
         memset(final_answer, 0, sizeof(final_answer));
         final_answer_ready = false;
+        request_ready = false;
         logit_diag_n_past = -1;
         memset(logit_diag_top_idx, 0, sizeof(logit_diag_top_idx));
         memset(logit_diag_top_val, 0, sizeof(logit_diag_top_val));

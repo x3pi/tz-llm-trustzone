@@ -451,14 +451,20 @@ std::pair<std::shared_ptr<Task>, bool> AllocStage::get_task(void *arg)
     submit_pos += BLOCK_SIZE;
     bool is_last = submit_pos >= size;
     {
+        // THROTTLE UPDATE (2026-08-08): fires once per BLOCK_SIZE chunk of
+        // every tensor -- unthrottled, this was thousands of synchronous
+        // printf+fflush calls per model load, contributing to the RCU-
+        // stall/soft-lockup cascade documented in tc_client_driver.c.
         int n = alloc_trace_ctr.fetch_add(1);
-        std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
-        printf("[ALLOC_TRACE] #%d get_task this=%p tid_arg=%d cma=%d get_nr=[%d,%d,%d,%d] block_nr=[%d,%d,%d,%d] finished_nr=%d all_block_nr=%d submit_pos=%zu size=%zu is_last=%d\n",
-            n, (void *)this, (int)(long)arg, cma_index,
-            get_nr[0], get_nr[1], get_nr[2], get_nr[3],
-            block_nr[0], block_nr[1], block_nr[2], block_nr[3],
-            (int)finished_nr, all_block_nr, submit_pos, size, is_last);
-        fflush(stdout);
+        if ((n % 5000) == 0) {
+            std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+            printf("[ALLOC_TRACE] #%d get_task this=%p tid_arg=%d cma=%d get_nr=[%d,%d,%d,%d] block_nr=[%d,%d,%d,%d] finished_nr=%d all_block_nr=%d submit_pos=%zu size=%zu is_last=%d\n",
+                n, (void *)this, (int)(long)arg, cma_index,
+                get_nr[0], get_nr[1], get_nr[2], get_nr[3],
+                block_nr[0], block_nr[1], block_nr[2], block_nr[3],
+                (int)finished_nr, all_block_nr, submit_pos, size, is_last);
+            fflush(stdout);
+        }
     }
     return { task, is_last };
 }
@@ -494,11 +500,16 @@ bool AllocStage::submit(std::shared_ptr<Task> task)
     auto old_nr = finished_nr.fetch_add(1);
     bool is_done = (old_nr + 1 == all_block_nr);
     {
+        // THROTTLE UPDATE (2026-08-08): same reasoning as get_task() above.
+        // Always print on is_done (once per tensor, not per block) so
+        // pipeline-completion visibility isn't lost.
         int n = alloc_trace_ctr.fetch_add(1);
-        std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
-        printf("[ALLOC_TRACE] #%d submit    this=%p cma=%d actual_cma=%d entry=%d old_nr=%d all_block_nr=%d is_done=%d\n",
-            n, (void *)this, alloc_task->cma_index, alloc_task->actual_cma_index, alloc_task->entry_index, old_nr, all_block_nr, is_done);
-        fflush(stdout);
+        if (is_done || (n % 5000) == 0) {
+            std::lock_guard<std::mutex> _p(alloc_trace_print_mtx);
+            printf("[ALLOC_TRACE] #%d submit    this=%p cma=%d actual_cma=%d entry=%d old_nr=%d all_block_nr=%d is_done=%d\n",
+                n, (void *)this, alloc_task->cma_index, alloc_task->actual_cma_index, alloc_task->entry_index, old_nr, all_block_nr, is_done);
+            fflush(stdout);
+        }
     }
     if (is_done)
         return true;

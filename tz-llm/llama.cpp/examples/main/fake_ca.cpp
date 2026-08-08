@@ -14,7 +14,17 @@
 #include <string>
 #include <sched.h>
 #include <csignal>
+#include <atomic>
+#include <chrono>
+#include <ctime>
 #include "interface.h"
+#include "../server/httplib.h"
+#include "../../common/json.hpp"
+
+using json = nlohmann::json;
+
+extern void ca_backend_submit_request(const char *model, const char *text, int n, int cache, bool is_strawman);
+std::atomic<int> ca_state(0); // 0=IDLE, 1=BUSY
 
 extern void dbg_log_dump(void);
 
@@ -93,11 +103,6 @@ void ca_thread(int fd, int index) {
             static int poll_ctr = 0;
             if (++poll_ctr >= 2000) {
                 poll_ctr = 0;
-                static char answer[FINAL_ANSWER_MAX];
-                if (ca_backend_poll_final_answer(answer, sizeof(answer))) {
-                    printf("===FINAL_ANSWER_START===\n%s\n===FINAL_ANSWER_END===\n", answer);
-                    fflush(stdout);
-                }
                 static int last_logit_n_past = -1;
                 int top_idx[5];
                 float top_val[5];
@@ -218,12 +223,90 @@ int main(int argc, char *argv[]) {
         ca_threads.emplace_back(ca_thread, fd, i);
     }
     for (int i = 0; i < 4; i++) {
-        ca_threads[i].join();
+        ca_threads[i].detach();
     }
 
-    // GGML_ASSERT(ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd) >= 0);
+    printf("Waiting for warmup request to complete...\n");
+    char warmup_answer[FINAL_ANSWER_MAX];
+    while (!ca_backend_poll_final_answer(warmup_answer, sizeof(warmup_answer))) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    printf("Warmup complete.\n");
 
-    while (1);
+    httplib::Server svr;
+    svr.Post("/completion", [model, n, cache, strawman](const httplib::Request &req, httplib::Response &res) {
+        if (ca_state.exchange(1) != 0) {
+            res.status = 503;
+            res.set_content("{\"error\":\"TA is busy\"}", "application/json");
+            return;
+        }
+
+        std::string prompt_text;
+        try {
+            json j = json::parse(req.body);
+            if (j.contains("prompt")) {
+                prompt_text = j["prompt"].get<std::string>();
+            } else {
+                ca_state.store(0);
+                res.status = 400;
+                res.set_content("{\"error\":\"Missing prompt\"}", "application/json");
+                return;
+            }
+        } catch (...) {
+            ca_state.store(0);
+            res.status = 400;
+            res.set_content("{\"error\":\"Invalid JSON\"}", "application/json");
+            return;
+        }
+
+        ca_backend_submit_request(model, prompt_text.c_str(), n, cache, strawman);
+
+        auto start = std::chrono::steady_clock::now();
+        char answer[FINAL_ANSWER_MAX];
+        bool answered = false;
+        
+        while (true) {
+            if (ca_backend_poll_final_answer(answer, sizeof(answer))) {
+                answered = true;
+                break;
+            }
+            auto now = std::chrono::steady_clock::now();
+            if (std::chrono::duration_cast<std::chrono::seconds>(now - start).count() > 300) {
+                // Watchdog trigger: request timed out, assume the TA is
+                // wedged (same failure class as the historical probabilistic
+                // hang, not yet root-caused -- see DEPLOYED_STATE.md). Log
+                // via direct file I/O, not system("echo ...."), since
+                // prompt_text is untrusted request input and must never be
+                // interpolated into a shell command string.
+                FILE *wf = fopen("/data/ssd/watchdog.log", "a");
+                if (wf) {
+                    time_t now_t = time(nullptr);
+                    char ts[32];
+                    strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", localtime(&now_t));
+                    fprintf(wf, "[%s] watchdog timeout after 300s, rebooting. prompt=%s\n",
+                        ts, prompt_text.c_str());
+                    fclose(wf);
+                }
+                system("reboot");
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+
+        if (answered) {
+            json resp;
+            resp["content"] = answer;
+            res.set_content(resp.dump(), "application/json");
+        } else {
+            res.status = 504;
+            res.set_content("{\"error\":\"Timeout\"}", "application/json");
+        }
+        
+        ca_state.store(0);
+    });
+
+    printf("Starting HTTP server on 0.0.0.0:8080\n");
+    svr.listen("0.0.0.0", 8080);
 
 #define LLM_MODEL_SIZE (4ul * 1024 * 1024 * 1024)
     struct llm_client_op_pages op = { .entry_begin = 0, .entry_end = LLM_MODEL_SIZE / (1 << 12) };

@@ -100,7 +100,18 @@ if (!is_strawman) {
             if (gettid() == main_tid) {
                 extern int on_fly_cnt;
                 static int idle_ctr = 0;
-                if ((idle_ctr++ % 2000) == 0) {
+                // THROTTLE UPDATE (2026-08-08): this fires every time all 3
+                // stage queues are empty, which is the common/expected state
+                // between real work items -- confirmed on hardware this
+                // session that step() gets called often enough (millions of
+                // times in a normal run) for even 1-per-2000 to still print
+                // thousands of times, each a synchronous printf+fflush over
+                // this board's slow UART, contributing to the RCU-stall/
+                // soft-lockup cascade documented in tc_client_driver.c. The
+                // stall this trace was added to find (stuck at ~178MB into
+                // the model) is already root-caused and fixed. Dropped by
+                // 1000x; still enough to prove genuine idle-forever hangs.
+                if ((idle_ctr++ % 2000000) == 0) {
                     printf("[TZLLM_TRACE] step() idle: io_cnt=%d on_fly_cnt=%d alloc.size=%zu io.size=%zu decrypt.size=%zu (#%d)\n",
                         io_cnt, on_fly_cnt, alloc.size(), io.size(), decrypt.size(), idle_ctr);
                     fflush(stdout);

@@ -106,13 +106,25 @@ void use_param_tensor(
     // every thread to just compute and set it themselves instead of relying
     // on cross-thread visibility of a single thread's write.
     tensor->data = pipeline->get_final_msg();
-    {
-        unsigned char *dbg = (unsigned char *)tensor->data;
-        printf("[DBG_USE] ith=%d name=%s data=%p bytes=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-            ith, tensor->name, tensor->data,
-            dbg[0], dbg[1], dbg[2], dbg[3], dbg[4], dbg[5], dbg[6], dbg[7],
-            dbg[8], dbg[9], dbg[10], dbg[11], dbg[12], dbg[13], dbg[14], dbg[15]);
-    }
+    // DISABLED (2026-08-08): this printed unconditionally on every tensor
+    // use, every thread (ith 0..3), every forward pass -- for a 22-layer
+    // model that's thousands of printf calls per token, each one a
+    // synchronous write over this board's slow 1.5Mbaud UART console.
+    // Confirmed live on hardware this session: this trace (and the sibling
+    // step()-idle trace in layer-sched.cpp) still firing millions of times
+    // during a long-running session correlates with the RCU-stall/soft-
+    // lockup cascade documented in tc_client_driver.c's smc_call_cpu_resume().
+    // Its diagnostic job (confirming tensor->data is populated before use,
+    // see the BUG FIX comment above) is done; the underlying bug it helped
+    // find is fixed. Left the dbg byte-read computation commented out too
+    // so it's a one-line re-enable if ever needed again, not a rewrite.
+    // {
+    //     unsigned char *dbg = (unsigned char *)tensor->data;
+    //     printf("[DBG_USE] ith=%d name=%s data=%p bytes=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+    //         ith, tensor->name, tensor->data,
+    //         dbg[0], dbg[1], dbg[2], dbg[3], dbg[4], dbg[5], dbg[6], dbg[7],
+    //         dbg[8], dbg[9], dbg[10], dbg[11], dbg[12], dbg[13], dbg[14], dbg[15]);
+    // }
 #ifdef TZ_LLM_MEASURE
     if (ith == 0)
         use_wait_time += get_micro() - start;

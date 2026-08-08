@@ -445,6 +445,7 @@ int main(int argc, char **argv)
 
     LOG_DBG("n_ctx: %d, add_bos: %d\n", n_ctx, add_bos);
 
+    while (true) {
     std::vector<llama_token> embd_inp;
 
     {
@@ -1378,6 +1379,60 @@ int main(int argc, char **argv)
         ctx, params, model, input_tokens, output_ss.str(), output_tokens);
 
     gpt_sampler_free(smpl);
+
+#ifdef LLAMA_USE_CHCORE_API
+    // Wait for the next request. There is deliberately NO retry-count/timeout
+    // bound here (unlike llm_tee_os_init()'s 300x50ms pattern for the
+    // boot-time handshake): that pattern bounds a wait for a specific event
+    // expected almost immediately after boot, but this wait is for the next
+    // *human* question, which can legitimately be idle for an arbitrary
+    // amount of time. A fabricated timeout here would either fire on a
+    // perfectly healthy idle TA (false positive) or be set so long it's
+    // useless as a safety net -- the real safety net for a genuinely lost
+    // wake (same failure class as the boot-handshake bug this mirrors) is
+    // the CA-side HTTP handler's 300s watchdog (fake_ca.cpp), which reboots
+    // the board if final_answer_ready never arrives. What DOES belong here
+    // is visibility: log every spurious wake and the eventual real one, so
+    // a future hang can be diagnosed as "TA never woken again after
+    // request N" vs "TA stuck computing" vs something else, the same way
+    // [TZLLM_TRACE] did for the boot handshake.
+    {
+        int spurious = 0;
+        while (true) {
+            struct smc_registers req = {0};
+            usys_tee_wait_switch_req(&req);
+            bool expected = true;
+            if (task_queue->request_ready.compare_exchange_strong(expected, false)) {
+                printf("[TZLLM_TRACE] main: request_ready confirmed after %d spurious wake%s\n",
+                    spurious, spurious == 1 ? "" : "s");
+                fflush(stdout);
+                break;
+            }
+            spurious++;
+            if (spurious % 500 == 1) {
+                printf("[TZLLM_TRACE] main: spurious wake #%d while waiting for next request (no request_ready yet) -- parking again\n",
+                    spurious);
+                fflush(stdout);
+            }
+        }
+    }
+
+    params.cache = std::atoi(task_queue->cache_p);
+    parse_prompt(params, std::string(task_queue->prompt));
+    params.n_predict = std::atoi(task_queue->n);
+    if (params.n_predict == 0) params.n_predict = 64;
+    is_strawman = task_queue->is_strawman;
+    extern void ggml_backend_rknpure_set_strawman(bool strawman);
+    ggml_backend_rknpure_set_strawman(is_strawman);
+    printf("[TZLLM_TRACE] main: next request cache=%d n_predict=%d is_strawman=%d prompt=%s\n",
+        params.cache, params.n_predict, is_strawman, params.prompt.c_str());
+    fflush(stdout);
+
+    llama_kv_cache_clear(ctx);
+#else
+    break; // Exit the loop if not in TrustZone
+#endif
+    } // End of outer while(true) loop
 
     std::cout << "step 6" << std::endl;
     llama_free(ctx);

@@ -1524,13 +1524,39 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 	 * warnings on unrelated CPUs (their cross-CPU IPIs, e.g. BPF JIT
 	 * icache sync, get delayed behind this) -> eventual watchdog reset,
 	 * with no forward-progress bug and no IRQs actually masked the whole
-	 * time. Force an unconditional schedule() every smc_resume_yield_every
-	 * iterations so RCU gets a guaranteed periodic quiescent state
-	 * regardless of what else is runnable; schedule() is a cheap no-op
-	 * reschedule-to-self when this is the only runnable task.
+	 * time.
+	 *
+	 * ROOT CAUSE FOUND (2026-08-08): this board's kernel config is
+	 * CONFIG_PREEMPT=y (rockchip_defconfig). _cond_resched()'s call to
+	 * rcu_all_qs() -- the thing that would make a bare schedule()/
+	 * cond_resched() report an RCU quiescent state even with nothing else
+	 * runnable -- only exists in the kernel's `#ifndef CONFIG_PREEMPTION`
+	 * build (kernel/sched/core.c). Under CONFIG_PREEMPT=y that path is
+	 * compiled out entirely, so schedule() alone genuinely never reports
+	 * a quiescent state here, no matter how often it's called: confirmed
+	 * live on hardware (RCU stall on cores 4/5 seen with this schedule()
+	 * -every-64 mitigation already in place).
+	 *
+	 * TRIED AND REVERTED: calling rcu_all_qs() directly here (thinking it
+	 * would be the exact primitive _cond_resched() itself would have
+	 * called) -- this board's actual kernel build does NOT compile
+	 * rcu_all_qs() in at all (confirmed: `ld.lld: error: undefined symbol:
+	 * rcu_all_qs` at vmlinux link time, i.e. it's not just an unexported
+	 * symbol, the function plain doesn't exist in this build's RCU
+	 * flavor/config -- tree_plugin.h's definition is conditional on
+	 * CONFIG_PREEMPT_RCU being selected the way tree.c includes it, and
+	 * evidently isn't here). Fixing this class of RCU-stall/soft-lockup
+	 * warning for real requires either a real ChCore-side compute-yield
+	 * mechanism (out of scope) or tuning the kernel's own stall-detection
+	 * thresholds (watchdog_thresh, rcupdate.rcu_cpu_stall_timeout) to
+	 * match this workload's legitimately long uninterruptible TEE compute
+	 * bursts -- not something fixable from this loop alone. Kept the
+	 * plain schedule() yield (harmless, still worth doing when something
+	 * IS runnable) at a shorter interval as a no-risk, if likely
+	 * insufficient on its own, mitigation.
 	 */
 	unsigned int spin_iters = 0;
-	const unsigned int smc_resume_yield_every = 64;
+	const unsigned int smc_resume_yield_every = 16;
 	while (true) {
 		struct smc_in_params in = { .x0 = TSP_REQUEST, .x1 = ret_tee, .x2 = req_thread,
 			.x4 = g_tzasc_cma_meta_arr ? virt_to_phys(g_tzasc_cma_meta_arr) : 0 };
@@ -1550,10 +1576,23 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 		 * rate-limit skip until iter>1) specifically so a hang stuck on
 		 * iteration 1 still produces at least one line proving whether
 		 * do_smc_transport() returned at all. */
+		/* THROTTLE UPDATE (2026-08-08): the root cause this trace was added
+		 * to find (the boot-time SHM handshake race) was found and fixed in
+		 * tc_client_driver.c's llm_tee_os_init() -- this print's diagnostic
+		 * job is done. Confirmed live on hardware this session: at 1-per-
+		 * 20000 with 4 relay threads driving ~500K+ do_smc_transport()
+		 * calls/sec combined, this still fires ~25-30x/sec, and printk over
+		 * this board's slow 1.5Mbaud UART console is synchronous -- that
+		 * was enough to trigger a real "soft lockup - CPU#N stuck for 22s"
+		 * kernel BUG (smp_call_function_many_cond, likely console_sem/
+		 * printk lock contention), which then took hdc/wifi down with it.
+		 * Dropped to 1-per-2000000 (~1 line every few seconds at the
+		 * observed rate) -- still enough to prove a stuck-on-iteration-1
+		 * hang produces a line, without being a stability hazard itself. */
 		{
 			static atomic_t smc_iter_ctr = ATOMIC_INIT(0);
 			int ic = atomic_inc_return(&smc_iter_ctr);
-			if (ic == 1 || (ic % 20000) == 1)
+			if (ic == 1 || (ic % 2000000) == 1)
 				pr_info("[TZLLM_TRACE] smc_call_cpu_resume: iter#%d cpu=%d ret=%#lx exit_reason=%#lx\n",
 					ic, raw_smp_processor_id(), out.ret, out.exit_reason);
 		}

@@ -115,3 +115,14 @@ int ca_backend_poll_logit_diag(int *top_idx, float *top_val) {
     memcpy(top_val, task_queues->logit_diag_top_val, sizeof(float) * 5);
     return n_past;
 }
+
+void ca_backend_submit_request(const char *model, const char *text, int n, int cache, bool is_strawman) {
+    GGML_ASSERT(task_queues);
+    ca_backend_set_cache(cache);
+    ca_backend_set_prompt_text(model, text);
+    ca_backend_set_n(n);
+    ca_backend_set_strawman(is_strawman);
+    task_queues->final_answer_ready.store(false);
+    task_queues->request_ready.store(true);
+}
+
