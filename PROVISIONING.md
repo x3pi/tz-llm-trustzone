@@ -126,9 +126,14 @@ gọi `flash.sh` để đảm bảo uboot/boot_linux là bản đã fix mới nh
 xác nhận 2 lần trên phần cứng thật boot lên đúng và chạy NPU+CPU thành
 công** (2026-08-06, 2026-08-07).
 
-Nhược điểm: dùng chung `userdata` từ golden-image (đã có account/wifi
-config của lần chụp gốc) — không phải "trắng hoàn toàn" theo đúng nghĩa,
-cần đổi wifi credentials / account nếu deploy cho môi trường khác.
+**Đính chính (2026-08-08):** đoạn "Nhược điểm" ở bản trước đây của tài liệu này nói golden-image
+"dùng chung userdata (đã có account/wifi config)" — **sai**, đã kiểm chứng ngược lại qua sự cố
+2026-08-07 (xem `DEPLOYED_STATE.md` mục cùng ngày). `flash/recover-golden-image.sh` (comment
+dòng 9-13) xác nhận rõ: file `idbloader_through_vendor.img` **dừng lại ngay sau partition
+`vendor`, không đụng tới `userdata`**. Trên thẻ hoàn toàn trống, dùng Cách A cho ra board boot
+lên với **userdata trắng/first-boot thật sự** (không có sẵn `/data/ssd`, cần `mkdir -p` lại) —
+đúng nghĩa "trắng hoàn toàn" ở phần dữ liệu người dùng. Ưu điểm duy nhất/đã xác nhận của Cách A
+so với Cách B là **độ tin cậy** (đã boot được nhiều lần), không phải nhược điểm về userdata.
 
 **Cách B — `flash-full.sh` từ asset thật sự trắng — ⚠️ CHƯA ĐÁNG TIN CẬY,
 KHÔNG khuyến nghị cho tới khi điều tra thêm**:
