@@ -27,3 +27,8 @@ tools/rkdeveloptool/log/
 # see DEPLOYED_STATE.md) is far too large for git -- keep it on disk only,
 # copy it manually when setting up a new environment.
 checkpoints/golden-image/
+
+# Ignore large image files to prevent GitHub push errors
+assets/full-flash/userdata.img
+assets/full-flash/system_real.img
+assets/full-flash/vendor_real.img
