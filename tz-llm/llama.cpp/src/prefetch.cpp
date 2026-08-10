@@ -26,6 +26,10 @@
 // path even when strawman mode was supposedly enabled everywhere else.
 extern bool is_strawman;
 
+#ifdef LLAMA_USE_CHCORE_API
+extern "C" void usys_yield(void);
+#endif
+
 struct param_tensor_desc {
     ggml_tensor *tensor;
     std::shared_ptr<Pipeline> pipeline;
@@ -87,6 +91,28 @@ void use_param_tensor(
         auto start = get_micro();
 #endif
         bool is_cpu = sched->step();
+        /*
+         * ROOT CAUSE INVESTIGATION (2026-08-09): this loop's only exit
+         * condition is pipeline->is_finished(), so while a tensor's async
+         * I/O/decrypt is still pending, this spins calling step() -> (see
+         * layer-sched.cpp) io_try_get() -> io_rpc() -- a REAL
+         * secure-world<->normal-world SMC crossing (sys_tee_switch_req) --
+         * with NO yield at all, on all 4 compute threads simultaneously.
+         * sched_step() below (used elsewhere in this same file) already
+         * pairs step() with usys_yield(); this loop was the one place that
+         * didn't, and is by far the hottest: called on every tensor use,
+         * every forward pass, every thread. This is the most concrete
+         * candidate found this session for the active-compute-phase
+         * soft-lockup/RCU-stall cascade (as opposed to the separate,
+         * already-fixed CA-side idle-spin issue). usys_yield() is a
+         * ChCore-internal scheduling syscall (sys_yield() in
+         * kernel/sched/sched.c: budget=0, sched(), reschedule) -- it does
+         * NOT touch TA-shared memory, so it isn't the same risk class as
+         * the reverted fake_ca.cpp attempt from earlier sessions.
+         */
+#ifdef LLAMA_USE_CHCORE_API
+        usys_yield();
+#endif
 #ifdef TZ_LLM_MEASURE
         if (ith == 0 && is_cpu) {
             use_wait_cpu_time += get_micro() - start;

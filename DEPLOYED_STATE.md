@@ -3,6 +3,41 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## ĐANG DANG DỞ (2026-08-08, phiên tối): HTTP API đa-request + fix ổn định lớn, commit `b968e8a85`
+
+**Mục tiêu phiên này**: giữ TA sống qua nhiều câu hỏi trong 1 lần boot (không cần reboot mỗi câu
+hỏi) + expose qua HTTP API (`curl`) trong LAN — xem `/home/pi/.claude/plans/staged-booping-ocean.md`
+(nếu còn tồn tại) để biết kế hoạch đầy đủ.
+
+**Đã làm xong, build+flash sạch, `checkpoints/{boot.img,uboot_repacked.img}` hiện tại chính là
+bản này (hash `75bad2af...`/`cd4da10d...`)**:
+- TA (`main.cpp`) vòng lặp đa-request thay vì `return 0` sau 1 câu hỏi — **đã xác nhận hoạt động
+  đúng cho request đầu tiên nhiều lần liên tiếp** (`Warmup complete.` + `Starting HTTP server`
+  in ra đều đặn).
+- HTTP daemon (`fake_ca.cpp`, endpoint `POST /completion`) + watchdog treo 300s tự reboot.
+- **Phát hiện và fix một nguồn bất ổn kernel lớn, có sẵn từ trước, chưa ai để ý**: nhiều điểm
+  `printf` chẩn đoán (`[DBG_USE]` trong `prefetch.cpp`, `[ALLOC_TRACE]` trong
+  `alloc-stage-chcore.cpp`, `step() idle` trong `layer-sched.cpp`) in ra **hoàn toàn không
+  throttle hoặc throttle quá ít**, hàng triệu lần mỗi lần chạy — mỗi lần in là 1 lần ghi đồng bộ
+  qua UART 1.5Mbaud chậm, gây tranh chấp lock console/printk dẫn tới `rcu_preempt detected
+  stalls` → `soft lockup` → đôi khi panic thật. Đã throttle mạnh (giữ lại đủ để chẩn đoán khi
+  cần, xem comment tại từng chỗ). **Đã xác nhận trên phần cứng: thời gian chạy ổn định trước khi
+  gặp lockup tăng từ ~130-200s lên 400-1650s** — cải thiện rõ rệt nhưng **CHƯA dứt điểm**, lockup
+  vẫn có thể xảy ra trên các lượt chạy đủ dài.
+
+**Chưa xác nhận được**: request thứ 2 qua HTTP daemon có trả lời đúng hay không — mọi lần thử bị
+chặn bởi 1 trong 2 lý do: bug treo xác suất lịch sử (xem mục "Bug #2" bên dưới, riêng biệt,
+không liên quan) hoặc lockup kernel còn sót lại (hiếm hơn nhiều sau fix, nhưng chưa hết hẳn).
+
+**Đã thử và loại bỏ** (không hiệu quả/không khả thi, xem git log commit `b968e8a85` để biết chi
+tiết đầy đủ): gọi `rcu_all_qs()` trực tiếp trong `tc_client_driver.c` (không link được với
+kernel build này); chỉ tăng `watchdog_thresh` qua sysctl (chỉ trì hoãn cảnh báo, không sửa gốc
+rễ); giảm số luồng CA từ 4 xuống 3 (loại bỏ do rủi ro — `chanmgr` có ràng buộc cứng
+`create_process(4, ...)`, chưa xác minh an toàn).
+
+**Việc cần làm tiếp** (xem plan file để biết chi tiết): đo CPU per-core thật bằng `top -H` (đã
+xác nhận có sẵn trên board) trước khi thử fix kernel-timing tiếp — không đoán mò thêm.
+
 ## ĐÃ GIẢI QUYẾT (2026-08-08): tìm ra và fix gốc rễ bug treo xác suất, đã commit `d64f42801`
 
 **Trạng thái: ĐÃ XÁC NHẬN ỔN ĐỊNH.** Sau một phiên điều tra rất dài (tối 08-07 → sáng 08-08,

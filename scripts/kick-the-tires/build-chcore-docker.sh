@@ -11,4 +11,8 @@ pushd /home/vectorxj/openharmony/
 popd
 
 mkdir -p $SHARE_DIR/images
-cp /home/vectorxj/openharmony/out/uboot/src_tmp/uboot.img $SHARE_DIR/images/
+# uboot.img isn't always produced at this path by a chcore-only build (this
+# script only calls chcore.sh, not linux.sh) -- non-fatal here since
+# build-llama.sh only needs the chcore/TEE-OS headers+libs this step
+# produces for the CA-side build that follows, not this particular image.
+cp /home/vectorxj/openharmony/out/uboot/src_tmp/uboot.img $SHARE_DIR/images/ || true

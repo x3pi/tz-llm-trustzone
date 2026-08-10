@@ -24,17 +24,56 @@
 using json = nlohmann::json;
 
 extern void ca_backend_submit_request(const char *model, const char *text, int n, int cache, bool is_strawman);
+extern bool ca_backend_poll_final_answer(char *out, size_t out_size);
 std::atomic<int> ca_state(0); // 0=IDLE, 1=BUSY
 
+// Shared by both the warmup wait and the per-HTTP-request wait: if the TA
+// dies/wedges (the historical probabilistic-hang failure class, not yet
+// root-caused -- see DEPLOYED_STATE.md), poll_final_answer() never returns
+// true and this loop is the only thing standing between that and a stuck
+// process forever. Originally only the HTTP-request path had this timeout;
+// the warmup wait used a bare unprotected loop, so a crash during warmup
+// (observed 2026-08-09: GGML_ASSERT in alloc-stage-chcore.cpp killed the TA
+// mid-load) left the CA relay threads spinning with no auto-recovery at
+// all. Logs via direct file I/O, not system("echo ..."), since `label`
+// (e.g. the request prompt) may be untrusted input and must never be
+// interpolated into a shell command string.
+static bool watchdog_wait_for_answer(char *answer, size_t answer_size, const char *label) {
+    auto start = std::chrono::steady_clock::now();
+    while (true) {
+        if (ca_backend_poll_final_answer(answer, answer_size)) {
+            return true;
+        }
+        auto now = std::chrono::steady_clock::now();
+        if (std::chrono::duration_cast<std::chrono::seconds>(now - start).count() > 300) {
+            FILE *wf = fopen("/data/ssd/watchdog.log", "a");
+            if (wf) {
+                time_t now_t = time(nullptr);
+                char ts[32];
+                strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", localtime(&now_t));
+                fprintf(wf, "[%s] watchdog timeout after 300s, rebooting. label=%s\n",
+                    ts, label);
+                fclose(wf);
+            }
+            system("reboot");
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+}
+
 extern void dbg_log_dump(void);
+extern void dbg_log_idle_dump(void);
 
 // Trigger point for diagnosing a hang externally without perturbing the
 // hot-path timing: `kill -USR1 <pid>` from another shell dumps the last
 // DBG_LOG_SIZE io-backend events (io_step/wait_io/get_buf) seen so far,
 // showing whether CA-side ever reached userspace IO handling at all or is
-// still spinning entirely inside the kernel SMC relay loop.
+// still spinning entirely inside the kernel SMC relay loop. Also dumps
+// layer-sched.cpp's ring buffer of recent step()-idle events (2026-08-09).
 static void sigusr1_dump_handler(int) {
     dbg_log_dump();
+    dbg_log_idle_dump();
 }
 
 struct llm_client_op_pages {
@@ -75,9 +114,51 @@ void ca_thread(int fd, int index) {
     GGML_ASSERT(pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset) == 0);
 
     printf("%s %d run llm\n", __func__, __LINE__);
+    /*
+     * IDLE BACKOFF (2026-08-09): while the TA is parked between requests
+     * (usys_tee_wait_switch_req() in main.cpp's request loop), this ioctl
+     * returns almost instantly every time with out_cmd == SMC_LOOP_EXIT_FINISH
+     * (see tc_client_driver.c's llm_run(), which now writes that value
+     * explicitly for this case) -- genuinely nothing to do. Confirmed on
+     * hardware: with only sched_yield() between iterations (see PERFORMANCE
+     * comment below), the 4 relay threads combined issue 600K+ of these
+     * ioctl() calls/sec even at full idle, which was enough to starve wifi
+     * and the LED-blink/display services board-wide within minutes even
+     * though no single kernel soft-lockup ever fires. consecutive_idle only
+     * reads/writes a plain local variable -- unlike the reverted attempt
+     * documented below (which touched a TA-shared-memory cache line every
+     * iteration), this never touches TA-shared state, so it isn't the same
+     * class of risk.
+     */
+    unsigned int consecutive_idle = 0;
+    const unsigned int idle_backoff_threshold = 2000;
     while (true) {
-        int out_cmd;
-        unsigned long ret = ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
+        int out_cmd = -1;
+        /*
+         * BUG FIX (2026-08-09): this used to be
+         * `ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd)` -- FOUR arguments.
+         * ioctl()'s libc wrapper only ever forwards the FIRST vararg to the
+         * syscall as the `arg`/`argp` the kernel receives; `fd` (an int,
+         * not a valid user pointer) was what actually reached llm_run() as
+         * argp, and `&out_cmd` was silently dropped, never passed at all.
+         * Confirmed on hardware via a new kernel-side trace
+         * (tc_client_driver.c's llm_run(), SMC_LOOP_EXIT_FINISH case):
+         * copy_to_user(argp, ...) failed on every single call ("copy llm
+         * finish ret failed"), because argp was effectively the integer
+         * value of fd reinterpreted as an address. This was invisible
+         * before because out_cmd's value was never actually consulted
+         * (ca_backend_io_step() below runs unconditionally either way) --
+         * only became load-bearing with this file's new idle-backoff logic,
+         * which depends on out_cmd being genuinely written by the kernel.
+         */
+        unsigned long ret = ioctl(fd, LLM_CLIENT_IOCTL_RUN, &out_cmd);
+        if (out_cmd == SMC_LOOP_EXIT_FINISH) {
+            if (++consecutive_idle > idle_backoff_threshold) {
+                usleep(1000);
+            }
+        } else {
+            consecutive_idle = 0;
+        }
         // printf("%s %d: ret %d error %d\n", __func__, __LINE__, ret, errno);
         // GGML_ASSERT(ret >= 0);
         // switch (out_cmd) {
@@ -228,8 +309,11 @@ int main(int argc, char *argv[]) {
 
     printf("Waiting for warmup request to complete...\n");
     char warmup_answer[FINAL_ANSWER_MAX];
-    while (!ca_backend_poll_final_answer(warmup_answer, sizeof(warmup_answer))) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    if (!watchdog_wait_for_answer(warmup_answer, sizeof(warmup_answer), "warmup")) {
+        // watchdog_wait_for_answer already triggered system("reboot"); just
+        // stop making forward progress in this process rather than fall
+        // through into the HTTP server with a TA we know is dead.
+        while (true) std::this_thread::sleep_for(std::chrono::seconds(60));
     }
     printf("Warmup complete.\n");
 
@@ -261,37 +345,8 @@ int main(int argc, char *argv[]) {
 
         ca_backend_submit_request(model, prompt_text.c_str(), n, cache, strawman);
 
-        auto start = std::chrono::steady_clock::now();
         char answer[FINAL_ANSWER_MAX];
-        bool answered = false;
-        
-        while (true) {
-            if (ca_backend_poll_final_answer(answer, sizeof(answer))) {
-                answered = true;
-                break;
-            }
-            auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::seconds>(now - start).count() > 300) {
-                // Watchdog trigger: request timed out, assume the TA is
-                // wedged (same failure class as the historical probabilistic
-                // hang, not yet root-caused -- see DEPLOYED_STATE.md). Log
-                // via direct file I/O, not system("echo ...."), since
-                // prompt_text is untrusted request input and must never be
-                // interpolated into a shell command string.
-                FILE *wf = fopen("/data/ssd/watchdog.log", "a");
-                if (wf) {
-                    time_t now_t = time(nullptr);
-                    char ts[32];
-                    strftime(ts, sizeof(ts), "%Y-%m-%d %H:%M:%S", localtime(&now_t));
-                    fprintf(wf, "[%s] watchdog timeout after 300s, rebooting. prompt=%s\n",
-                        ts, prompt_text.c_str());
-                    fclose(wf);
-                }
-                system("reboot");
-                break;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
+        bool answered = watchdog_wait_for_answer(answer, sizeof(answer), prompt_text.c_str());
 
         if (answered) {
             json resp;

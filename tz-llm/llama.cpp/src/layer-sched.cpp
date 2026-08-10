@@ -4,6 +4,51 @@
 #ifdef LLAMA_USE_CHCORE_API
 #include <chcore/llm.h>
 #endif
+#include <atomic>
+#include <cstdio>
+
+// Self-contained lock-free ring buffer for LayerScheduler::step()'s idle
+// path (2026-08-09). Mirrors io-backend.cpp's dbg_log_push/dump pattern,
+// but that one lives in io-backend.cpp, which is CA-only (CMakeLists.txt:
+// only compiled when NOT LLAMA_CHCORE_API -- the TA build uses
+// alloc-stage-chcore.cpp instead and never sees io-backend.cpp's symbols
+// at all). This file compiles into BOTH the TA and CA builds, so it needs
+// its own copy rather than calling into io-backend.cpp's (confirmed on
+// hardware: cross-referencing it produced `undefined reference to
+// dbg_log_push_idle` when linking every TA-side executable). Push is a
+// plain struct write (no I/O) -- safe at the millions-of-calls/run rate
+// this fires at; only dbg_log_idle_dump() (called on demand, e.g. from a
+// SIGUSR1 handler) ever touches stdout.
+struct idle_log_entry {
+    int io_cnt;
+    int on_fly_cnt;
+    size_t alloc_sz, io_sz, decrypt_sz;
+};
+#define IDLE_LOG_SIZE 32
+static idle_log_entry idle_log[IDLE_LOG_SIZE];
+static std::atomic<uint64_t> idle_log_idx{0};
+
+static inline void dbg_log_push_idle(int io_cnt, int on_fly_cnt, size_t alloc_sz, size_t io_sz, size_t decrypt_sz) {
+    uint64_t i = idle_log_idx.fetch_add(1, std::memory_order_relaxed);
+    idle_log_entry &e = idle_log[i % IDLE_LOG_SIZE];
+    e.io_cnt = io_cnt;
+    e.on_fly_cnt = on_fly_cnt;
+    e.alloc_sz = alloc_sz;
+    e.io_sz = io_sz;
+    e.decrypt_sz = decrypt_sz;
+}
+
+void dbg_log_idle_dump(void) {
+    uint64_t total = idle_log_idx.load(std::memory_order_relaxed);
+    uint64_t start = total > IDLE_LOG_SIZE ? total - IDLE_LOG_SIZE : 0;
+    printf("[DBG_LOG_IDLE_DUMP] last %llu of %llu step()-idle events:\n",
+        (unsigned long long)(total - start), (unsigned long long)total);
+    for (uint64_t i = start; i < total; i++) {
+        idle_log_entry &e = idle_log[i % IDLE_LOG_SIZE];
+        printf("  #%llu io_cnt=%d on_fly_cnt=%d alloc_sz=%zu io_sz=%zu decrypt_sz=%zu\n",
+            (unsigned long long)i, e.io_cnt, e.on_fly_cnt, e.alloc_sz, e.io_sz, e.decrypt_sz);
+    }
+}
 
 std::pair<std::shared_ptr<Pipeline>, std::shared_ptr<Task>> LayerScheduler::get_task(layer_queue_t &queue, void *arg)
 {
@@ -99,23 +144,19 @@ if (!is_strawman) {
              * is the one that got stuck, instead of guessing from outside. */
             if (gettid() == main_tid) {
                 extern int on_fly_cnt;
-                static int idle_ctr = 0;
-                // THROTTLE UPDATE (2026-08-08): this fires every time all 3
-                // stage queues are empty, which is the common/expected state
-                // between real work items -- confirmed on hardware this
-                // session that step() gets called often enough (millions of
-                // times in a normal run) for even 1-per-2000 to still print
-                // thousands of times, each a synchronous printf+fflush over
-                // this board's slow UART, contributing to the RCU-stall/
-                // soft-lockup cascade documented in tc_client_driver.c. The
-                // stall this trace was added to find (stuck at ~178MB into
-                // the model) is already root-caused and fixed. Dropped by
-                // 1000x; still enough to prove genuine idle-forever hangs.
-                if ((idle_ctr++ % 2000000) == 0) {
-                    printf("[TZLLM_TRACE] step() idle: io_cnt=%d on_fly_cnt=%d alloc.size=%zu io.size=%zu decrypt.size=%zu (#%d)\n",
-                        io_cnt, on_fly_cnt, alloc.size(), io.size(), decrypt.size(), idle_ctr);
-                    fflush(stdout);
-                }
+                // RING BUFFER UPDATE (2026-08-09): this fires every time all
+                // 3 stage queues are empty (the common/expected state
+                // between real work items, millions of times per run).
+                // Throttled printf (previous version, kept in git history)
+                // still cost real UART I/O on every Nth call and contributed
+                // to the RCU-stall/soft-lockup cascade documented in
+                // tc_client_driver.c. Pushing into the existing lock-free
+                // ring buffer defined at the top of this file (self-
+                // contained, see its comment for why) is a plain struct
+                // write, not I/O -- zero steady-state console cost, full
+                // recent history still available on demand via
+                // dbg_log_idle_dump() (SIGUSR1).
+                dbg_log_push_idle(io_cnt, on_fly_cnt, alloc.size(), io.size(), decrypt.size());
             }
             return false;
         }

@@ -13,7 +13,7 @@ shift
 echo "SHARE_DIR: $SHARE_DIR"
 echo "CMD: $@"
 
-docker run -it --rm \
+docker run --rm \
     -v $TZ_LLM_DIR/tee_os_kernel:/home/vectorxj/openharmony/base/tee/tee_os_kernel \
     -v $TZ_LLM_DIR/llama.cpp:/home/vectorxj/chcore/opentrustee_llm/llama.cpp \
     -v $SHARE_DIR:/home/vectorxj/share \

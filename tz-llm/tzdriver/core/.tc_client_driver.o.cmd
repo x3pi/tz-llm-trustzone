@@ -12,6 +12,9 @@ deps_drivers/tzdriver/core/tc_client_driver.o := \
     $(wildcard include/config/liblinux.h) \
     $(wildcard include/config/tee/tui.h) \
     $(wildcard include/config/compat.h) \
+    $(wildcard include/config/preempt.h) \
+    $(wildcard include/config/preemption.h) \
+    $(wildcard include/config/preempt/rcu.h) \
     $(wildcard include/config/tzdriver.h) \
     $(wildcard include/config/disable/svc.h) \
     $(wildcard include/config/livepatch/enable.h) \
@@ -257,7 +260,6 @@ deps_drivers/tzdriver/core/tc_client_driver.o := \
     $(wildcard include/config/arch/have/nmi/safe/cmpxchg.h) \
   include/linux/preempt.h \
     $(wildcard include/config/trace/preempt/toggle.h) \
-    $(wildcard include/config/preemption.h) \
     $(wildcard include/config/preempt/notifiers.h) \
   arch/arm64/include/asm/preempt.h \
   include/linux/thread_info.h \
@@ -371,7 +373,6 @@ deps_drivers/tzdriver/core/tc_client_driver.o := \
   include/linux/idr.h \
   include/linux/radix-tree.h \
   include/linux/rcupdate.h \
-    $(wildcard include/config/preempt/rcu.h) \
     $(wildcard include/config/tiny/rcu.h) \
     $(wildcard include/config/tasks/rcu/generic.h) \
     $(wildcard include/config/rcu/stall/common.h) \
@@ -403,7 +404,6 @@ deps_drivers/tzdriver/core/tc_client_driver.o := \
   arch/arm64/include/generated/asm/qspinlock.h \
   include/asm-generic/qspinlock.h \
   include/linux/rwlock.h \
-    $(wildcard include/config/preempt.h) \
   include/linux/spinlock_api_smp.h \
     $(wildcard include/config/inline/spin/lock.h) \
     $(wildcard include/config/inline/spin/lock/bh.h) \

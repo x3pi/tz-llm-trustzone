@@ -1557,6 +1557,29 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 	 */
 	unsigned int spin_iters = 0;
 	const unsigned int smc_resume_yield_every = 16;
+	/*
+	 * IDLE BACKOFF (2026-08-09): with the TA now looping across multiple
+	 * requests (usys_tee_wait_switch_req() parking it between questions,
+	 * potentially for minutes) instead of exiting after one, the
+	 * SMC_EXIT_PREEMPTED case below can spin at its full do_smc_transport()
+	 * rate the ENTIRE time the TA sits idle waiting for the next question --
+	 * observed on hardware as board-wide starvation (wifi drops and stays
+	 * down, LEDs stop blinking, UART console drops thousands of lines) within
+	 * 5-6 minutes of the daemon just sitting idle, no request in flight.
+	 * consecutive_preempts counts PREEMPTED exits in a row with no real
+	 * SHADOW progress *within this single ioctl call*; once it's large
+	 * enough to rule out a legitimate short preempt burst during active
+	 * computation (which resets it back to 0 the moment real work resumes),
+	 * back off with a real sleep instead of re-issuing the SMC as fast as
+	 * possible. This is NOT the same class of change as the reverted
+	 * fake_ca.cpp ca_thread attempt (see that file's 2026-08 comment) -- that
+	 * one touched a TA-shared-memory cache line on every iteration, adding
+	 * REE<->TEE bus traffic at high frequency; this only reads/writes a
+	 * plain local variable and, when it fires, *reduces* how often
+	 * do_smc_transport() (the actual REE<->TEE crossing) gets called.
+	 */
+	unsigned int consecutive_preempts = 0;
+	const unsigned int preempt_backoff_threshold = 3000;
 	while (true) {
 		struct smc_in_params in = { .x0 = TSP_REQUEST, .x1 = ret_tee, .x2 = req_thread,
 			.x4 = g_tzasc_cma_meta_arr ? virt_to_phys(g_tzasc_cma_meta_arr) : 0 };
@@ -1620,10 +1643,20 @@ unsigned long smc_call_cpu_resume(struct out_result *result) {
 			// tlogd("%s %d SMC_PREEMPT\n", __func__, __LINE__);
 			req_thread = 0;
 			ret_tee = 0;
-			cond_resched();
+			if (++consecutive_preempts > preempt_backoff_threshold) {
+				/* Genuinely idle (TA parked, no request in flight) --
+				 * back off instead of re-issuing the SMC at full rate.
+				 * usleep_range() is safe here: this function already
+				 * calls schedule()/cond_resched() unconditionally, so
+				 * this path is confirmed sleepable/preemptible. */
+				usleep_range(500, 2000);
+			} else {
+				cond_resched();
+			}
 		} else if (out.ret == SMC_EXIT_SHADOW) {
 			// tlogd("%s %d exit_reason %#lx\n", __func__, __LINE__, out.exit_reason);
 			// tlogd("%s %d target %#lx\n", __func__, __LINE__, out.target);
+			consecutive_preempts = 0;
 			req_thread = out.target;
 			ret = 0;
 			switch (out.exit_reason) {
@@ -1767,6 +1800,29 @@ static int llm_run(void __user * argp) {
 	switch (ret) {
 	case SMC_LOOP_EXIT_FINISH:
 		// tlogd("%s %d finish llm inference\n", __func__, __LINE__);
+		/*
+		 * IDLE BACKOFF (2026-08-09), part 2: SMC_LOOP_EXIT_FINISH is what
+		 * this ioctl returns almost immediately when smc_call_cpu_resume()
+		 * saw SMC_EXIT_NORMAL on its very first do_smc_transport() call --
+		 * i.e. genuinely nothing to do (the TA is parked in
+		 * usys_tee_wait_switch_req() between requests). Previously nothing
+		 * was written to argp/out_cmd in this case, so userspace's
+		 * ca_thread loop (fake_ca.cpp) had no way to distinguish "just did
+		 * real work" from "nothing happened" and could only busy-spin
+		 * calling this ioctl again immediately -- confirmed on hardware via
+		 * [TZLLM_TRACE] iter# counters: ~600K+ ioctl() calls/sec combined
+		 * across the 4 relay threads even while fully idle, all resolving
+		 * to ret=0x0 (SMC_EXIT_NORMAL) in a single loop iteration each, not
+		 * spinning inside the kernel at all (the earlier PREEMPTED-branch
+		 * backoff above never engages for this specific idle pattern).
+		 * Writing this value lets ca_thread apply its own backoff (see that
+		 * file's 2026-08-09 comment) without touching any TA-shared memory.
+		 */
+		copy_ret = (int)SMC_LOOP_EXIT_FINISH;
+		if (copy_to_user(argp, &copy_ret, sizeof(int))) {
+			tloge("copy llm finish ret failed\n");
+			return -EFAULT;
+		}
 		break;
 	case SMC_LOOP_EXIT_NPU_SUBMIT:
 		// tlogd("%s %d secure npu request core %d\n", __func__, __LINE__, result.npu_submit.npu_mask);
