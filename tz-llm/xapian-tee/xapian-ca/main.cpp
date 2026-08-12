@@ -28,29 +28,52 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    const char* query = "TrustZone";
+    // Interactive shell loop
+    std::string user_query;
     if (argc > 1) {
-        query = argv[1];
+        // Run once mode (for the first query)
+        user_query = argv[1];
+        std::cout << "[Xapian-CA] Sending query to TEE: '" << user_query << "'" << std::endl;
+        strncpy(mapped_mem, user_query.c_str(), SHM_SIZE - 1);
+        
+        int out_cmd;
+        ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
+        
+        std::cout << "[Xapian-CA] SMC Returned! Result from TEE:\n"
+                  << "========================================\n"
+                  << mapped_mem << "\n"
+                  << "========================================\n";
+    } else {
+        // Interactive mode
+        std::cout << "[Xapian-CA] Entering Interactive Mode. Type 'exit' to quit." << std::endl;
+        while (true) {
+            std::cout << "xapian> ";
+            std::getline(std::cin, user_query);
+            
+            if (user_query == "exit" || user_query == "quit") {
+                break;
+            }
+            if (user_query.empty()) {
+                continue;
+            }
+
+            strncpy(mapped_mem, user_query.c_str(), SHM_SIZE - 1);
+            
+            int out_cmd;
+            ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
+            
+            // Xử lý lỗi lệch nhịp của TEE (TA gọi 2 lệnh Yield)
+            // Nếu TEE bỏ qua vòng lặp, kết quả trả về sẽ y hệt chuỗi truy vấn đầu vào.
+            // Lúc này ta gọi ioctl thêm 1 lần nữa để ép TEE xử lý!
+            if (strncmp(mapped_mem, user_query.c_str(), SHM_SIZE) == 0) {
+                ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
+            }
+            
+            std::cout << "========================================\n"
+                      << mapped_mem << "\n"
+                      << "========================================\n";
+        }
     }
-
-    // 1. Write query to shared memory
-    std::cout << "[Xapian-CA] Sending query to TEE: '" << query << "'" << std::endl;
-    strncpy(mapped_mem, query, SHM_SIZE - 1);
-
-    // 2. Trigger SMC (wake up TEE)
-    int out_cmd;
-    std::cout << "[Xapian-CA] Triggering SMC..." << std::endl;
-    unsigned long ret = ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
-    
-    if (ret != 0) {
-        perror("[Xapian-CA] ioctl LLM_CLIENT_IOCTL_RUN failed");
-    }
-
-    // 3. Print Result from TEE
-    std::cout << "[Xapian-CA] SMC Returned! Result from TEE:\n"
-              << "========================================\n"
-              << mapped_mem << "\n"
-              << "========================================\n";
 
     close(fd);
     return 0;
