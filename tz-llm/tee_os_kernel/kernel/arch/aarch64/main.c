@@ -56,6 +56,8 @@ void main(paddr_t boot_flag, void *info)
     teeos_cfg_init(boot_flag);
 #endif /* CHCORE_OH_TEE */
 
+    kinfo("HELLO FROM NHAT! TEE-OS rebuild successful!\n");
+
     /* Init big kernel lock */
     ret = lock_init(&big_kernel_lock);
     kinfo("[ChCore] lock init finished\n");

@@ -1,0 +1,3 @@
+/home/abc/nhat/tz-llm-trustzone/tools/rkdeveloptool/CMakeFiles/rkDevelopTool_Mac.dir
+/home/abc/nhat/tz-llm-trustzone/tools/rkdeveloptool/CMakeFiles/edit_cache.dir
+/home/abc/nhat/tz-llm-trustzone/tools/rkdeveloptool/CMakeFiles/rebuild_cache.dir

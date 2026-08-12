@@ -13,10 +13,10 @@ export PATH=/root/.local/bin:$PATH
 # to boot. Running linux.sh alone also means TEE-OS/TA changes never reach
 # uboot.img at all.
 pushd /home/vectorxj/openharmony/
-./chcore.sh
-./linux.sh
+/home/vectorxj/share/chcore-extracted.sh || true
+bash -x ./linux.sh
 set -e
-./chcore.sh
+/home/vectorxj/share/chcore-extracted.sh
 popd
 
 ls -lhat /home/vectorxj/openharmony/out/uboot/src_tmp/

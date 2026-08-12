@@ -75,6 +75,7 @@ struct agent_control {
 
 static struct agent_control g_agent_control;
 
+#if 0
 int memset_s(void *dest, size_t destMax, int c, size_t count)
 {
     memset(dest, c, count);
@@ -104,6 +105,7 @@ int snprintf_s(char *strDest, size_t destMax, size_t count, const char *format, 
 
     return ret;
 }
+#endif
 
 int __attribute__((weak)) is_allowed_agent_ca(const struct ca_info *ca,
 	bool check_agent_id)

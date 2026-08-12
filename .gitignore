@@ -27,3 +27,36 @@ tools/rkdeveloptool/log/
 # see DEPLOYED_STATE.md) is far too large for git -- keep it on disk only,
 # copy it manually when setting up a new environment.
 checkpoints/golden-image/
+
+# Ignore generated images and binaries from build scripts
+assets/**/*.img
+scripts/kick-the-tires/**/*.img
+scripts/kick-the-tires/**/*.so
+scripts/kick-the-tires/**/*.so.*
+scripts/kick-the-tires/**/*.ko
+scripts/kick-the-tires/**/*.bin
+scripts/kick-the-tires/**/*.plar
+scripts/kick-the-tires/xapian-ta
+scripts/kick-the-tires/ca
+scripts/kick-the-tires/cma_test
+scripts/kick-the-tires/detach_test
+scripts/kick-the-tires/gups
+scripts/kick-the-tires/matmul
+scripts/kick-the-tires/npu
+
+# Ignore our newly generated CA and TA in root checkpoints
+checkpoints/xapian-ca
+checkpoints/xapian-ta
+checkpoints/boot.img
+checkpoints/uboot_repacked.img
+scripts/kick-the-tires/device_opi5plus_REAL/kernel/configs/orangepi5plus_oh_defconfig
+scripts/kick-the-tires/rknpu/ca
+scripts/kick-the-tires/rknpu/cma_test
+scripts/kick-the-tires/rknpu/detach_test
+scripts/kick-the-tires/rknpu/matmul
+scripts/kick-the-tires/rknpu/gups
+scripts/kick-the-tires/rknpu/mpstat
+scripts/kick-the-tires/rknpu/npu
+checkpoints/boot.img
+tz-llm/tee_os_kernel/libc_shared.so
+checkpoints/uboot_repacked.img

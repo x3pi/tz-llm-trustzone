@@ -1,0 +1,6 @@
+install/
+src/
+build/
+checkpoints/
+xapian-ca/xapian-ca
+xapian-ta/build/

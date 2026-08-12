@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../../openenclave"
+		},
+		{
+			"path": "../../../../optee_examples"
+		}
+	],
+	"settings": {}
+}

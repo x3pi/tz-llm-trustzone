@@ -47,6 +47,15 @@ cd ${KERNEL_SRC_TMP_PATH}
 #hdf patch 打入HDF补丁
 bash ${PATCHES_PATH}/hdf_patch.sh ${PROJECT_ROOT} ${KERNEL_SRC_TMP_PATH} ${HDF_PATCH_FILE}
 
+# Fix osal_time.c compilation error with newer clang
+sed -i 's/uint64_t OsalGetSysTimeMs()/uint64_t OsalGetSysTimeMs(void)/g' ${KERNEL_SRC_TMP_PATH}/drivers/hdf/khdf/osal/src/osal_time.c
+
+# Fix framework relative path issue in HDF makefiles
+ln -sfn drivers/hdf/framework ${KERNEL_SRC_TMP_PATH}/framework
+
+# Fix third_party relative path issue in HDF makefiles
+ln -sfn ../../third_party ${PROJECT_ROOT}/out/kernel/third_party
+
 #tzdriver
 if [ -f $TZDRIVER_PATCH_FILE ]; then
     bash $TZDRIVER_PATCH_FILE ${PROJECT_ROOT} ${KERNEL_SRC_TMP_PATH} orangepi5plus ${KERNEL_VERSION}

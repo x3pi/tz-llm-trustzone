@@ -292,32 +292,14 @@ int main(void)
      */
     if (1) {
         const char *argv[] = {
-            /*
-             * tinyllama instead of Meta-Llama-3-8B: the 8B meta gguf plus its
-             * weights do not fit the 768MiB TZASC pool on this board, and its
-             * -meta.gguf was never baked into oh_tee/apps anyway. The '#0'
-             * suffix selects UltraChat prompt 0 (see parse_prompt() in
-             * common/arg.cpp); the part before '#' picks the full gguf that
-             * gets streamed in from /data/ssd on the REE side.
-             */
-            "llama-cli",
-            "-m", "tinyllama-1.1b-chat-v1.0.Q8_0-meta.gguf",
-            "--no-warmup",
-            "-p", "tinyllama#Hello, how are you today?",
-            "--cache", "0",
-            "-n", "64",
-            "-s", "123",
-            "-ngl", "100",
-            "-t", "4",
-            "-c", "1124",
-            "--no-mmap"
+            "xapian-ta"
         };
         char argc = sizeof(argv) / sizeof(*argv);
-        printf("%s %d: launching llama\n", __func__, __LINE__);
+        printf("%s %d: launching xapian-ta\n", __func__, __LINE__);
         pid_t pid = create_process(argc, (char **)argv, NULL);
         int ret = waitpid(pid, NULL, 0);
 
-        printf("%s %d: llama.cpp finished\n", __func__, __LINE__);
+        printf("%s %d: xapian-ta finished\n", __func__, __LINE__);
         {
             
             struct smc_registers req = {0};

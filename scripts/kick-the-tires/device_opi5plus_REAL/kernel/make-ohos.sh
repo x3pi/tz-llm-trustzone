@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+set -ex
+echo "zzh: make-ohos.sh started! args: $@"
 
 export PATH=../../../../prebuilts/clang/ohos/linux-x86_64/llvm/bin/:$PATH
 export PRODUCT_PATH=vendor/opc/opi5plus

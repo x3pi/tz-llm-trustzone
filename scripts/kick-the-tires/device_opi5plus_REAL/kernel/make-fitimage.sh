@@ -3,7 +3,8 @@
 #export RK_ARCH=arm64
 #export RK_KERNEL_DTS=rk3588-orangepi-5-plus
 
-set -e
+set -ex
+echo "zzh: make-fitimage.sh started! args: $@"
 
 #SCRIPT_DIR=$(dirname $(realpath $BASH_SOURCE))
 #TOP_DIR=$(realpath $SCRIPT_DIR/../../../../..) # OpenHarmony path

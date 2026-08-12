@@ -11,7 +11,7 @@
 #include <wchar.h>
 #include <errno.h>
 #include <pthread.h>
-#include <libusb.h>
+#include <libusb-1.0/libusb.h>
 
 #include "Property.hpp"
 #include <list>
