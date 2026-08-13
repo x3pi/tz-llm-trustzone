@@ -6,6 +6,7 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 
 #define DEVICE_NAME "/dev/tc_ns_client"
 #define TC_NS_CLIENT_IOC_MAGIC  't'
@@ -27,6 +28,21 @@ int main(int argc, char *argv[]) {
         close(fd);
         return 1;
     }
+
+    // NEW: Load encrypted DB from SSD if it exists
+    const char* DB_FILE = "/data/local/tmp/xapian_db.bin";
+    std::ifstream infile(DB_FILE, std::ios::binary);
+    if (infile.good()) {
+        std::string content((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
+        std::string load_cmd = "LOAD:" + content;
+        strncpy(mapped_mem, load_cmd.c_str(), SHM_SIZE - 1);
+        
+        int out_cmd;
+        ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
+        
+        std::cout << "[Xapian-CA] Sent encrypted DB to TEE. Result: " << mapped_mem << std::endl;
+    }
+    infile.close();
 
     // Interactive shell loop
     std::string user_query;
@@ -69,9 +85,22 @@ int main(int argc, char *argv[]) {
                 ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
             }
             
-            std::cout << "========================================\n"
-                      << mapped_mem << "\n"
-                      << "========================================\n";
+            std::string result_str(mapped_mem);
+            if (result_str.rfind("SAVE:", 0) == 0) {
+                std::string encrypted_blob = result_str.substr(5);
+                std::ofstream outfile(DB_FILE, std::ios::binary | std::ios::trunc);
+                outfile << encrypted_blob;
+                outfile.close();
+                
+                std::cout << "========================================\n"
+                          << "Successfully saved ENCRYPTED database to SSD!\n"
+                          << "File: " << DB_FILE << "\n"
+                          << "========================================\n";
+            } else {
+                std::cout << "========================================\n"
+                          << mapped_mem << "\n"
+                          << "========================================\n";
+            }
         }
     }
 

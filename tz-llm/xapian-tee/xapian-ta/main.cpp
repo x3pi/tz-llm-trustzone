@@ -2,6 +2,17 @@
 #include <iostream>
 #include <string>
 #include <cstring>
+#include <vector>
+#include <sstream>
+
+std::vector<std::string> secure_docs;
+const char XOR_KEY = 0x5A;
+
+std::string xor_cipher(const std::string& input) {
+    std::string out = input;
+    for (char& c : out) c ^= XOR_KEY;
+    return out;
+}
 
 typedef int cap_t;
 
@@ -32,24 +43,17 @@ int main() {
     Xapian::TermGenerator termgenerator;
     termgenerator.set_stemmer(Xapian::Stem("en"));
 
-    Xapian::Document doc1;
-    doc1.set_data("This is a secret document stored in TrustZone.");
-    termgenerator.set_document(doc1);
-    termgenerator.index_text("This is a secret document stored in TrustZone.");
-    db.add_document(doc1);
+    secure_docs.push_back("This is a secret document stored in TrustZone.");
+    secure_docs.push_back("Another top secret AI model data.");
+    secure_docs.push_back("Welcome to Xapian-TA Version 2.0! The infinite loop bug is fixed.");
 
-    Xapian::Document doc2;
-    doc2.set_data("Another top secret AI model data.");
-    termgenerator.set_document(doc2);
-    termgenerator.index_text("Another top secret AI model data.");
-    db.add_document(doc2);
-    
-    // NEW FEATURE: Added Version 2.0 Document
-    Xapian::Document doc3;
-    doc3.set_data("Welcome to Xapian-TA Version 2.0! The infinite loop bug is fixed.");
-    termgenerator.set_document(doc3);
-    termgenerator.index_text("Welcome to Xapian-TA Version 2.0! The infinite loop bug is fixed.");
-    db.add_document(doc3);
+    for (const auto& d : secure_docs) {
+        Xapian::Document doc;
+        doc.set_data(d);
+        termgenerator.set_document(doc);
+        termgenerator.index_text(d);
+        db.add_document(doc);
+    }
 
     db.commit();
 
@@ -83,10 +87,39 @@ int main() {
             // 4. Check if Add or Search
             try {
                 std::string input(shm_buf);
-                if (input.rfind("ADD:", 0) == 0) {
+                if (input.rfind("LOAD:", 0) == 0) {
+                    std::string payload = input.substr(5);
+                    if (!payload.empty()) {
+                        std::string decrypted = xor_cipher(payload);
+                        
+                        db = Xapian::InMemory::open(); // clear db
+                        secure_docs.clear();
+                        
+                        Xapian::TermGenerator tg;
+                        tg.set_stemmer(Xapian::Stem("en"));
+                        
+                        std::istringstream stream(decrypted);
+                        std::string line;
+                        while (std::getline(stream, line)) {
+                            if (!line.empty()) {
+                                secure_docs.push_back(line);
+                                Xapian::Document new_doc;
+                                new_doc.set_data(line);
+                                tg.set_document(new_doc);
+                                tg.index_text(line);
+                                db.add_document(new_doc);
+                            }
+                        }
+                        db.commit();
+                        std::cout << "[Xapian-TA] Loaded and decrypted " << secure_docs.size() << " documents from SSD." << std::endl;
+                    }
+                    strncpy(shm_buf, "LOAD_OK", SHM_SIZE - 1);
+                } else if (input.rfind("ADD:", 0) == 0) {
                     std::string doc_content = input.substr(4);
                     size_t start = doc_content.find_first_not_of(" \t");
                     if (start != std::string::npos) doc_content = doc_content.substr(start);
+
+                    secure_docs.push_back(doc_content);
 
                     Xapian::Document new_doc;
                     new_doc.set_data(doc_content);
@@ -99,9 +132,16 @@ int main() {
                     db.add_document(new_doc);
                     db.commit();
                     
-                    std::string res = "Successfully added to TEE InMemory Database!\nContent: " + doc_content;
+                    // Serialize & Encrypt for SSD
+                    std::string serialized = "";
+                    for (const auto& d : secure_docs) {
+                        serialized += d + "\n";
+                    }
+                    std::string encrypted = xor_cipher(serialized);
+                    std::string res = "SAVE:" + encrypted;
+                    
                     strncpy(shm_buf, res.c_str(), SHM_SIZE - 1);
-                    std::cout << "[Xapian-TA] Added document to InMemory DB." << std::endl;
+                    std::cout << "[Xapian-TA] Added document and sent encrypted blob to Linux." << std::endl;
                 } else {
                     Xapian::QueryParser qp;
                     qp.set_stemmer(Xapian::Stem("en"));
