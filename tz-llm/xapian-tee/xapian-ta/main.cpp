@@ -142,6 +142,9 @@ int main() {
                     
                     strncpy(shm_buf, res.c_str(), SHM_SIZE - 1);
                     std::cout << "[Xapian-TA] Added document and sent encrypted blob to Linux." << std::endl;
+                } else if (input.rfind("TEST_EXCEPTION", 0) == 0) {
+                    std::cout << "[-TA] Testing ExcXapianeption..." << std::endl;
+                    throw std::runtime_error("CATCH THÀNH CÔNG! Đây là lỗi cố ý để test try-catch trong TrustZone.");
                 } else {
                     Xapian::QueryParser qp;
                     qp.set_stemmer(Xapian::Stem("en"));
@@ -166,6 +169,10 @@ int main() {
                 }
             } catch (const Xapian::Error &e) {
                 std::string err = "Xapian Exception: " + std::string(e.get_msg());
+                strncpy(shm_buf, err.c_str(), SHM_SIZE - 1);
+                std::cout << "[Xapian-TA] " << err << std::endl;
+            } catch (const std::exception &e) {
+                std::string err = "Standard Exception: " + std::string(e.what());
                 strncpy(shm_buf, err.c_str(), SHM_SIZE - 1);
                 std::cout << "[Xapian-TA] " << err << std::endl;
             }
