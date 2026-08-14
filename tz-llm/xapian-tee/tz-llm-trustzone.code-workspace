@@ -4,10 +4,10 @@
 			"path": "../.."
 		},
 		{
-			"path": "../../../../openenclave"
+			"path": "../../../con-chain-v2/metanode"
 		},
 		{
-			"path": "../../../../optee_examples"
+			"path": "../../../con-chain-v2/metanode-suite"
 		}
 	],
 	"settings": {}

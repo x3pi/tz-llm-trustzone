@@ -1,0 +1,140 @@
+--- pkg/mvm/linker/src/my_extension/my_extension.cpp
++++ pkg/mvm/linker/src/my_extension/my_extension.cpp
+@@ -822,7 +822,7 @@ std::vector<uint8_t> hexStringToByteVector(const std::string &hexString) {
+ // Main function
+ mvm::Code MyExtension::FullDatabase(mvm::Code input, mvm::Address address,
+                                     bool isReset, uint256_t blockNumber) {
+-    uint32_t version = 0;
++  uint32_t version = 0;
+   // Kiểm tra kích thước input hợp lệ
+   if (input.size() < 4) {
+     std::cerr << "Error: Input size too small!" << std::endl;
+@@ -1590,7 +1590,26 @@ mvm::Code MyExtension::FullDatabase(mvm::Code input, mvm::Address address,
+       }
+       std::filesystem::path fullPath = mvm::createFullPath(address, dbName);
+ 
+-      XapianSearcher searcher(fullPath);
++      auto manager = XapianManager::getInstance(dbName, address, isReset);
++      if (!manager) {
++        std::cerr << "Lỗi: Không thể lấy/tạo XapianManager cho " << dbName << std::endl;
++        return mvm::Code(32, 0); // Trả về lỗi
++      }
++
++      // Sử dụng static mutex để đồng bộ hóa toàn bộ quá trình tìm kiếm Xapian.
++      // Sử dụng static mutex để đồng bộ hóa toàn bộ quá trình tìm kiếm Xapian.
++      // Do thư viện Xapian đếm tham chiếu (reference counting) nội bộ không an toàn đa luồng,
++      // việc khóa toàn diện này đảm bảo không bao giờ xảy ra sập node (SIGSEGV) khi spam nhiều eth_call.
++      static std::mutex global_search_mutex;
++      std::lock_guard<std::mutex> search_lock(global_search_mutex);
++
++      // Đồng bộ hóa với luồng commit/write bằng cách lock changes_mutex của manager.
++      // Tránh việc Xapian thay đổi/commit file trên đĩa hoặc thay đổi database trong memory khi đang tìm kiếm.
++      std::lock_guard<std::mutex> changes_lock(manager->changes_mutex);
++
++      // Sử dụng trực tiếp manager->db để đọc được các thay đổi chưa commit trên memory (cả on-chain và off-chain).
++      // Được bảo vệ hoàn hảo bởi cả hai mutex ở trên nên tuyệt đối an toàn và không bao giờ rỗng kết quả.
++      XapianSearcher searcher(manager->db);
+       std::vector<std::string> queries1 = {decodedData["options"]["queries"]};
+ 
+       std::map<std::string, std::string> product_prefix_map =
+@@ -1639,10 +1658,10 @@ mvm::Code MyExtension::FullDatabase(mvm::Code input, mvm::Address address,
+ 
+       std::vector<RangeFilter> range_filters =
+           convertJsonToRangeFilters(decodedData["options"]);
+-      std::cerr << "[searcher] dumpIndex" << std::endl;
+ 
+-      searcher.dumpIndex();
+-      std::cerr << "[searcher] dumpIndex: " << blockNumber << std::endl;
++      // std::cerr << "[searcher] dumpIndex" << std::endl;
++      // searcher.dumpIndex();
++      // std::cerr << "[searcher] dumpIndex: " << blockNumber << std::endl;
+ 
+       auto [results1, total1] = searcher.search(
+           queries1, Xapian::Query::OP_AND, Xapian::Query::OP_AND,
+@@ -1711,8 +1730,8 @@ mvm::Code MyExtension::FullDatabase(mvm::Code input, mvm::Address address,
+ }
+ 
+ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+-                                    bool isReset, uint256_t blockNumber) {
+-    uint32_t version = 1;
++                                      bool isReset, uint256_t blockNumber) {
++  uint32_t version = 1;
+   // Kiểm tra kích thước input hợp lệ
+   if (input.size() < 4) {
+     std::cerr << "Error: Input size too small!" << std::endl;
+@@ -1829,7 +1848,8 @@ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+                             (input_without_opcode[data_offset + 30] << 8) |
+                             input_without_opcode[data_offset + 31];
+         rawData = std::string(input_without_opcode.begin() + data_offset + 32,
+-                              input_without_opcode.begin() + data_offset + 32 + data_len);
++                              input_without_opcode.begin() + data_offset + 32 +
++                                  data_len);
+       } else {
+         std::string inputABI = R"([
+                     {"internalType": "string", "name": "dbname", "type": "string"},
+@@ -2136,7 +2156,8 @@ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+                             (input_without_opcode[data_offset + 30] << 8) |
+                             input_without_opcode[data_offset + 31];
+         rawData = std::string(input_without_opcode.begin() + data_offset + 32,
+-                              input_without_opcode.begin() + data_offset + 32 + data_len);
++                              input_without_opcode.begin() + data_offset + 32 +
++                                  data_len);
+       } else {
+         std::string inputABI = R"([
+                     {"internalType": "string", "name": "dbname", "type": "string"},
+@@ -2499,7 +2520,25 @@ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+       }
+       std::filesystem::path fullPath = mvm::createFullPath(address, dbName);
+ 
+-      XapianSearcher searcher(fullPath);
++      auto manager = XapianManager::getInstance(dbName, address, isReset);
++      if (!manager) {
++        std::cerr << "Lỗi: Không thể lấy/tạo XapianManager cho " << dbName << std::endl;
++        return mvm::Code(32, 0); // Trả về lỗi
++      }
++
++      // Sử dụng static mutex để đồng bộ hóa toàn bộ quá trình tìm kiếm Xapian.
++      // Do thư viện Xapian đếm tham chiếu (reference counting) nội bộ không an toàn đa luồng,
++      // việc khóa toàn diện này đảm bảo không bao giờ xảy ra sập node (SIGSEGV) khi spam nhiều eth_call.
++      static std::mutex global_search_mutex;
++      std::lock_guard<std::mutex> search_lock(global_search_mutex);
++
++      // Đồng bộ hóa với luồng commit/write bằng cách lock changes_mutex của manager.
++      // Tránh việc Xapian thay đổi/commit file trên đĩa hoặc thay đổi database trong memory khi đang tìm kiếm.
++      std::lock_guard<std::mutex> changes_lock(manager->changes_mutex);
++
++      // Sử dụng trực tiếp manager->db để đọc được các thay đổi chưa commit trên memory (cả on-chain và off-chain).
++      // Được bảo vệ hoàn hảo bởi cả hai mutex ở trên nên tuyệt đối an toàn và không bao giờ rỗng kết quả.
++      XapianSearcher searcher(manager->db);
+       std::vector<std::string> queries1 = {decodedData["options"]["queries"]};
+ 
+       std::map<std::string, std::string> product_prefix_map =
+@@ -2548,10 +2587,10 @@ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+ 
+       std::vector<RangeFilter> range_filters =
+           convertJsonToRangeFilters(decodedData["options"]);
+-      std::cerr << "[searcher] dumpIndex" << std::endl;
+ 
+-      searcher.dumpIndex();
+-      std::cerr << "[searcher] dumpIndex: " << blockNumber << std::endl;
++      // std::cerr << "[searcher] dumpIndex" << std::endl;
++      // searcher.dumpIndex();
++      // std::cerr << "[searcher] dumpIndex: " << blockNumber << std::endl;
+ 
+       auto [results1, total1] = searcher.search(
+           queries1, Xapian::Query::OP_AND, Xapian::Query::OP_AND,
+@@ -2560,9 +2599,12 @@ mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address,
+ 
+       auto dataReturn =
+           searcher.encodeSearchResultsPage(total1, results1, version);
+-      std::cerr << "[searcher] results1 size: " << results1.size() << std::endl;
++      std::cerr << "[searcher] results1 size: " << results1.size()
++                << ", dataReturn size: " << dataReturn.size() << std::endl;
+ 
+-      return addOffsetPrefix(dataReturn);
++      auto prefixReturn = addOffsetPrefix(dataReturn);
++      std::cerr << "[searcher] prefixReturn size: " << prefixReturn.size() << std::endl;
++      return prefixReturn;
+     }
+ 
+     if (opCode == mvm::FunctionSelector::XAPIAN_V1_COMMIT) {

@@ -29,6 +29,10 @@ if [ -f "/home/vectorxj/share/xapian-ta" ]; then
     cp "/home/vectorxj/share/xapian-ta" ../oh_tee/apps/
     echo "chcore-extracted.sh: packed xapian-ta into oh_tee/apps/"
 fi
+if [ -f "/home/vectorxj/share/evm-ta" ]; then
+    cp "/home/vectorxj/share/evm-ta" ../oh_tee/apps/
+    echo "chcore-extracted.sh: packed evm-ta into oh_tee/apps/"
+fi
 ./build_tee.sh
 cd -
 ./device/board/opc/opi5plus/uboot/fast_build_uboot.sh /home/vectorxj/openharmony/out/uboot/src_tmp /home/vectorxj/openharmony/out/opi5plus/packages/phone/images /home/vectorxj/openharmony/ /home/vectorxj/openharmony/device/board/opc/opi5plus

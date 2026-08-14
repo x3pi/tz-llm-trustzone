@@ -60,3 +60,12 @@ scripts/kick-the-tires/rknpu/npu
 checkpoints/boot.img
 tz-llm/tee_os_kernel/libc_shared.so
 checkpoints/uboot_repacked.img
+tz-llm/xapian-tee/tz-llm-trustzone.code-workspace
+
+# evm-tee build artifacts
+tz-llm/evm-tee/build.log
+tz-llm/evm-tee/checkpoints/
+tz-llm/evm-tee/evm-ca/evm-ca
+tz-llm/evm-tee/evm-ta/build/
+tz-llm/evm-tee/evm-ta/build_tee/
+tools/uart/log.txt

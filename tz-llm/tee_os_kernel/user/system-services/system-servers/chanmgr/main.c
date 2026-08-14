@@ -292,14 +292,14 @@ int main(void)
      */
     if (1) {
         const char *argv[] = {
-            "xapian-ta"
+            "evm-ta"
         };
         char argc = sizeof(argv) / sizeof(*argv);
-        printf("%s %d: launching xapian-ta\n", __func__, __LINE__);
+        printf("%s %d: launching evm-ta\n", __func__, __LINE__);
         pid_t pid = create_process(argc, (char **)argv, NULL);
         int ret = waitpid(pid, NULL, 0);
 
-        printf("%s %d: xapian-ta finished\n", __func__, __LINE__);
+        printf("%s %d: evm-ta finished\n", __func__, __LINE__);
         {
             
             struct smc_registers req = {0};
