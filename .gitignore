@@ -32,3 +32,6 @@ checkpoints/golden-image/
 assets/full-flash/userdata.img
 assets/full-flash/system_real.img
 assets/full-flash/vendor_real.img
+
+# metanode cpp13 toolchain+deps staging tarball (regenerate via scripts/kick-the-tires/cpp13-metanode-deps/README.md, not committed - 360MB build artifact)
+scripts/kick-the-tires/cpp13-metanode-deps/cpp13-metanode-deps.tar.gz
