@@ -4,8 +4,8 @@ A **separate, parallel** toolchain image for the `metanode` project's TZ
 dual-mode-execution work (GĐ3 — see
 `metanode/note/tee_dual_mode_execution_plan.md`, 2026-08-16 entries). This is
 **not** part of this repo's own LLM TA build pipeline — it exists purely so
-metanode's `mvm`+`linker` C++ code (and its 4 external deps: GMP, MPFR,
-secp256k1, libuuid) can eventually be compiled against a real
+metanode's `mvm`+`linker` C++ code (and its 5 external deps: GMP, MPFR,
+secp256k1, libuuid, BLST) can eventually be compiled against a real
 `aarch64-linux-musleabi` toolchain from inside a container that also has
 this repo's chcore/musl-libc headers available for reference, without ever
 touching the production `.cpp/aarch64` (GCC 9.2.0) toolchain that this
@@ -42,9 +42,16 @@ the compiler executable itself was affected.
   `toolchain.cmake` `_cpp_install_prefix` convention still works if you
   point it at `.cpp13` instead of `.cpp`.
 - `3rdparty/include/`, `3rdparty/lib/` — GMP 6.3.0, MPFR 4.2.1, secp256k1
-  v0.2.0 (recovery module built), libuuid (from util-linux 2.39.3): real
-  headers + static `.a`. Not part of any existing chcore/staros convention
-  — this is metanode-specific, added here for convenience.
+  v0.2.0 (recovery module built), libuuid (from util-linux 2.39.3), BLST
+  (BLS12-381, compiled directly from metanode's own vendored
+  `pkg/bls/blst/src/server.c` + `build/assembly.S` — no separate upstream
+  release/tarball, this *is* the exact source metanode itself ships):
+  real headers + static `.a`. Not part of any existing chcore/staros
+  convention — this is metanode-specific, added here for convenience.
+  BLST's need was only discovered via a full-stack link test (all 4
+  original libs + mvm + linker linked into one real executable) turning
+  up 13 undefined `blst_*` symbols from `c_mvm/src/crypto/kzg.cpp`
+  (KZG/EIP-4844 blob verification) — see the plan doc, 2026-08-16.
 
 ## Known caveats (carried over from the plan doc, still open)
 
@@ -74,6 +81,12 @@ build it fresh from:
 2. GMP/MPFR/secp256k1/libuuid cross-built with that toolchain — exact
    `configure`/`cmake` flags and source versions are logged in the same
    plan doc's 2026-08-16 "CROSS-BUILD THẬT ĐÃ XONG" entry.
+3. BLST built by compiling `metanode/execution/pkg/bls/blst/src/server.c`
+   (includes all the other .c files) + `.../blst/build/assembly.S`
+   directly with the toolchain's gcc (`-O2 -fno-builtin -fPIC`, no
+   configure step needed — the vendored source has no build.sh, just
+   compile+archive those 2 files), `ar`-archived together. See the plan
+   doc's "Full-stack link test thật" entry, 2026-08-16.
 
 Layout expected inside the tarball (`tar czf cpp13-metanode-deps.tar.gz aarch64`
 from a staging dir): `aarch64/{include,lib,3rdparty/{include,lib}}` — no
