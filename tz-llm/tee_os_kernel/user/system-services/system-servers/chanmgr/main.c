@@ -216,6 +216,40 @@ struct all_ring_buffer_header {
     char n[256];
 };
 
+/*
+ * metanode dual-mode-execution TA (2026-08-17, GĐ3 — see
+ * metanode/note/tee_dual_mode_execution_plan.md §9). Deliberately a
+ * completely separate process/binary from llama-cli — no shared code, no
+ * shared struct, no shared build target (explicit project-separation
+ * requirement). Its own execution/pkg/mvm/ta/mvm_ta_main.cpp reserves its
+ * own CA<->TA shared channel via push_pages_ex()+usys_map_tzasc_cma_pmo,
+ * the same primitives this repo's own alloc-stage-chcore.cpp uses for
+ * model-weight streaming — reimplemented standalone there, not linked
+ * from this repo.
+ *
+ * waitpid() on it is pushed into its own thread (this TA runs forever
+ * under normal operation, same as llama-cli) so it doesn't stall main()
+ * from reaching the llama-cli launch right after — see main()'s own call
+ * site below for why the create_process() call itself must NOT be moved
+ * into this thread (launch-order/entry_index=0 determinism, plan §9.5).
+ *
+ * UNVERIFIED as of 2026-08-17: this file could not be compiled in this
+ * session (needs the full chanmgr/chcore build environment, not just the
+ * userspace TA toolchain already verified separately) — first real build
+ * attempt will surface any syntax/API mismatch here.
+ */
+static pid_t g_mvm_ta_pid = -1;
+
+static void *mvm_ta_waiter(void *arg)
+{
+    (void)arg;
+    int ret = waitpid(g_mvm_ta_pid, NULL, 0);
+    printf("chanmgr: metanode TA (pid=%d) exited, waitpid ret=%d — this TA "
+           "runs forever under normal operation, reaching here means it "
+           "crashed or exited early, not expected\n", g_mvm_ta_pid, ret);
+    return NULL;
+}
+
 int main(void)
 {
     int ret;
@@ -290,6 +324,34 @@ int main(void)
      * (smc_smp.c: fiq_shadow_work_func/smc_queue_shadow_worker) -- no
      * userspace REE process needs to be running for that to work.
      */
+
+    /*
+     * metanode's TA MUST launch here, before llama-cli below — see
+     * mvm_ta_waiter's doc comment above. create_process() itself runs
+     * synchronously right here (not deferred to a thread) so this TA is
+     * guaranteed the temporally-first process to touch TZASC memory on
+     * this boot, which its own push_pages() reservation depends on for a
+     * deterministic entry_index=0 (metanode/note/
+     * tee_dual_mode_execution_plan.md §9.5). A launch failure here is
+     * logged but NOT fatal to chanmgr — the llama-cli path below is
+     * completely unaffected either way, matching the project-separation
+     * requirement this whole mechanism exists to satisfy.
+     */
+    {
+        char *mvm_argv[] = { "/mvm_ta" };
+        g_mvm_ta_pid = create_process(1, (char **)mvm_argv, NULL);
+        if (g_mvm_ta_pid < 0) {
+            printf("%s %d: WARNING: failed to launch metanode TA (ret=%d) -- "
+                   "continuing without it, llama-cli path unaffected\n",
+                   __func__, __LINE__, g_mvm_ta_pid);
+        } else {
+            pthread_t mvm_waiter_thread;
+            pthread_create(&mvm_waiter_thread, NULL, mvm_ta_waiter, NULL);
+            printf("%s %d: launched metanode TA, pid=%d\n",
+                   __func__, __LINE__, g_mvm_ta_pid);
+        }
+    }
+
     if (1) {
         const char *argv[] = {
             /*
