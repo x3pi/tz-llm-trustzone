@@ -1,5 +1,77 @@
 # cpp13-metanode-deps
 
+## ⭐ 2026-08-17 UPDATE: real, DEPLOYABLE `mvm_ta` build now works — read this first
+
+Everything below this section describes the **superseded** approach (GCC
+13.3.0, generic musl-cross-make musl runtime) — kept for its own value
+(the 5 libs it cross-built are still used) but **NOT what actually
+produces a deployable TA binary**. That approach's own artifacts (headers/
+`libstdc++.so` built against GCC 13.3.0) turned out to be **compiler
+-version-incompatible** with the real chcore build's actual compiler
+(`musl-gcc`, which wraps `aarch64-linux-gnu-gcc-11`, i.e. **GCC 11.4.0**) —
+confirmed via a real reproduction: `<chrono>` alone fails with `'_Float32'
+was not declared in this scope` when GCC13-built libstdc++ headers are fed
+to a GCC11 compiler frontend (`_Float32`/`_Float64`/`_Float128` as C++
+*types*, not just the `__FLT32_DIG__` limit macro, were only added to
+GCC's C++ frontend in GCC 13 — a GCC11 frontend predefines the macro but
+doesn't recognize the type).
+
+**The real fix**: build a *second* musl-cross-make toolchain pinned to
+**`GCC_VER=11.5.0`** (closest available release to the Docker image's
+actual 11.4.0; same major/minor, libstdc++ ABI/header-compatible) —
+config lives at `/home/pi/musl-cross-build-scratch-gcc11/musl-cross-make/
+config.mak` on this machine as of this writing, `make && make install`
+into `/home/pi/musl-cross-build-scratch-gcc11/output/`. Stage its
+`aarch64-linux-musleabi/include/c++/11.5.0/*` + `lib/libstdc++.so*`/
+`libgcc_s.so*` the same flattened way as before (this staged form is
+`cpp11-stage.tar.gz` here, gitignored — regenerate from that toolchain
+output), **plus copy over the same `3rdparty/` dir this file's original
+cpp13 stage already built** (GMP/MPFR/secp256k1/libuuid/BLST — pure C
+libraries, ABI-stable across GCC versions, safe to reuse as-is) — except
+**GMP and MPFR needed rebuilding with `--with-pic`** (the originals
+weren't position-independent, and chcore's real link is a PIE binary —
+surfaced as `relocation R_AARCH64_ADR_PREL_PG_HI21 ... can not be used
+when making a shared object; recompile with -fPIC` at final-link time).
+
+Real build command shape (see `mvm_toolchain_chcore_real.cmake` in this
+dir for the actual CMake toolchain file used for `c_mvm`/`linker`):
+compile `c_mvm` and `linker` via CMake with `CMAKE_C_COMPILER`/
+`CMAKE_CXX_COMPILER` set to `/home/vectorxj/chcore/staros/build/
+chcore-libc/bin/musl-gcc` (the *real* chcore compiler wrapper — correct
+musl syscall/struct ABI) and `CMAKE_AR`/`CMAKE_RANLIB` set to
+`/usr/bin/aarch64-linux-gnu-ar`/`-ranlib` (musl-gcc's own bundled
+`musl-ar` wrapper exists but there's no matching `musl-ranlib` — use the
+system aarch64 ranlib directly, it doesn't need musl-specific behavior).
+`metanode/execution/pkg/mvm/ta/mvm_ta_main.cpp` compiles directly with the
+same `musl-gcc`, needing `-I` on this repo's real
+`tz-llm/tee_os_kernel/user/system-services/chcore-libc/musl-libc/install/
+include` (the image's own baked-in `chcore-libc/include/chcore/` is an
+**older snapshot missing `llm.h`/`TZASC_NR`** — mount/use the host repo's
+copy instead). Final link is `musl-gcc` again, `-Wl,--start-group ...
+--end-group` over `libmvm_linker.a`+`libmvm.a`+the 5 3rdparty libs+
+Xapian+TBB+zlib, then `-L.../lib libstdc++.so libgcc_s.so` for the C++
+runtime (mirrors exactly how this repo's own `.cpp/aarch64` gets linked
+into `llama-cli` — same pattern, just GCC11.5.0-built libstdc++ instead
+of GCC9.2.0's).
+
+**Result, verified 2026-08-17**: `mvm_ta` — a real, position-independent
+executable (`readelf -h`: `Type: DYN`, `Machine: AArch64`), 42.9MB,
+`FINAL_LINK_EXIT=0`, zero undefined symbols, built entirely with real
+production-shaped tooling (no mixed musl runtimes, no compile-only-verify
+shortcuts). Needs `libstdc++.so.6.0.29`/`libgcc_s.so.1` alongside it at
+runtime (same as `llama-cli` needs its own `.cpp/aarch64/lib/*.so` copies
+in the ramdisk). **Still NOT flashed/tested on real hardware** — this is
+"builds and links correctly", not "proven correct at runtime". See
+`metanode/note/tee_dual_mode_execution_plan.md` §9.6 for the full,
+dated writeup (Xapian/TBB/zlib/xapian's own `.a` files, incidentally,
+*are* still the ones originally built with the GCC13.3.0-era toolchain —
+they're pure C++ but didn't hit the `_Float32` issue since they don't
+transitively include `<chrono>`'s C++20 format/stream integration; flagged
+as an open libstdc++-ABI-across-GCC-versions risk worth double-checking
+before this is trusted as fully correct, not just "links without error").
+
+---
+
 A **separate, parallel** toolchain image for the `metanode` project's TZ
 dual-mode-execution work (GĐ3 — see
 `metanode/note/tee_dual_mode_execution_plan.md`, 2026-08-16 entries). This is

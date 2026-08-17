@@ -35,3 +35,13 @@ assets/full-flash/vendor_real.img
 
 # metanode cpp13 toolchain+deps staging tarball (regenerate via scripts/kick-the-tires/cpp13-metanode-deps/README.md, not committed - 360MB build artifact)
 scripts/kick-the-tires/cpp13-metanode-deps/cpp13-metanode-deps.tar.gz
+
+# metanode mvm_ta real chcore build artifacts (regenerate per
+# scripts/kick-the-tires/cpp13-metanode-deps/README.md)
+scripts/kick-the-tires/cpp13-metanode-deps/cpp11-stage.tar.gz
+scripts/kick-the-tires/cpp13-metanode-deps/libtbb.a
+scripts/kick-the-tires/cpp13-metanode-deps/libxapian.a
+scripts/kick-the-tires/cpp13-metanode-deps/libz.a
+scripts/kick-the-tires/cpp13-metanode-deps/mvm_ta_output/
+scripts/kick-the-tires/cpp13-metanode-deps/tbb_include_tmp/
+scripts/kick-the-tires/cpp13-metanode-deps/xapian_include_tmp/
