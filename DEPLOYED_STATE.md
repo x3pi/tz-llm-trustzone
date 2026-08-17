@@ -3,6 +3,35 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## PHỤC HỒI (2026-08-16): board bị trống hoàn toàn → khôi phục về baseline đã xác nhận
+
+Board (không rõ vì sao — phiên này bắt đầu với board đã ở MaskROM, không có OS/ohtee nào cả,
+không phải do phiên này gây ra) được phục hồi bằng đúng quy trình đã ghi trong `CLAUDE.md`:
+`flash/recover-golden-image.sh` (ghi `checkpoints/golden-image/idbloader_through_vendor.img`
+raw, không đụng userdata) rồi `flash/flash.sh` (uboot/boot_linux khớp `checkpoints/SHA256SUMS`
+hiện tại — **không phải build mới**, chỉ khôi phục lại đúng bản đã ghi ở mục "ĐÃ GIẢI QUYẾT"
+bên dưới). Cả 2 bước chạy sạch, không lỗi/corrupt. Gặp đúng 1 lần bug `cs 2` không timeout đã
+biết (board rơi vào enum `USB-MSC`) — tự khắc phục bằng vào lại MaskROM, không phải lỗi mới.
+
+Board sau phục hồi: boot được, có wifi, `hdcd` bật lại qua UART bình thường. **Xác nhận qua
+UART lúc boot thật** (dmesg ring buffer bình thường xoay vòng mất log sớm sau ~1000s uptime —
+phải bắt tại chỗ lúc reboot): cả 4 vùng TZASC reserve OK, mỗi vùng 768MiB, tổng 3GB chẵn —
+khớp đúng baseline tài liệu.
+
+**SSD NVMe — ĐÃ XỬ LÝ (2026-08-17), theo xác nhận trực tiếp của người dùng**: trước khi
+partition, xác nhận kỹ SSD thực sự trống (không phải đã có dữ liệu ẩn) — `blkid` không thấy
+gì, MBR signature `0x55AA` ở byte 510-511 = `00 00`, GPT header "EFI PART" ở LBA1 không có,
+ext4 superblock magic ở offset 1080 = `00 00`. Xác nhận trống thật, không phải bỏ sót dữ liệu.
+Tạo GPT (`sgdisk -o` rồi `sgdisk -n 1:0:0 -t 1:8300`), 1 partition `nvme0n1p1` full-disk
+(238.5 GiB), format `mke2fs -t ext4` (board không có binary tên `mkfs.ext4` nhưng có
+`/system/bin/mke2fs` — cùng công cụ, chỉ khác tên gọi). Mount `/data/ssd` OK, write test OK,
+234GB khả dụng. Push lại 5 CA binaries từ
+`scripts/kick-the-tires/share/build-rknpure/{fake,libggml.so,libllama.so,
+libremoting_backend.so,llama-cli}` vào `/data/ssd/rknpu/` qua `hdc file send` — **md5sum khớp
+100% giữa host và device** cho cả 5 file. `chmod +x` lại cho `fake`/`llama-cli`. Việc còn mở
+duy nhất: mount này **không persist qua reboot** (như toàn bộ checklist Runtime/testing của
+`CLAUDE.md` đã ghi — phải remount lại mỗi lần boot).
+
 ## ĐANG DANG DỞ (2026-08-08, phiên tối): HTTP API đa-request + fix ổn định lớn, commit `b968e8a85`
 
 **Mục tiêu phiên này**: giữ TA sống qua nhiều câu hỏi trong 1 lần boot (không cần reboot mỗi câu
