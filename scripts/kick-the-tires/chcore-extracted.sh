@@ -25,6 +25,20 @@ if [ -f "$LLAMA_CHCORE_BUILD/bin/llama-cli" ]; then
     cp "$LLAMA_CHCORE_BUILD/ggml/src/libggml.so" ../oh_tee/apps/
     echo "chcore-extracted.sh: re-applied freshly-built llama-cli/libllama.so/libggml.so over the pristine oh_tee restore"
 fi
+# metanode's mvm_ta -- a fully separate TA (own process, own binary, own
+# CA<->TA channel; see metanode/note/tee_dual_mode_execution_plan.md GD3).
+# Not related to llama-cli/LLM TA above; only reuses this same oh_tee/apps
+# staging mechanism so chanmgr's create_process("/mvm_ta") can find it.
+MVM_TA_BUILD=/home/vectorxj/mvm_ta_build
+if [ -f "$MVM_TA_BUILD/mvm_ta" ]; then
+    cp "$MVM_TA_BUILD/mvm_ta" ../oh_tee/apps/
+    cp "$MVM_TA_BUILD/libstdc++.so.6.0.29" ../oh_tee/apps/
+    cp -P "$MVM_TA_BUILD/libstdc++.so.6" ../oh_tee/apps/
+    cp "$MVM_TA_BUILD/libgcc_s.so.1" ../oh_tee/apps/
+    echo "chcore-extracted.sh: staged metanode mvm_ta + runtime .so files into oh_tee/apps"
+else
+    echo "chcore-extracted.sh: mvm_ta not found at $MVM_TA_BUILD, skipping (mvm_ta_build mount empty/missing)"
+fi
 ./build_tee.sh
 cd -
 ./device/board/opc/opi5plus/uboot/fast_build_uboot.sh /home/vectorxj/openharmony/out/uboot/src_tmp /home/vectorxj/openharmony/out/opi5plus/packages/phone/images /home/vectorxj/openharmony/ /home/vectorxj/openharmony/device/board/opc/opi5plus

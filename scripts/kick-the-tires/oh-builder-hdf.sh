@@ -29,6 +29,7 @@ docker run --rm \
     -v $TZ_LLM_DIR/drivers_hdf_core_full/drivers/hdf_core:/home/vectorxj/openharmony/drivers/hdf_core \
     -v $TZ_LLM_DIR/vendor_opi5plus_full/vendor/opc/opi5plus:/home/vectorxj/openharmony/vendor/opc/opi5plus \
     -v $CURRENT_DIR/chcore-extracted.sh:/home/vectorxj/openharmony/chcore.sh \
+    -v $CURRENT_DIR/cpp13-metanode-deps/mvm_ta_output:/home/vectorxj/mvm_ta_build:ro \
     -v $SHARE_DIR:/home/vectorxj/share \
     -w /home/vectorxj/share \
     vectorxj0553/tz-llm-oh-builder:latest \
