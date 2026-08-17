@@ -3,6 +3,37 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## MỚI NHẤT (2026-08-17): flash đầu tiên có `mvm_ta` (metanode TA) baked vào cùng LLM TA
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại là bản build **có `mvm_ta`** — TA hoàn
+toàn tách biệt của metanode (xem `metanode/note/tee_dual_mode_execution_plan.md` GĐ3, §9.8),
+staged vào `oh_tee/apps` qua `scripts/kick-the-tires/chcore-extracted.sh` (commit
+`861a2f08d`), không đụng code/struct LLM TA.
+
+- **Build lần 1 THẤT BẠI thật**: `boot_merger` báo `fit/uboot.itb actual: 116255744 bytes,
+  max limit: 67108864 bytes` — FIT image có trần cứng 64MiB, bản `mvm_ta` gốc chưa strip debug
+  symbols (42.9MB) + `libstdc++.so.6.0.29` (17.6MB) + `libgcc_s.so.1` (0.5MB) ≈ 58.3MB đã vượt
+  quá xa. **Fix**: `aarch64-linux-gnu-strip --strip-all` cả 3 file (giữ nguyên `.dynsym`/SONAME/
+  NEEDED, chỉ xoá `.symtab`/`.debug_*`) → còn ~7.04MB tổng, đủ vừa (margin ~4.4MB, khá sát). Bản
+  gốc chưa strip lưu ở `scripts/kick-the-tires/cpp13-metanode-deps/mvm_ta_output/
+  unstripped-backup/`. Chi tiết đầy đủ: `scripts/kick-the-tires/cpp13-metanode-deps/README.md`
+  mục "UPDATE #2".
+- **Build lần 2 thành công thật**: `rebuild.sh` sạch (chỉ 1 dòng `ERROR` benign ở bracket đầu
+  của `chcore.sh`, đã biết từ trước), `repack.sh` xác nhận `optee` hash đổi thật
+  (`d0ec0532...`, 43.43MiB, so với hash cũ trước khi có `mvm_ta`), `boot_linux string present: 1`
+  (đúng GPT fix). Copy tay `boot.img` vào `checkpoints/` — **đã làm, đừng quên nếu tự chạy lại**.
+- **Flash thật, sạch 100%**: `flash/flash.sh` — 128 chunk `uboot` + 83 chunk `boot_linux`, **0
+  lỗi/retry** trên toàn log, `Reset Device OK`.
+- **Board power-cycle thật (không phải MaskROM), boot tự động, wifi tự kết nối** — xác nhận qua
+  `hdc` (IP `192.168.1.254`, đọc qua UART `ifconfig wlan0`), `hdcd` bật lại qua UART OK.
+- **dmesg xác nhận cả 4 vùng TZASC vẫn reserve OK** (768MiB/vùng, tổng 3GB) — build có thêm
+  `mvm_ta` KHÔNG phá memory carve-out.
+- **CHƯA xác nhận runtime thật**: chưa trigger được `chanmgr`'s `create_process("/mvm_ta")` (chỉ
+  chạy khi có phiên secure-world đầu tiên mở, tức cần 1 CA kết nối) — chưa có bằng chứng trực
+  tiếp `mvm_ta` thực sự launch/chạy đúng trên board, chỉ mới xác nhận "flash sạch, board boot
+  bình thường, memory carve-out không vỡ". Đây KHÔNG phải "đã test runtime", chỉ là "flash +
+  boot OK" — đừng nhầm 2 mức độ xác nhận này.
+
 ## PHỤC HỒI (2026-08-16): board bị trống hoàn toàn → khôi phục về baseline đã xác nhận
 
 Board (không rõ vì sao — phiên này bắt đầu với board đã ở MaskROM, không có OS/ohtee nào cả,
