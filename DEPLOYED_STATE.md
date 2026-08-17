@@ -3,7 +3,26 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-17): flash đầu tiên có `mvm_ta` (metanode TA) baked vào cùng LLM TA
+## MỚI NHẤT (2026-08-17, lần flash thứ 2): `mvm_ta` giờ có MVM_TZ_CMD_EXECUTE + state-change
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `811c6690...`) là bản build
+**thứ 2** trong ngày — thêm `MVM_TZ_CMD_EXECUTE` (lệnh xử lý tx THẬT, dùng cho block
+processing, khác `Call` là read-only) + encode đầy đủ `storage_change`/`code_change`/
+`full_db_hash` (mảng "state thay đổi" thật) trong `mvm_ta_main.cpp`. Build lần 1 (chỉ có
+`Call`) đã bị THAY THẾ hoàn toàn — không dùng nữa.
+
+Do build state (c_mvm/linker .a) của phiên trước không sống sót qua Docker `--rm`, phải build
+lại từ đầu qua `scripts/kick-the-tires/cpp13-metanode-deps/build_mvm_ta.sh` (script mới, chạy
+trong `vectorxj0553/tz-llm-llama-builder:latest`, có sẵn `musl-gcc` đúng path) — tái dùng
+`cpp11-stage.tar.gz`/`libxapian.a`/`libtbb.a`/`libz.a` đã có sẵn trong repo. Build sạch, 0 lỗi,
+strip ngay trong script (rút kinh nghiệm lần build đầu bị vượt trần 64MiB) → `mvm_ta` 5.1MB.
+Bản build cũ lưu ở `mvm_ta_output_2026-08-17-execute-cmd-old/` (tham khảo/rollback nếu cần).
+
+Flash lần 2 cũng sạch 100% — 128 chunk `uboot` + 83 chunk `boot_linux`, 0 lỗi/retry, `Reset
+Device OK`. **CHƯA power-cycle/boot/verify runtime bản này** — xem mục "flash đầu tiên" bên
+dưới cho toàn bộ context nền (memory carve-out, hdcd/SSD checklist) vẫn áp dụng y hệt.
+
+## MỚI NHẤT — flash đầu tiên có `mvm_ta` (metanode TA) baked vào cùng LLM TA (2026-08-17, lần 1)
 
 `checkpoints/{boot.img,uboot_repacked.img}` hiện tại là bản build **có `mvm_ta`** — TA hoàn
 toàn tách biệt của metanode (xem `metanode/note/tee_dual_mode_execution_plan.md` GĐ3, §9.8),
