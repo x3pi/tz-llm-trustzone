@@ -19,8 +19,13 @@ strip ngay trong script (rút kinh nghiệm lần build đầu bị vượt tr�
 Bản build cũ lưu ở `mvm_ta_output_2026-08-17-execute-cmd-old/` (tham khảo/rollback nếu cần).
 
 Flash lần 2 cũng sạch 100% — 128 chunk `uboot` + 83 chunk `boot_linux`, 0 lỗi/retry, `Reset
-Device OK`. **CHƯA power-cycle/boot/verify runtime bản này** — xem mục "flash đầu tiên" bên
-dưới cho toàn bộ context nền (memory carve-out, hdcd/SSD checklist) vẫn áp dụng y hệt.
+Device OK`. **Power-cycle thật đã xác nhận OK**: board tự boot, wifi tự kết nối lại (IP
+`192.168.1.254`, không đổi), `hdcd`/`hdc tconn`/mount SSD đều OK, cả 4 vùng TZASC vẫn reserve
+768MiB/vùng (3GB) — build có thêm `MVM_TZ_CMD_EXECUTE` cũng không phá memory carve-out.
+
+**Vẫn CHƯA xác nhận runtime thật** (như flash lần 1) — `chanmgr`'s `create_process("/mvm_ta")`
+chưa được trigger (cần 1 CA mở phiên secure-world đầu tiên). Xem mục "flash đầu tiên" bên dưới
+cho context nền đầy đủ.
 
 ## MỚI NHẤT — flash đầu tiên có `mvm_ta` (metanode TA) baked vào cùng LLM TA (2026-08-17, lần 1)
 
