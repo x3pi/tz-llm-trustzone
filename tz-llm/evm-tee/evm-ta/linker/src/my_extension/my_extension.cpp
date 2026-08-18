@@ -519,11 +519,3 @@ std::vector<uint8_t> hexStringToByteVector(const std::string &hexString) {
 // NOTE: Crypto handlers extracted to crypto_handlers.cpp
 // The build system must include both files alongside this file.
 // ============================================================================
-
-mvm::Code MyExtension::FullDatabase(mvm::Code input, mvm::Address address, bool isReset, uint256_t blockNumber, mvm::GlobalState* gs) {
-    return mvm::Code(32, 0); // Dummy implementation for TEE RAM
-}
-
-mvm::Code MyExtension::FullDatabaseV1(mvm::Code input, mvm::Address address, bool isReset, uint256_t blockNumber, mvm::GlobalState* gs) {
-    return mvm::Code(32, 0); // Dummy implementation for TEE RAM
-}

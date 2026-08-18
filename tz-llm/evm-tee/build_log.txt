@@ -1,0 +1,198 @@
+Building EVM TA (for TEE)...
+[DEBUG]the target machine is aarch64-linux-gnu
+[DEBUG]the target machine is aarch64-linux-gnu
+-- The CXX compiler identification is GNU 11.4.0
+-- The C compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+[DEBUG]the target machine is aarch64-linux-gnu
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /home/vectorxj/chcore/staros/build/chcore-libc/bin/musl-gcc - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Detecting C compiler ABI info
+[DEBUG]the target machine is aarch64-linux-gnu
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /home/vectorxj/chcore/staros/build/chcore-libc/bin/musl-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/vectorxj/evm-tee/evm-ta/build_tee
+[  2%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/log.cpp.o
+[  5%] Building CXX object CMakeFiles/evm-ta.dir/main.cpp.o
+[  8%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/processor.cpp.o
+[ 11%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/disassembler.cpp.o
+[ 17%] Building C object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakP-1600-opt64.c.o
+[ 17%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/transaction.cpp.o
+[ 20%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_extension/my_extension.cpp.o
+[ 25%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/blake2b.cpp.o
+[ 25%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/stack.cpp.o
+[ 28%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_account.cpp.o
+[ 31%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/gas.cpp.o
+[ 34%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/util.cpp.o
+[ 37%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/pairing/bn254/pairing.cpp.o
+[ 40%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/bn254.cpp.o
+[ 45%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/ripemd160.cpp.o
+[ 45%] Building CXX object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/sha256.cpp.o
+[ 48%] Building C object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakHash.c.o
+[ 51%] Building C object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakSpongeWidth1600.c.o
+[ 54%] Building C object CMakeFiles/evm-ta.dir/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/SimpleFIPS202.c.o
+[ 57%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_global_state.cpp.o
+[ 60%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_storage.cpp.o
+[ 62%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/state.cpp.o
+[ 65%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_extension/crypto_handlers.cpp.o
+[ 68%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_extension/xapian_handlers.cpp.o
+[ 71%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/xapian/xapian_manager.cpp.o
+[ 74%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/xapian/xapian_log.cpp.o
+[ 77%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/xapian/xapian_search.cpp.o
+[ 82%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/xapian/xapian_manager_resolve.cpp.o
+[ 82%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/xapian/xapian_registry.cpp.o
+[ 88%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_logger.cpp.o
+[ 88%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/abi/encoding_utils.cpp.o
+[ 94%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_extension/utils.cpp.o
+[ 94%] Building CXX object CMakeFiles/evm-ta.dir/go_mocks.cpp.o
+[ 97%] Building CXX object CMakeFiles/evm-ta.dir/linker/src/my_extension/constants.cpp.o
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+/home/vectorxj/evm-tee/evm-ta/linker/src/xapian/xapian_manager.cpp: In constructor 'XapianManager::XapianManager(const string&, const Address&)':
+/home/vectorxj/evm-tee/evm-ta/linker/src/xapian/xapian_manager.cpp:160:28: warning: 'Xapian::WritableDatabase Xapian::InMemory::open()' is deprecated [-Wdeprecated-declarations]
+  160 |     : db(Xapian::InMemory::open()),   // Mở database trên RAM (in-memory) để tránh lỗi ghi đĩa trong TEE
+      |                            ^~~~
+In file included from /home/vectorxj/xapian-tee/install/include/xapian.h:61,
+                 from /home/vectorxj/evm-tee/evm-ta/linker/include/xapian/xapian_manager.h:5,
+                 from /home/vectorxj/evm-tee/evm-ta/linker/src/xapian/xapian_manager.cpp:2:
+/home/vectorxj/xapian-tee/install/include/xapian/dbfactory.h:104:1: note: declared here
+  104 | open()
+      | ^~~~
+/home/vectorxj/evm-tee/evm-ta/linker/src/xapian/xapian_manager.cpp:160:32: warning: 'Xapian::WritableDatabase Xapian::InMemory::open()' is deprecated [-Wdeprecated-declarations]
+  160 |     : db(Xapian::InMemory::open()),   // Mở database trên RAM (in-memory) để tránh lỗi ghi đĩa trong TEE
+      |          ~~~~~~~~~~~~~~~~~~~~~~^~
+In file included from /home/vectorxj/xapian-tee/install/include/xapian.h:61,
+                 from /home/vectorxj/evm-tee/evm-ta/linker/include/xapian/xapian_manager.h:5,
+                 from /home/vectorxj/evm-tee/evm-ta/linker/src/xapian/xapian_manager.cpp:2:
+/home/vectorxj/xapian-tee/install/include/xapian/dbfactory.h:104:1: note: declared here
+  104 | open()
+      | ^~~~
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libstdc++.so: linker input file unused because linking not done
+aarch64-linux-gnu-gcc: warning: /home/vectorxj/chcore/staros/.cpp/aarch64/lib/libgcc_s.so: linker input file unused because linking not done
+[100%] Linking CXX executable evm-ta
+[100%] Built target evm-ta
+Building EVM CA (for Linux)...
+Copying outputs to checkpoints...
+Done!

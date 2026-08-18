@@ -226,7 +226,7 @@ json parseElement(const uint8_t* bytes, uint32_t* i, json abi) {
         result =  parseAddress(bytes, i, abi);
         cout << t << "addressssss" << result.dump() << endl;
     }
-    if (t == IntTy) {
+    if (t == IntTy || t == UintTy) {
         result =  parseInt(bytes, i, abi);
     }
      cout << t << "result" << result.dump() << endl;

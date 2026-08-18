@@ -7,7 +7,7 @@ rm -rf build_tee
 mkdir -p build_tee
 cd build_tee
 cmake -DCMAKE_TOOLCHAIN_FILE=/home/vectorxj/chcore/staros/build/toolchain.cmake ..
-make -j$(nproc)
+make -j1
 
 echo "Building EVM CA (for Linux)..."
 cd /home/vectorxj/evm-tee/evm-ca

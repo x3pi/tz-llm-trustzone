@@ -64,8 +64,7 @@ std::vector<uint8_t> evm_encode_mpfr(const mpfr_t &value) {
   // Xử lý độ dài chuỗi
   std::string str_value_str(str_value);
   len = str_value_str.length();
-  size_t padded_len =
-      std::ceil(static_cast<double>(len) / WORD_SIZE) * WORD_SIZE;
+  size_t padded_len = ((len + WORD_SIZE - 1) / WORD_SIZE) * WORD_SIZE;
 
   // Bộ đệm mã hóa với 64 + độ dài chuỗi đã pad
   std::vector<uint8_t> encoded(64 + padded_len, 0);

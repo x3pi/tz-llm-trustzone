@@ -35,7 +35,7 @@ void printHex2(const std::vector<uint8_t> &bytes)
     void appendBytesPadded(std::vector<uint8_t> &buffer, const uint8_t *data, size_t len)
     {
         size_t initial_size = buffer.size();
-        size_t padded_len = static_cast<size_t>(std::ceil(static_cast<double>(len) / 32.0)) * 32;
+        size_t padded_len = ((len + 31) / 32) * 32;
         buffer.resize(initial_size + padded_len, 0); // Thêm dung lượng đã đệm
 
         if (data && len > 0)

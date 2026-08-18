@@ -1,0 +1,116 @@
+[
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/disassembler.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/disassembler.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/disassembler.cpp",
+  "output": "CMakeFiles/mvm.dir/src/disassembler.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/processor.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/processor.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/processor.cpp",
+  "output": "CMakeFiles/mvm.dir/src/processor.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/stack.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/stack.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/stack.cpp",
+  "output": "CMakeFiles/mvm.dir/src/stack.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/transaction.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/transaction.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/transaction.cpp",
+  "output": "CMakeFiles/mvm.dir/src/transaction.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/log.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/log.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/log.cpp",
+  "output": "CMakeFiles/mvm.dir/src/log.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/util.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/util.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/util.cpp",
+  "output": "CMakeFiles/mvm.dir/src/util.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/gas.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/gas.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/gas.cpp",
+  "output": "CMakeFiles/mvm.dir/src/gas.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/sha256.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/sha256.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/sha256.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/sha256.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/ripemd160.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/ripemd160.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/ripemd160.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/ripemd160.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/bn254.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/bn254.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/bn254.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/bn254.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/pairing/bn254/pairing.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/pairing/bn254/pairing.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/pairing/bn254/pairing.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/pairing/bn254/pairing.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/blake2b.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/blake2b.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/blake2b.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/blake2b.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/bls.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/bls.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/bls.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/bls.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/kzg.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/kzg.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/kzg.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/kzg.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/c++  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -std=gnu++20 -o CMakeFiles/mvm.dir/src/crypto/secp256k1.cpp.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/secp256k1.cpp",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/src/crypto/secp256k1.cpp",
+  "output": "CMakeFiles/mvm.dir/src/crypto/secp256k1.cpp.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/cc  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -o CMakeFiles/mvm.dir/3rdparty/keccak/KeccakHash.c.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakHash.c",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakHash.c",
+  "output": "CMakeFiles/mvm.dir/3rdparty/keccak/KeccakHash.c.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/cc  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -o CMakeFiles/mvm.dir/3rdparty/keccak/KeccakP-1600-opt64.c.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakP-1600-opt64.c",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakP-1600-opt64.c",
+  "output": "CMakeFiles/mvm.dir/3rdparty/keccak/KeccakP-1600-opt64.c.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/cc  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -o CMakeFiles/mvm.dir/3rdparty/keccak/KeccakSpongeWidth1600.c.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakSpongeWidth1600.c",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/KeccakSpongeWidth1600.c",
+  "output": "CMakeFiles/mvm.dir/3rdparty/keccak/KeccakSpongeWidth1600.c.o"
+},
+{
+  "directory": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/build",
+  "command": "/usr/bin/cc  -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/solidity/build/include -I/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/intx/include -isystem /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/../../bls/blst/bindings  -O3 -g -march=native -mtune=native -ffunction-sections -fdata-sections -finline-functions -o CMakeFiles/mvm.dir/3rdparty/keccak/SimpleFIPS202.c.o -c /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/SimpleFIPS202.c",
+  "file": "/home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm/3rdparty/keccak/SimpleFIPS202.c",
+  "output": "CMakeFiles/mvm.dir/3rdparty/keccak/SimpleFIPS202.c.o"
+}
+]

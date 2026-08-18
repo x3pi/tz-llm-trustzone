@@ -35,22 +35,21 @@ std::string intToHex(int value) {
 //}
 
 
-vector<uint8_t> encodeInt(
-    string n
-) {
-    // cout << "encodeInt: " << n << endl;
+vector<uint8_t> encodeUint(string n) {
     vector<uint8_t> result(32, 0);
     vector<uint8_t> originBytes = hexStringToUint8Array(n);
+    if (originBytes.size() > 32) {
+        originBytes.erase(originBytes.begin(), originBytes.begin() + (originBytes.size() - 32));
+    }
     int start = 32 - originBytes.size();
-    
-    uint8_t signExtension = (originBytes[0] & 0x80) ? 0xFF : 0x00;
-    std::fill(result.begin(), result.begin() + start, signExtension); // Điền mở rộng dấu
-
-    
-    for(int i =0; i< originBytes.size(); i ++) {
+    for(size_t i = 0; i < originBytes.size(); i++) {
         result[start + i] = originBytes[i];
     }
     return result;
+}
+
+vector<uint8_t> encodeInt(string n) {
+    return encodeUint(n);
 }
 
 vector<uint8_t> encodeFixedBytes(string n)
@@ -320,8 +319,10 @@ vector<uint8_t> encodeArgument(json abi, string argument)  {
         return encodeBytesSlice(argument);
     }
 
-    if (t == IntTy || t== UintTy) {
-        
+    if (t == UintTy) {
+        return encodeUint(argument);
+    }
+    if (t == IntTy) {
         return encodeInt(argument);
     }
     

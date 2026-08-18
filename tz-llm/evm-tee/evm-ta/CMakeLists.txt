@@ -13,7 +13,7 @@ include_directories(/home/vectorxj/chcore/staros/.cpp/aarch64/include/aarch64-li
 include_directories(/home/vectorxj/chcore/staros/build/chcore-libc/install/include)
 
 # EVM variables
-set(MVM_ROOT /home/abc/nhat/con-chain-v2/metanode/execution/pkg/mvm/c_mvm)
+set(MVM_ROOT ${CMAKE_CURRENT_LIST_DIR}/c_mvm)
 
 include_directories(
     ${MVM_ROOT}/include
@@ -52,7 +52,16 @@ set(LINKER_SRCS
     ${LINKER_ROOT}/src/state.cpp
     ${LINKER_ROOT}/src/my_extension/my_extension.cpp
     ${LINKER_ROOT}/src/my_extension/crypto_handlers.cpp
+    ${LINKER_ROOT}/src/my_extension/xapian_handlers.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_manager.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_search.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_registry.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_log.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_manager_resolve.cpp
     ${LINKER_ROOT}/src/my_logger.cpp
+    ${LINKER_ROOT}/src/abi/encoding_utils.cpp
+    ${LINKER_ROOT}/src/my_extension/utils.cpp
+    ${LINKER_ROOT}/src/my_extension/constants.cpp
     ${CMAKE_CURRENT_LIST_DIR}/go_mocks.cpp
 )
 
@@ -62,10 +71,16 @@ target_include_directories(evm-ta PRIVATE
     ${MVM_ROOT}/include
     ${MVM_ROOT}/3rdparty/keccak
     ${MVM_ROOT}/src
-    ${MVM_ROOT}/../../bls/blst/bindings
     ${LINKER_ROOT}/include
+    ${LINKER_ROOT}/include/xapian
+    /home/vectorxj/xapian-tee/install/include
 )
 
 target_compile_definitions(evm-ta PRIVATE MVM_LINKER_BUILD)
+
+target_link_libraries(evm-ta
+    /home/vectorxj/xapian-tee/install/lib/libxapian.a
+    /home/vectorxj/xapian-tee/install/lib/libz.a
+)
 
 # We do not link libsolidity.a for now, if it complains we can mock missing symbols.

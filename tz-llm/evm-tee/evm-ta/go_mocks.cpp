@@ -99,7 +99,7 @@ struct Value_return GetCrossChainSourceId(unsigned char *mvmId) {
     return ret;
 }
 
-void SetXapianBasePath(const char *path) {}
+
 
 void GoLogString(int, char *msg) {
     std::cout << "[EVM-TA GoLog] " << msg << std::endl;
@@ -133,15 +133,26 @@ int ReplayFullDbLogs(LogReplayEntryC *entries, int num_entries) { return 1; }
 
 } // extern "C"
 
-namespace mvm {
-namespace FunctionSelector {
-    extern const uint32_t GET_OR_CREATE_SIMPLE_DB = 0x12345678;
-    extern const uint32_t SET = 0x87654321;
-    extern const uint32_t GET = 0x11111111;
-    extern const uint32_t GET_ALL = 0x22222222;
-    extern const uint32_t SEARCH_BY_VALUE = 0x33333333;
-    extern const uint32_t SINPLE_DB_DELETE = 0x44444444;
-    extern const uint32_t SINPLE_GET_NEXT_KEYS = 0x55555555;
-}
-}
 
+
+// UUID mocks for Xapian
+extern "C" {
+    typedef unsigned char uuid_t[16];
+    
+    void uuid_generate_random(uuid_t out) {
+        for (int i = 0; i < 16; ++i) {
+            out[i] = rand() % 256;
+        }
+        out[6] = (out[6] & 0x0f) | 0x40;
+        out[8] = (out[8] & 0x3f) | 0x80;
+    }
+    
+    void uuid_unparse_lower(const uuid_t uu, char *out) {
+        sprintf(out, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+            uu[0], uu[1], uu[2], uu[3],
+            uu[4], uu[5],
+            uu[6], uu[7],
+            uu[8], uu[9],
+            uu[10], uu[11], uu[12], uu[13], uu[14], uu[15]);
+    }
+}

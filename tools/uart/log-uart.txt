@@ -1,0 +1,346 @@
+Script started on 2026-08-18 14:56:44+07:00 [COMMAND="picocom -b 1500000 /dev/ttyUSB0" TERM="xterm-256color" TTY="/dev/pts/8" COLUMNS="96" LINES="22"]
+picocom v3.1
+
+port is        : /dev/ttyUSB0
+flowcontrol    : none
+baudrate is    : 1500000
+parity is      : none
+databits are   : 8
+stopbits are   : 1
+escape is      : C-a
+local echo is  : no
+noinit is      : no
+noreset is     : no
+hangup is      : no
+nolock is      : no
+send_cmd is    : sz -vv
+receive_cmd is : rz -vv -E
+imap is        : 
+omap is        : 
+emap is        : crcrlf,delbs,
+logfile is     : none
+initstring     : none
+exit_after is  : not set
+exit is        : no
+
+Type [C-a] [C-h] to see available commands
+Terminal ready
+[  932.592895][    T1] [pid=1][PARAM][INFO][param_service.c:173]Handle set param msgId 107 pid 269 key: ohos.ctl.stop
+[  932.593219][    T1] [pid=1][Init][INFO][init_common_service.c:665]stop service download_server, pid 2545.
+[  932.606207][    T1] [pid=1][Init][ERROR][init_signal_handler.c:46]Child process Unknown(pid 2545) exit with signal : 9
+[  932.606221][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning Unknown, SIGCHLD received, pid:2545 uid:3815 status:9.
+[  946.783758][ T1299] [dhd] [wlan0] wl_run_escan : LEGACY_SCAN sync ID: 32, bssidx: 0
+[  947.711948][  T583] binder: 560:583 transaction failed 29189/-22, size 96-0 line 2787
+[  956.789612][ T1299] [dhd] [wlan0] wl_run_escan : LEGACY_SCAN sync ID: 33, bssidx: 0
+[E[  964.655672][ T2651] [TZLLM_TRACE] llm_run: call #1 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+VM-TA] Received command: WALLET
+[  964.657049][ T2651] [TZLLM_TRACE] smc_call_cpu_resume: iter#1 cpu=0 ret=0x1 exit_reason=0x0
+[  964.657077][ T2651] [TZLLM_TRACE] SMC_EXIT_PREEMPTED spin #1 cpu=0
+[  964.657733][ T2651] [TZLLM_TRACE] llm_run: call #1 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.657959][ T2651] [TZLLM_TRACE] llm_run: call #2 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Yielding and waiting for query...
+[  964.660819][ T2651] [TZLLM_TRACE] llm_run: call #2 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.660869][ T2651] [TZLLM_TRACE] llm_run: call #3 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Received command: DEPLOY:600a600c600039600a6000f3602a60005260206000f3
+[EVM-TA] DEPLOY result: er=0 exmsg=
+[  964.665807][ T2651] [TZLLM_TRACE] llm_run: call #3 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.666027][ T2651] [TZLLM_TRACE] llm_run: call #4 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Yielding and waiting for query...
+[EVM-TA] Received command: CALL:0x5fbdb2315678afecb367f032d93f642f64180aa3:00[  964.668322][ T2651] [TZLLM_TRACE] llm_run: call #4 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.668349][ T2651] [TZLLM_TRACE] llm_run: call #5 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+
+[EVM-TA] CALL callee=0x5fbdb2315678afecb367f032d93f642f64180aa3 calldata_len=1 res.er=0 exmsg=
+[  964.672778][ T2651] [TZLLM_TRACE] llm_run: call #5 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.673004][ T2651] [TZLLM_TRACE] llm_run: call #6 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Yielding and waiting for query...
+[EVM-TA] Received command: DEPLOY:608060405234801562000010575f80fd5b5061010773ffffffffffffffffffffffffffffffffffffffff1663fbdddaf06040518060400160405280601681526020017f626c6f636b73746d5f7368617265645f78617069616e000000000000000000008152506040518263ffffffff1660e01b815260040162000083919062000161565b6020604051808303815f875af115801562000[  964.675232][ T2651] [TZLLM_TRACE] llm_run: call #6 cpu=0, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.675260][ T2651] [TZLLM_TRACE] llm_run: call #7 cpu=0, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+0a0573d5f803e3d5ffd5b505050506040513d601f19601f82011682018060405250810190620000c69190620001c1565b50620001f1565b5f81519050919050565b5f82825260208201905092915050565b5f5b8381101562000106578082015181840152602081019050620000e9565b5f8484015250505050565b5f601f19601f8301169050919050565b5f6200012d82620000cd565b620001398185620000d7565b93506200014b818560208601620000e7565b620001568162000111565b840191505092915050565b5f6020820190508181035f8301526200017b818462000121565b905092915050565b5f80fd5b5f8115159050919050565b6200019d8162000187565b8114620001a8575f80fd5b50565b5f81519050620001bb8162000192565b92915050565b5f60208284031215620001d957620001d862000183565b5b5f620001e884828501620001ab565b91505092915050565b61094280620001ff5f395ff3fe608060405234801561000f575f80fd5b506004361061004a575f3560e01c80630b6f8f481461004e5780638cc382961461006c578063b4340bbe1461008a578063d32a9a5914610094575b5f80fd5b61005661009e565b60405161006391906104b7565b60405180910390f35b6100746101b5565b60405161008191906104b7565b60405180910390f35b6100926101ba565b005b61009c610292565b005b5f8061010773ffffffffffffffffffffffffffffffffffffffff16633e7c7f8b6040518060400160405280601681526020017f626c6f636b73746d5f7368617265645f78617069616e000000000000000000008152505f546040518363ffffffff1660e01b815260040161011392919061055a565b5f604051808303815f875af115801561012e573d5f803e3d5ffd5b505050506040513d5f823e3d601f19601f8201168201806040525081019061015691906106b7565b90505f81511161019b576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161019290610748565b60405180910390fd5b808060200190518101906101af9190610790565b91505090565b5f5481565b61010773ffffffffffffffffffffffffffffffffffffffff16639d4799416040518060400160405280601681526020017f626c6f636b73746d5f7368617265645f78617069616e000000000000000000008152505f60405160200161021f91906104b7565b6040516020818303038152906040526040518363ffffffff1660e01b815260040161024b92919061080d565b6020604051808303815f875af1158015610267573d5f803e3d5ffd5b505050506040513d601f19601f8201168201806040525081019061028b9190610790565b5f81905550565b5f61010773ffffffffffffffffffffffffffffffffffffffff16633e7c7f8b6040518060400160405280601681526020017f626c6f636b73746d5f7368617265645f78617069616e000000000000000000008152505f546040518363ffffffff1660e01b815260040161030692919061055a565b5f604051808303815f875af1158015610321573d5f803e3d5ffd5b505050506040513d5f823e3d601f19601f8201168201806040525081019061034991906106b7565b90505f818060200190518101906103609190610790565b905060018161036f919061086f565b905061010773ffffffffffffffffffffffffffffffffffffffff1663c5d187dd6040518060400160405280601681526020017f626c6f636b73746d5f7368617265645f78617069616e000000000000000000008152505f54846040516020016103d891906104b7565b6040516020818303038152906040526040518463ffffffff1660e01b8152600401610405939291906108a2565b6020604051808303815f875af1158015610421573d5f803e3d5ffd5b505050506040513d601f19601f820116820180604052508101906104459190610790565b5f819055503373ffffffffffffffffffffffffffffffffffffffff167f3d523d852046afd5dba341b55c89c4355e15f6c45d6785c48472c0b7eb922911825f546040516104939291906108e5565b60405180910390a25050565b5f819050919050565b6104b18161049f565b82525050565b5f6020820190506104ca5f8301846104a8565b92915050565b5f81519050919050565b5f82825260208201905092915050565b5f5b838110156105075780820151818401526020810190506104ec565b5f8484015250505050565b5f601f19601f8301169050919050565b5f61052c826104d0565b61053681856104da565b93506105468185602086016104ea565b61054f81610512565b840191505092915050565b5f6040820190508181035f8301526105728185610522565b905061058160208301846104a8565b9392505050565b5f604051905090565b5f80fd5b5f80fd5b5f80fd5b5f80fd5b7f4e487b71000000000000000000000000000000000000000000000000000000005f52604160045260245ffd5b6105d782610512565b810181811067ffffffffffffffff821117156105f6576105f56105a1565b5b80604052505050565b5f610608610588565b905061061482826105ce565b919050565b5f67ffffffffffffffff821115610633576106326105a1565b5b61063c82610512565b9050602081019050919050565b5f61065b61065684610619565b6105ff565b9050828152602081018484840111156106775761067661059d565b5b6106828482856104ea565b509392505050565b5f82601f83011261069e5761069d610599565b5b81516106ae848260208601610649565b91505092915050565b5f602082840312156106cc576106cb610591565b5b5f82015167ffffffffffffffff8111156106e9576106e8610595565b5b6106f58482850161068a565b91505092915050565b7f44617461206e6f7420666f756e6420696e2058617069616e00000000000000005f82015250565b5f6107326018836104da565b915061073d826106fe565b602082019050919050565b5f6020820190508181035f83015261075f81610726565b9050919050565b61076f8161049f565b8114610779575f80fd5b50565b5f8151905061078a81610766565b92915050565b5f602082840312156107a5576107a4610591565b5b5f6107b28482850161077c565b91505092915050565b5f81519050919050565b5f82825260208201905092915050565b5f6107df826107bb565b6107e981856107c5565b93506107f98185602086016104ea565b61080281610512565b840191505092915050565b5f6040820190508181035f8301526108258185610522565b9050818103602083015261083981846107d5565b90509392505050565b7f4e487b71000000000000000000000000000000000000000000000000000000005f52601160045260245ffd5b5f6108798261049f565b91506108848361049f565b925082820190508082111561089c5761089b610842565b5b92915050565b5f6060820190508181035f8301526108ba8186610522565b90506108c960208301856104a8565b81810360408301526108db81846107d5565b9050949350505050565b5f6040820190506108f85f8301856104a8565b61090560208301846104a8565b939250505056fea26469706673582212206fc50b91548927c43615db3f28d3327c19317d69d871447cfc01e8a3fdaf188964736f6c63430008140033
+[EVM-TA] [DEBUG] GET_OR_CREATE_DB: fullPath = 912823093544680850579175995568783282090442467040/4d862545b1f6a3ffcad924d59678c69f85a43cf00253f8c8225dc9676e41b32c
+[EVM-TA] [DEBUG] GET_OR_CREATE_DB: Creating directories...
+[EVM-TA] [DEBUG] GET_OR_CREATE_DB: Directories created.
+[EVM-TA] [DEBUG] GET_OR_CREATE_DB: Calling XapianManager::getInstance...
+[EVM-TA] [DEBUG] GET_OR_CREATE_DB: XapianManager::getInstance returned.
+[EVM-TA] DEPLOY result: er=0 exmsg=
+[  964.737247][ T2651] [TZLLM_TRACE] llm_run: call #7 cpu=4, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.737351][ T2651] [TZLLM_TRACE] llm_run: call #8 cpu=4, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Yielding and waiting for query...
+[EVM-TA] Received command: CALL:0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0:b4340bbe
+[  964.739702][ T2651] [TZLLM_TRACE] llm_run: call #8 cpu=4, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.739709][ T2651] [TZLLM_TRACE] llm_run: call #9 cpu=4, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] CALL callee=0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0 calldata_len=4 res.er=0 exmsg=
+[  964.744331][ T2651] [TZLLM_TRACE] llm_run: call #9 cpu=4, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[  964.744414][ T2651] [TZLLM_TRACE] llm_run: call #10 cpu=4, '2nd wake ok' marker absent BEFORE this call's smc_call_cpu_resume()
+[EVM-TA] Yielding and waiting for query...
+[EVM-TA] Received command: CALL:0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0:d32a9a59
+[  964.746731][ T2651] [TZLLM_TRACE] llm_run: call #10 cpu=4, '2nd wake ok' marker absent AFTER this call's smc_call_cpu_resume() (ret=1)
+[EVM-TA] [DEBUG] XAPIAN_V1_GET_DATA_DOCUMENT: dbname=blockstm_shared_xapian docId_hex=0x0000000000000000000000000000000000000000000000000000000000000001 docInfo_len=0
+terminate called after throwing an instance of 'mvm::Exception'
+  what():  Execution reverted
+Unsupported syscall 130, bye.
+[INFO] handle_trans_fault: no vmr found for va 0x82!
+[INFO] kernel dump:
+[INFO] process: ffffff000c003330
+Thread ffffff000c003430	Type: USER	State: TS_RUNNING   	CPU 4	AFF -1	Budget 1	Prio: 10	IP: 40000006ceec	CMD: evm-ta
+[INFO] faulting IP: 0x40000006ceec, SP: 0x5000007fdc60
+[INFO] [ffffff000c277cb0] [vmregion] start=300000000000 end=300000001000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=300000001000 end=300000002000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=300000002000 end=300000393000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003a3000 end=3000003ae000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003ae000 end=3000003af000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003af000 end=300000568000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=300000577000 end=300000585000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=300000585000 end=300000588000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=300000588000 end=30000059b000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000005aa000 end=3000005ac000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000005ac000 end=300000daf000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=300000daf000 end=300000eaf000. vmr->pmo->type=7
+[INFO] [ffffff000c277cb0] [vmregion] start=400000000000 end=400000053000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=400000062000 end=4000000d0000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4000000df000 end=4000000e0000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4000000ef000 end=400000106000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4ffffffff000 end=500000000000. vmr->pmo->type=10
+[INFO] [ffffff000c277cb0] [vmregion] start=500000000000 end=500000800000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=600000000000 end=600000046000. vmr->pmo->type=0
+Thread ffffff000c003430	Type: USER	State: TS_RUNNING   	CPU 4	AFF -1	Budget 1	Prio: 10	IP: 40000006ceec	CMD: evm-ta
+[INFO] kernel:
+[INFO] user:
+[INFO] 	backtrace:1, fp = fffffe8000008f30, pc = ffffff000841607c
+[INFO] do_page_fault: faulting ip is 0x40000006ceec (real IP),faulting address is 0x82,fsc is trans_fault (0b100),type is 8
+[INFO] [ffffff000c277cb0] [vmregion] start=300000000000 end=300000001000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=300000001000 end=300000002000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=300000002000 end=300000393000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003a3000 end=3000003ae000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003ae000 end=3000003af000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=3000003af000 end=300000568000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=300000577000 end=300000585000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=300000585000 end=300000588000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=300000588000 end=30000059b000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000005aa000 end=3000005ac000. vmr->pmo->type=2
+[INFO] [ffffff000c277cb0] [vmregion] start=3000005ac000 end=300000daf000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=300000daf000 end=300000eaf000. vmr->pmo->type=7
+[INFO] [ffffff000c277cb0] [vmregion] start=400000000000 end=400000053000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=400000062000 end=4000000d0000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4000000df000 end=4000000e0000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4000000ef000 end=400000106000. vmr->pmo->type=1
+[INFO] [ffffff000c277cb0] [vmregion] start=4ffffffff000 end=500000000000. vmr->pmo->type=10
+[INFO] [ffffff000c277cb0] [vmregion] start=500000000000 end=500000800000. vmr->pmo->type=0
+[INFO] [ffffff000c277cb0] [vmregion] start=600000000000 end=600000046000. vmr->pmo->type=0
+[INFO] current_cap_group is evm-ta
+[WARN] file:object/recycle.c thread ctx->state is 5
+[WARN] file:object/thread.c thread ctx->state is 5
+main 302: evm-ta finished
+[INFO] [TZLLM_TRACE] sys_tee_switch_req: SMC_EXIT_SHADOW thread ffffff000c001830 x2=deadbeef x3=0 (#1, poll#0)
+[INFO] [TZLLM_TRACE] handle_yield_smc: waking thread ffffff000c001830 (#1)
+[  966.715271][ T1299] [dhd] [wlan0] wl_run_escan : LEGACY_SCAN sync ID: 34, bssidx: 0
+[  976.057599][ T2651] [TZLLM_TRACE] SMC_EXIT_PREEMPTED spin #5001 cpu=4
+[  987.597598][ T2651] [TZLLM_TRACE] SMC_EXIT_PREEMPTED spin #10001 cpu=4
+[  998.698474][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info teecd starting
+[  998.698686][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info teecd(pid 2668) started
+[  998.703658][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process teecd(pid 2668) exit with code : 255
+[  998.703668][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning teecd, SIGCHLD received, pid:2668 uid:6668 status:65280.
+[  998.703673][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info teecd reap pid 2668.
+[  998.703706][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info teecd starting
+[  998.703855][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info teecd(pid 2669) started
+[  998.708074][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process teecd(pid 2669) exit with code : 255
+[  998.708083][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning teecd, SIGCHLD received, pid:2669 uid:6668 status:65280.
+[  998.708087][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info teecd reap pid 2669.
+[  998.708119][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info teecd starting
+[  998.708265][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info teecd(pid 2670) started
+[  998.712316][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process teecd(pid 2670) exit with code : 255
+[  998.712323][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning teecd, SIGCHLD received, pid:2670 uid:6668 status:65280.
+[  998.712327][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info teecd reap pid 2670.
+[  998.712357][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info teecd starting
+[  998.712482][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info teecd(pid 2671) started
+[  998.716446][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process teecd(pid 2671) exit with code : 255
+[  998.716453][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning teecd, SIGCHLD received, pid:2671 uid:6668 status:65280.
+[  998.716457][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info teecd reap pid 2671.
+[  998.716487][    T1] [pid=1][Init][INFO][init_common_service.c:800]Service teecd start failed! 240 second later will reStart.
+[  998.769349][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info write_updater starting
+[  998.769841][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info write_updater(pid 2672) started
+[  998.774850][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process write_updater(pid 2672) exit with code : 255
+[  998.774859][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning write_updater, SIGCHLD received, pid:2672 uid:6666 status:65280.
+[  998.774863][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info write_updater reap pid 2672.
+[  998.774896][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info write_updater starting
+[  998.775032][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info write_updater(pid 2673) started
+[  998.779459][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process write_updater(pid 2673) exit with code : 255
+[  998.779482][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning write_updater, SIGCHLD received, pid:2673 uid:6666 status:65280.
+[  998.779498][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info write_updater reap pid 2673.
+[  998.779619][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info write_updater starting
+[  998.780053][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info write_updater(pid 2674) started
+[  998.786653][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process write_updater(pid 2674) exit with code : 255
+[  998.786694][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning write_updater, SIGCHLD received, pid:2674 uid:6666 status:65280.
+[  998.786714][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info write_updater reap pid 2674.
+[  998.786876][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info write_updater starting
+[  998.787403][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info write_updater(pid 2675) started
+[  998.792767][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process write_updater(pid 2675) exit with code : 255
+[  998.792805][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning write_updater, SIGCHLD received, pid:2675 uid:6666 status:65280.
+[  998.792825][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info write_updater reap pid 2675.
+[  998.792985][    T1] [pid=1][Init][INFO][init_common_service.c:800]Service write_updater start failed! 240 second later will reStart.
+[  999.147594][ T2651] [TZLLM_TRACE] SMC_EXIT_PREEMPTED spin #15001 cpu=4
+[  999.165008][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info cloudfiledaemon starting
+[  999.165512][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info cloudfiledaemon(pid 2676) started
+[  999.181447][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process cloudfiledaemon(pid 2676) exit with code : 0
+[  999.181459][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning cloudfiledaemon, SIGCHLD received, pid:2676 uid:1009 status:0.
+[  999.181464][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info cloudfiledaemon reap pid 2676.
+[  999.181510][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info cloudfiledaemon starting
+[  999.181715][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info cloudfiledaemon(pid 2677) started
+[  999.195547][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process cloudfiledaemon(pid 2677) exit with code : 0
+[  999.195561][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning cloudfiledaemon, SIGCHLD received, pid:2677 uid:1009 status:0.
+[  999.195566][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info cloudfiledaemon reap pid 2677.
+[  999.195623][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info cloudfiledaemon starting
+[  999.195832][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info cloudfiledaemon(pid 2678) started
+[  999.223588][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process cloudfiledaemon(pid 2678) exit with code : 0
+[  999.223603][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning cloudfiledaemon, SIGCHLD received, pid:2678 uid:1009 status:0.
+[  999.223608][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info cloudfiledaemon reap pid 2678.
+[  999.223665][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info cloudfiledaemon starting
+[  999.223865][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info cloudfiledaemon(pid 2679) started
+[  999.248113][    T1] [pid=1][Init][ERROR][init_signal_handler.c:48]Child process cloudfiledaemon(pid 2679) exit with code : 0
+[  999.248155][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning cloudfiledaemon, SIGCHLD received, pid:2679 uid:1009 status:0.
+[  999.248176][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info cloudfiledaemon reap pid 2679.
+[  999.248352][    T1] [pid=1][Init][INFO][init_common_service.c:800]Service cloudfiledaemon start failed! 240 second later will reStart.
+[ 1003.265650][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info usb_host starting
+[ 1003.266217][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info usb_host(pid 2682) started
+[ 1003.266305][ T2682] [pid=2682][PLUGIN][INFO][init_context_static.c:84]Set selinux context 0 for usb_host
+[ 1003.282178][ T2682] [E/devmgr_service] device hdf_usb_pnp_notify_service not in configed device list
+
+[ 1003.411989][ T2682] potentially unexpected fatal signal 11.
+[ 1003.412016][ T2682] CPU: 2 PID: 2682 Comm: usb_host Not tainted 5.10.110 #1
+[ 1003.412022][ T2682] Hardware name: RK3588 OPi 5 Max (DT)
+[ 1003.412030][ T2682] pstate: 80001000 (Nzcv daif -PAN -UAO -TCO BTYPE=--)
+[ 1003.412035][ T2682] pc : 0000007f036ca8fc
+[ 1003.412040][ T2682] lr : 0000007f036ca8dc
+[ 1003.412045][ T2682] sp : 0000007fdc5797e0
+[ 1003.412050][ T2682] x29: 0000007fdc579800 x28: 0000000000000000 
+[ 1003.412060][ T2682] x27: 0000000000000010 x26: 0000000000000000 
+[ 1003.412069][ T2682] x25: 000000e66c3bda8f x24: 0000000003000601 
+[ 1003.412077][ T2682] x23: 0000007f83964f30 x22: 0000007f83df5940 
+[ 1003.412085][ T2682] x21: 0000000000000000 x20: 0000007f036ceac8 
+[ 1003.412093][ T2682] x19: 0000007f03529b40 x18: 0000000000000000 
+[ 1003.412101][ T2682] x17: 0000007f84ac313c x16: 0000007f83926540 
+[ 1003.412109][ T2682] x15: 0000000000000000 x14: 0000007fdc577578 
+[ 1003.412117][ T2682] x13: 0000000000000000 x12: 0000000000000fe9 
+[ 1003.412125][ T2682] x11: 0000000000000023 x10: 0000000000000000 
+[ 1003.412134][ T2682] x9 : 0000007f036cead0 x8 : 0000000000000000 
+[ 1003.412142][ T2682] x7 : 0000000000001400 x6 : 000000000000000a 
+[ 1003.412150][ T2682] x5 : 000000000000000a x4 : 0000000000000018 
+[ 1003.412158][ T2682] x3 : 0000000000000003 x2 : 0000000000000003 
+[ 1003.412166][ T2682] x1 : 0000007fdc577540 x0 : 00000000fffffffd 
+[ 1003.413311][ T1973] binder: release 2682:2682 transaction 176451 in, still active
+[ 1003.413325][ T1973] binder: release 2682:2682 transaction 176431 out, still active
+[ 1003.413334][ T1973] binder: send failed reply for transaction 176451 to 266:686
+[ 1003.413413][    T1] [pid=1][Init][ERROR][init_signal_handler.c:46]Child process usb_host(pid 2682) exit with signal : 11
+[ 1003.413425][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning usb_host, SIGCHLD received, pid:2682 uid:3023 status:11.
+[ 1003.413439][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info usb_host reap pid 2682.
+[ 1003.413531][  T686] binder: 266:686 transaction failed 29189/0, size 4-0 line 2718
+[ 1003.413559][  T686] binder: send failed reply for transaction 176431, target dead
+[ 1003.413562][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info usb_host starting
+[ 1003.413959][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info usb_host(pid 2692) started
+[ 1003.414036][ T2692] [pid=2692][PLUGIN][INFO][init_context_static.c:84]Set selinux context 0 for usb_host
+[ 1003.429753][ T2692] [E/devmgr_service] device hdf_usb_pnp_notify_service not in configed device list
+
+[ 1003.552829][ T2692] potentially unexpected fatal signal 11.
+[ 1003.552861][ T2692] CPU: 7 PID: 2692 Comm: usb_host Not tainted 5.10.110 #1
+[ 1003.552872][ T2692] Hardware name: RK3588 OPi 5 Max (DT)
+[ 1003.552885][ T2692] pstate: 80001000 (Nzcv daif -PAN -UAO -TCO BTYPE=--)
+[ 1003.552894][ T2692] pc : 0000007f3c9ca8fc
+[ 1003.552902][ T2692] lr : 0000007f3c9ca8dc
+[ 1003.552910][ T2692] sp : 0000007fe39c1ea0
+[ 1003.552918][ T2692] x29: 0000007fe39c1ec0 x28: 0000000000000000 
+[ 1003.552935][ T2692] x27: 0000000000000010 x26: 0000000000000000 
+[ 1003.552949][ T2692] x25: 000000e67527ff04 x24: 0000000003000601 
+[ 1003.552962][ T2692] x23: 0000007fbcd0af20 x22: 0000007fbd209da0 
+[ 1003.552975][ T2692] x21: 0000000000000000 x20: 0000007f3c9ceac8 
+[ 1003.552988][ T2692] x19: 0000007f3c829b40 x18: 0000000000000000 
+[ 1003.553000][ T2692] x17: 0000007fbde3713c x16: 0000007fbcca6540 
+[ 1003.553013][ T2692] x15: 0000000000000000 x14: 0000007fe39bfc38 
+[ 1003.553026][ T2692] x13: 0000000000000000 x12: 0000000000000fe9 
+[ 1003.553039][ T2692] x11: 0000000000000023 x10: 0000000000000000 
+[ 1003.553052][ T2692] x9 : 0000007f3c9cead0 x8 : 0000000000000000 
+[ 1003.553065][ T2692] x7 : 0000000000001400 x6 : 000000000000000a 
+[ 1003.553077][ T2692] x5 : 000000000000000a x4 : 0000000000000018 
+[ 1003.553090][ T2692] x3 : 0000000000000003 x2 : 0000000000000003 
+[ 1003.553103][ T2692] x1 : 0000007fe39bfc00 x0 : 00000000fffffffd 
+[ 1003.554360][  T143] binder: release 2692:2692 transaction 176545 in, still active
+[ 1003.554384][  T143] binder: release 2692:2692 transaction 176525 out, still active
+[ 1003.554402][  T143] binder: send failed reply for transaction 176545 to 266:284
+[ 1003.554624][    T1] [pid=1][Init][ERROR][init_signal_handler.c:46]Child process usb_host(pid 2692) exit with signal : 11
+[ 1003.554632][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning usb_host, SIGCHLD received, pid:2692 uid:3023 status:11.
+[ 1003.554641][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info usb_host reap pid 2692.
+[ 1003.554675][  T284] binder: 266:284 transaction failed 29189/0, size 4-0 line 2718
+[ 1003.554702][  T284] binder: send failed reply for transaction 176525, target dead
+[ 1003.554708][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info usb_host starting
+[ 1003.554912][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info usb_host(pid 2700) started
+[ 1003.555257][ T2700] [pid=2700][PLUGIN][INFO][init_context_static.c:84]Set selinux context 0 for usb_host
+[ 1003.566636][ T2700] [E/devmgr_service] device hdf_usb_pnp_notify_service not in configed device list
+
+[ 1003.671421][ T2700] potentially unexpected fatal signal 11.
+[ 1003.671434][ T2700] CPU: 7 PID: 2700 Comm: usb_host Not tainted 5.10.110 #1
+[ 1003.671437][ T2700] Hardware name: RK3588 OPi 5 Max (DT)
+[ 1003.671440][ T2700] pstate: 80001000 (Nzcv daif -PAN -UAO -TCO BTYPE=--)
+[ 1003.671443][ T2700] pc : 0000007f3050a8fc
+[ 1003.671445][ T2700] lr : 0000007f3050a8dc
+[ 1003.671448][ T2700] sp : 0000007ff40a5370
+[ 1003.671450][ T2700] x29: 0000007ff40a5390 x28: 0000000000000000 
+[ 1003.671454][ T2700] x27: 0000000000000010 x26: 0000000000000000 
+[ 1003.671457][ T2700] x25: 000000e67d0b97d5 x24: 0000000003000601 
+[ 1003.671460][ T2700] x23: 0000007fb0827380 x22: 0000007fb0d05e30 
+[ 1003.671464][ T2700] x21: 0000000000000000 x20: 0000007f3050eac8 
+[ 1003.671466][ T2700] x19: 0000007f302e9b40 x18: 0000000000000000 
+[ 1003.671470][ T2700] x17: 0000007fb191113c x16: 0000007fb0826540 
+[ 1003.671473][ T2700] x15: 0000000000000000 x14: 0000007ff40a3108 
+[ 1003.671475][ T2700] x13: 0000000000000000 x12: 0000000000000fe9 
+[ 1003.671479][ T2700] x11: 0000000000000023 x10: 0000000000000000 
+[ 1003.671482][ T2700] x9 : 0000007f3050ead0 x8 : 0000000000000000 
+[ 1003.671485][ T2700] x7 : 0000000000001400 x6 : 000000000000000a 
+[ 1003.671487][ T2700] x5 : 000000000000000a x4 : 0000000000000018 
+[ 1003.671490][ T2700] x3 : 0000000000000003 x2 : 0000000000000003 
+[ 1003.671494][ T2700] x1 : 0000007ff40a30d0 x0 : 00000000fffffffd 
+[ 1003.671959][  T143] binder: release 2700:2700 transaction 176616 in, still active
+[ 1003.671967][  T143] binder: release 2700:2700 transaction 176594 out, still active
+[ 1003.671970][  T143] binder: send failed reply for transaction 176616 to 266:786
+[ 1003.672005][    T1] [pid=1][Init][ERROR][init_signal_handler.c:46]Child process usb_host(pid 2700) exit with signal : 11
+[ 1003.672011][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning usb_host, SIGCHLD received, pid:2700 uid:3023 status:11.
+[ 1003.672018][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info usb_host reap pid 2700.
+[ 1003.672082][    T1] [pid=1][Init][INFO][init_common_service.c:581]Service info usb_host starting
+[ 1003.672131][  T786] binder: 266:786 transaction failed 29189/0, size 4-0 line 2718
+[ 1003.672145][  T786] binder: send failed reply for transaction 176594, target dead
+[ 1003.672274][    T1] [pid=1][Init][INFO][init_common_service.c:628]Service info usb_host(pid 2708) started
+[ 1003.672375][ T2708] [pid=2708][PLUGIN][INFO][init_context_static.c:84]Set selinux context 0 for usb_host
+[ 1003.687194][ T2708] [E/devmgr_service] device hdf_usb_pnp_notify_service not in configed device list
+
+[ 1003.807126][ T2708] potentially unexpected fatal signal 11.
+[ 1003.807155][ T2708] CPU: 1 PID: 2708 Comm: usb_host Not tainted 5.10.110 #1
+[ 1003.807161][ T2708] Hardware name: RK3588 OPi 5 Max (DT)
+[ 1003.807169][ T2708] pstate: 80001000 (Nzcv daif -PAN -UAO -TCO BTYPE=--)
+[ 1003.807174][ T2708] pc : 0000007f0e78a8fc
+[ 1003.807180][ T2708] lr : 0000007f0e78a8dc
+[ 1003.807184][ T2708] sp : 0000007fd2259660
+[ 1003.807189][ T2708] x29: 0000007fd2259680 x28: 0000000000000000 
+[ 1003.807200][ T2708] x27: 0000000000000010 x26: 0000000000000000 
+[ 1003.807208][ T2708] x25: 000000e6845db42e x24: 0000000003000601 
+[ 1003.807216][ T2708] x23: 0000007f8ebd9380 x22: 0000007f8ef0c540 
+[ 1003.807224][ T2708] x21: 0000000000000000 x20: 0000007f0e78eac8 
+[ 1003.807232][ T2708] x19: 0000007f0e5e9b40 x18: 0000000000000000 
+[ 1003.807240][ T2708] x17: 0000007f8fb9713c x16: 0000007f8ef66540 
+[ 1003.807247][ T2708] x15: 0000000000000000 x14: 0000007fd22573f8 
+[ 1003.807255][ T2708] x13: 0000000000000000 x12: 0000000000000fe9 
+[ 1003.807263][ T2708] x11: 0000000000000023 x10: 0000000000000000 
+[ 1003.807271][ T2708] x9 : 0000007f0e78ead0 x8 : 0000000000000000 
+[ 1003.807279][ T2708] x7 : 0000000000001400 x6 : 000000000000000a 
+[ 1003.807287][ T2708] x5 : 000000000000000a x4 : 0000000000000018 
+[ 1003.807295][ T2708] x3 : 0000000000000003 x2 : 0000000000000003 
+[ 1003.807303][ T2708] x1 : 0000007fd22573c0 x0 : 00000000fffffffd 
+[ 1003.808363][ T2642] binder: release 2708:2708 transaction 176700 in, still active
+[ 1003.808373][ T2642] binder: release 2708:2708 transaction 176681 out, still active
+[ 1003.808381][ T2642] binder: send failed reply for transaction 176700 to 266:284
+[ 1003.808520][    T1] [pid=1][Init][ERROR][init_signal_handler.c:46]Child process usb_host(pid 2708) exit with signal : 11
+[ 1003.808528][  T284] binder: 266:284 transaction failed 29189/0, size 4-0 line 2718
+[ 1003.808544][  T284] binder: send failed reply for transaction 176681, target dead
+[ 1003.808548][    T1] [pid=1][Init][WARNING][init_signal_handler.c:56]Service warning usb_host, SIGCHLD received, pid:2708 uid:3023 status:11.
+[ 1003.808560][    T1] [pid=1][Init][INFO][init_common_service.c:749]Service info usb_host reap pid 2708.
+
+Terminating...
+Thanks for using picocom
+
+Script done on 2026-08-18 14:58:34+07:00 [COMMAND_EXIT_CODE="0"]
