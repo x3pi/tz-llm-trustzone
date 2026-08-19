@@ -153,7 +153,7 @@ USER_MAKE_PARAM := CC=$(CC) \
 				   Q=$(Q)
 
 USER_TARGETS := libfs_base.a libohtee.so
-USER_TARGETS += tmpfs.srv chanmgr.srv fsm.srv procmgr rknpu.srv
+USER_TARGETS += tmpfs.srv chanmgr.srv fsm.srv procmgr rknpu.srv mvm_launcher.srv
 USER_TARGET_DIR_MAP := \
 			libohtee.so=$(LIB_DIR)/libohtee \
 			libfs_base.a=$(SERVER_DIR)/fs_base \
@@ -162,6 +162,7 @@ USER_TARGET_DIR_MAP := \
 			fsm.srv=$(SERVER_DIR)/fsm \
 			procmgr=$(SERVER_DIR)/procmgr \
 			rknpu.srv=$(SERVER_DIR)/rknpu \
+			mvm_launcher.srv=$(SERVER_DIR)/mvm_launcher \
 
 .PHONY: ramdisk user $(USER_TARGETS) clean
 
@@ -171,7 +172,7 @@ endef
 
 # declare dependencies betwee libs, system servers and apps
 # ramdisk indicates which targets should be put in the ramdisk
-ramdisk: libohtee.so chanmgr.srv rknpu.srv
+ramdisk: libohtee.so chanmgr.srv rknpu.srv mvm_launcher.srv
 	$(shell mkdir -p ramdisk-dir)
 	$(Q)cp $(foreach target,$^,$(call target_dir,$(target))/$(target)) ramdisk-dir
 

@@ -70,6 +70,43 @@ transitively include `<chrono>`'s C++20 format/stream integration; flagged
 as an open libstdc++-ABI-across-GCC-versions risk worth double-checking
 before this is trusted as fully correct, not just "links without error").
 
+**⭐ 2026-08-17 UPDATE #2: MUST strip before baking into the ramdisk — the
+FIT image has a hard 64MiB ceiling**
+
+First real `rebuild.sh` run with `mvm_ta` baked alongside `llama-cli` failed
+for real at the `boot_merger`/`fast_build_uboot.sh` step:
+```
+ERROR: pack uboot.img failed! fit/uboot.itb actual: 116255744 bytes, max limit: 67108864 bytes
+```
+`uboot.itb` (kernel+ATF+U-Boot+the OP-TEE blob, which itself contains the
+TEE-OS ramdisk with `mvm_ta`+`llama-cli`+the model gguf) has a **hard 64MiB
+cap** (from `RK3588MINIALL.ini`/`boot_merger`) — the real build came out to
+~110.9MiB, nearly double. `rebuild.sh`'s `| tee` has no `set -o pipefail`,
+so the reported exit code was misleadingly 0 despite this failure — don't
+trust the exit code alone, always grep the log for `ERROR`.
+
+**Root cause + fix**: the original build (`mvm_ta` 42.9MB,
+`libstdc++.so.6.0.29` 17.6MB, `libgcc_s.so.1` 0.5MB — ~58.3MB total) was
+never stripped of debug symbols. `aarch64-linux-gnu-strip --strip-all`
+(removes only `.symtab`/`.debug_*`, leaves `.dynsym`/`.dynstr`/SONAME/NEEDED
+untouched — confirmed via `readelf -d`/`--dyn-syms` unchanged before/after)
+brought it down to:
+- `mvm_ta`: 42.9MB → **5.1MB**
+- `libstdc++.so.6.0.29`: 17.6MB → **2.1MB**
+- `libgcc_s.so.1`: 0.5MB → **0.13MB**
+- Total: ~58.3MB → **~7.04MB**, saving ~51.2MB (needed at least ~46.9MB to
+  fit under 64MiB — leaves only ~4.4MB margin, fairly tight).
+
+`mvm_ta_output/` (gitignored) now holds the STRIPPED build as the primary
+copy; the original unstripped build is preserved at
+`mvm_ta_output/unstripped-backup/` (useful for gdb/addr2line debugging
+later — rebuild with debug info on demand, don't overwrite this backup).
+**Any future rebuild of `mvm_ta` MUST strip before baking into
+`oh_tee/apps`**, or this `boot_merger` failure will recur. Worth adding
+`-s` to the `musl-gcc` final link flags (strip at link time) or a strip
+step right after build in the pipeline, instead of doing it by hand like
+this time.
+
 ---
 
 A **separate, parallel** toolchain image for the `metanode` project's TZ

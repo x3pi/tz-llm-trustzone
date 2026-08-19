@@ -10,6 +10,16 @@
  * See the Mulan PSL v2 for more details.
  */
 #define _GNU_SOURCE
+/*
+ * MANUAL TOGGLE (2026-08-19, GĐ3, plan §9.23): the build pipeline
+ * (scripts/kick-the-tires/*.sh) has no per-build CFLAGS plumbing today, so
+ * this is a plain #define here rather than a real -D build flag -- flip it
+ * off (comment out) to build tz-llm's own default chanmgr.srv/llama-cli
+ * image again. See boot_default_apps() below for what it actually gates.
+ * A proper build-flag mechanism can replace this later without changing
+ * the gating logic itself.
+ */
+#define METANODE_ONLY_BOOT
 #include <chcore/ipc.h>
 #include <chcore/launcher.h>
 #include <chcore/proc.h>
@@ -448,9 +458,29 @@ void *handler_thread_routine(void *arg)
 void boot_default_apps(void)
 {
 #ifdef CHCORE_OH_TEE
+    /*
+     * METANODE_ONLY_BOOT (2026-08-19, GĐ3 -- see
+     * metanode/note/tee_dual_mode_execution_plan.md §9.23): a metanode-only
+     * image launches mvm_launcher.srv (its own fully independent
+     * /mvm_ta supervisor -- see that binary's own main.c) INSTEAD OF
+     * chanmgr.srv, never both. This is the fix for a hardware-confirmed
+     * hazard: chanmgr.srv also launches llama-cli, whose own CA-side relay
+     * tooling and metanode's own CA-side relay both contend for the same
+     * single-slot-per-CPU usys_tee_wait_switch_req() rendezvous in the
+     * kernel -- running both concurrently crashed llama-cli outright
+     * (kernel BUG_ON). The two deployments are mutually exclusive by
+     * design; toggle at build time via -DMETANODE_ONLY_BOOT, default
+     * (undefined) preserves the exact original chanmgr.srv-only behavior.
+     */
+#ifdef METANODE_ONLY_BOOT
+    char *mvm_launcher_argv = "/mvm_launcher.srv";
+    procmgr_launch_process(1, &mvm_launcher_argv, "mvm_launcher", true,
+                            INIT_BADGE, NULL, COMMON_APP);
+#else
     char *chanmgr_argv = "/chanmgr.srv";
     procmgr_launch_process(
         1, &chanmgr_argv, "chanmgr", true, INIT_BADGE, NULL, COMMON_APP);
+#endif /* METANODE_ONLY_BOOT */
     /* Start OH-TEE gtask. */
     // char *gtask_argv = "/gtask.elf";
     // struct proc_node *gtask_node = procmgr_launch_process(

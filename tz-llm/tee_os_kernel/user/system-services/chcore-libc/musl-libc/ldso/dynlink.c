@@ -695,6 +695,13 @@ static void *map_library(int fd, struct dso *dso)
     ssize_t l = read(fd, buf, sizeof buf);
     eh = buf;
 
+#if CHCORE_GDB_AUTO_LOAD_LIB
+    printf("[map_library DBG1] l=%ld e_type=%d e_phnum=%d e_phentsize=%d\n",
+           (long)l, l >= (ssize_t)sizeof(*eh) ? (int)eh->e_type : -1,
+           l >= (ssize_t)sizeof(*eh) ? (int)eh->e_phnum : -1,
+           l >= (ssize_t)sizeof(*eh) ? (int)eh->e_phentsize : -1);
+#endif
+
     if (l < 0)
         return 0;
 
@@ -702,6 +709,10 @@ static void *map_library(int fd, struct dso *dso)
         goto noexec;
 
     phsize = eh->e_phentsize * eh->e_phnum;
+#if CHCORE_GDB_AUTO_LOAD_LIB
+    printf("[map_library DBG1b] phsize=%zu bufcap=%zu e_phoff=%lu l=%ld\n",
+           phsize, sizeof buf - sizeof *eh, (unsigned long)eh->e_phoff, (long)l);
+#endif
     if (phsize > sizeof buf - sizeof *eh) {
         allocated_buf = malloc(phsize);
         if (!allocated_buf)
@@ -756,6 +767,10 @@ static void *map_library(int fd, struct dso *dso)
         }
     }
 
+#if CHCORE_GDB_AUTO_LOAD_LIB
+    printf("[map_library DBG2] dyn=%#zx nsegs=%zu addr_min=%#zx addr_max=%#zx\n",
+           dyn, nsegs, addr_min, addr_max);
+#endif
     if (!dyn)
         goto noexec;
     if (DL_FDPIC && !(eh->e_flags & FDPIC_CONSTDISP_FLAG)) {
@@ -830,6 +845,10 @@ static void *map_library(int fd, struct dso *dso)
     // chcore_alloc_vaddr would return NULL if alloc failed, but MAP_FAILED
     // (-1) is used to indicate error here.
     map = map == NULL ? MAP_FAILED : map;
+#if CHCORE_GDB_AUTO_LOAD_LIB
+    printf("[map_library DBG3] map_len=%#zx map=%p (MAP_FAILED=%p)\n",
+           map_len, (void *)map, (void *)MAP_FAILED);
+#endif
 #else
     printf("CHCORE_LOADER warning: a temporary implementation.\n");
     map = mmap((void *)addr_min,
@@ -879,16 +898,25 @@ static void *map_library(int fd, struct dso *dso)
                 | ((ph->p_flags & PF_X) ? PROT_EXEC : 0));
         /* Reuse the existing mapping for the lowest-address LOAD */
 
+#if CHCORE_GDB_AUTO_LOAD_LIB
+        printf("[map_library DBG4] seg p_type=%d this_min=%#zx this_max=%#zx "
+               "pgbrk=%#zx off_start=%#lx filesz=%#lx memsz=%#lx base=%p\n",
+               ph->p_type, this_min, this_max, pgbrk, (long)off_start,
+               (long)ph->p_filesz, (long)ph->p_memsz, (void *)base);
+#endif
 #if CHCORE_MMAP == 1
         /* p: MapAddr, n: FileAddr-FileAddr */
         if (ph->p_filesz != 0) {
-            if (mmap_fixed(base + this_min,
+            void *r = mmap_fixed(base + this_min,
                         pgbrk - this_min,
                         prot,
                         MAP_PRIVATE | MAP_FIXED,
                         fd,
-                        off_start)
-                == MAP_FAILED) {
+                        off_start);
+#if CHCORE_GDB_AUTO_LOAD_LIB
+            printf("[map_library DBG5] mmap_fixed(main) -> %p errno=%d\n", r, errno);
+#endif
+            if (r == MAP_FAILED) {
                 goto error;
             }
         }
@@ -907,15 +935,19 @@ static void *map_library(int fd, struct dso *dso)
             /* dst: MapAddr, size: FileAddr-FileAddr */
             memset(base + brk, 0, pgbrk - brk & PAGE_SIZE - 1);
             /* FileAddr < FileAddr & p: MapAddr, n: FileAddr-FileAddr */
-            if (pgbrk < this_max
-                && mmap_fixed(base + pgbrk,
+            if (pgbrk < this_max) {
+                void *r2 = mmap_fixed(base + pgbrk,
                               (size_t)this_max - pgbrk,
                               prot,
                               MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS,
                               -1,
-                              0)
-                       == MAP_FAILED) {
-                goto error;
+                              0);
+#if CHCORE_GDB_AUTO_LOAD_LIB
+                printf("[map_library DBG6] mmap_fixed(bss) -> %p errno=%d\n", r2, errno);
+#endif
+                if (r2 == MAP_FAILED) {
+                    goto error;
+                }
             }
         }
     }
@@ -944,6 +976,9 @@ done_mapping:
 noexec:
     errno = ENOEXEC;
 error:
+#if CHCORE_GDB_AUTO_LOAD_LIB
+    printf("[map_library DBG_FAIL] reached error/noexec label, errno=%d\n", errno);
+#endif
     if (map != MAP_FAILED)
         unmap_library(dso);
     free(allocated_buf);

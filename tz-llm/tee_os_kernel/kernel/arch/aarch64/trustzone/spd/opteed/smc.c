@@ -183,6 +183,20 @@ unsigned long sys_tee_switch_req(struct smc_registers *regs_u)
     ret = copy_from_user(&regs_k, regs_u, sizeof(regs_k));
     BUG_ON(ret);
 
+    // DIAGNOSTIC (2026-08-18): unconditional, un-gated trace -- the
+    // existing [TZLLM_TRACE] print further down only fires INSIDE the
+    // not_first_smc[cpu]==true && x1==SMC_EXIT_SHADOW branch, so it is
+    // structurally silent for exactly the case under investigation here
+    // (does mvm_ta's push_pages() call get silently absorbed into the
+    // per-CPU "entry done" handshake instead of reaching the real
+    // SMC_EXIT_SHADOW path?). This prints regardless of which branch is
+    // about to be taken, with the inputs that decide it.
+    kinfo("[MVMDBG] sys_tee_switch_req entry: cpu=%d not_first_smc=%d "
+          "x1=%lx x2=%lx x3=%lx cap_group=%s\n",
+        smp_get_cpu_id(), (int)not_first_smc[smp_get_cpu_id()],
+        regs_k.x1, regs_k.x2, regs_k.x3,
+        current_thread ? current_thread->cap_group->cap_group_name : "?");
+
     bool enqueue = true;
 
     if (not_first_smc[smp_get_cpu_id()]) {

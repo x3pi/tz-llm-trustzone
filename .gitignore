@@ -43,5 +43,14 @@ scripts/kick-the-tires/cpp13-metanode-deps/libtbb.a
 scripts/kick-the-tires/cpp13-metanode-deps/libxapian.a
 scripts/kick-the-tires/cpp13-metanode-deps/libz.a
 scripts/kick-the-tires/cpp13-metanode-deps/mvm_ta_output/
+scripts/kick-the-tires/cpp13-metanode-deps/mvm_ta_output_*-old/
 scripts/kick-the-tires/cpp13-metanode-deps/tbb_include_tmp/
 scripts/kick-the-tires/cpp13-metanode-deps/xapian_include_tmp/
+scripts/kick-the-tires/cpp13-metanode-deps/cpp11-stage-extracted/
+scripts/kick-the-tires/cpp13-metanode-deps/xapian_zlib_pic_rebuild/
+scripts/kick-the-tires/cpp13-metanode-deps/old-noPIC-xapian-zlib-backup/
+
+# Full checkpoints backup archive (831MB, packaged via package_assets.sh) --
+# far too large for git, keep on disk only.
+checkpoints.7z
+tz-llm-untracked-assets.tar.gz

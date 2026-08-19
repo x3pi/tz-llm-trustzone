@@ -27,6 +27,22 @@ if(NOT DEFINED CPP13_ROOT)
   set(CPP13_ROOT /tmp/cpp13/aarch64)
 endif()
 
+# TLS-free <uuid/uuid.h> shim (metanode/execution/pkg/mvm/ta/uuid_shim) --
+# MUST resolve before the real libuuid header from MVM_3RDPARTY_ROOT/include
+# (added later via linker/CMakeLists.txt's target_include_directories), or
+# xapian_manager.cpp picks up the real libuuid's declarations with nothing
+# to link against (libuuid.a is deliberately NOT linked into mvm_ta -- see
+# uuid_shim/uuid/uuid.h's own doc comment for why: chcore's secure-world
+# loader rejects any ELF with a PT_TLS segment, and real libuuid's
+# uuid_generate_random() uses thread-local state internally). Confirmed via
+# a real failed build (2026-08-17) that relying on CMAKE_C_FLAGS/CXX_FLAGS
+# ordering alone does NOT reliably win this race -- include_directories()
+# calls from a target's own CMakeLists.txt can still resolve first depending
+# on generator. BEFORE here is the actual fix, not just a preference.
+if(DEFINED UUID_SHIM_DIR)
+  include_directories(BEFORE SYSTEM ${UUID_SHIM_DIR})
+endif()
+
 include_directories(SYSTEM
   ${CPP13_ROOT}/include/aarch64-linux-musleabi
   ${CPP13_ROOT}/include

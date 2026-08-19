@@ -22,6 +22,7 @@ echo "=== [1/4] configuring+building c_mvm (libmvm.a) ==="
 cmake -S "$PKG/mvm/c_mvm" -B "$C_MVM_BUILD" \
     -DCMAKE_TOOLCHAIN_FILE="$TC" \
     -DCPP13_ROOT="$CPP11" \
+    -DUUID_SHIM_DIR="$PKG/mvm/ta/uuid_shim" \
     -DMVM_INSTALL_PREFIX="$C_MVM_BUILD" \
     -DCMAKE_BUILD_TYPE=Release \
     -DBUILD_TESTS=OFF
@@ -35,6 +36,7 @@ mkdir -p "$LINKER_BUILD"
 cmake -S "$PKG/mvm/linker" -B "$LINKER_BUILD" \
     -DCMAKE_TOOLCHAIN_FILE="$TC" \
     -DCPP13_ROOT="$CPP11" \
+    -DUUID_SHIM_DIR="$PKG/mvm/ta/uuid_shim" \
     -DMVM_C_MVM_BUILD_DIR="$C_MVM_BUILD" \
     -DMVM_3RDPARTY_ROOT="$CPP11/3rdparty" \
     -DXAPIAN_INCLUDE_DIR=/home/vectorxj/xapian_include \
@@ -56,6 +58,15 @@ echo "=== [3/4] compiling mvm_ta_main.cpp ==="
 ls -la "$OUT/mvm_ta_main.o"
 
 echo "=== [4/4] final link -> mvm_ta ==="
+# -Wl,-z,text: FAIL LOUDLY at link time if any TEXTREL would be needed,
+# naming the exact object/symbol responsible, instead of silently
+# producing a DT_TEXTREL binary that chcore's secure-world loader then
+# rejects at runtime with the opaque "Not a valid dynamic program"
+# (root-caused 2026-08-17 via UART debug tracing of map_library() --
+# see plan doc §9.10 -- llama-cli's own binary has NO TEXTREL, confirmed
+# via readelf -d comparison). Diagnostic-only for this pass: if this
+# fails, read the error to find the culprit object, don't just remove
+# the flag to make the build "succeed" again.
 "$MUSL_GCC" -o "$OUT/mvm_ta" \
     "$OUT/mvm_ta_main.o" \
     -Wl,--start-group \
@@ -64,14 +75,14 @@ echo "=== [4/4] final link -> mvm_ta ==="
     "$CPP11/3rdparty/lib/libmpfr.a" \
     "$CPP11/3rdparty/lib/libgmp.a" \
     "$CPP11/3rdparty/lib/libsecp256k1.a" \
-    "$CPP11/3rdparty/lib/libuuid.a" \
     "$CPP11/3rdparty/lib/libblst.a" \
     /home/vectorxj/xapian_tbb_libs/libxapian.a \
     /home/vectorxj/xapian_tbb_libs/libtbb.a \
     /home/vectorxj/xapian_tbb_libs/libz.a \
     -Wl,--end-group \
     -L"$CPP11/lib" "$CPP11/lib/libstdc++.so" "$CPP11/lib/libgcc_s.so" \
-    -lpthread
+    -lpthread \
+    -Wl,-z,text 2>&1 | tee "$OUT/final_link_ztext.log"
 
 echo "=== stripping (avoid the 64MiB FIT-image overflow hit 2026-08-17) ==="
 "$MUSL_STRIP" --strip-all "$OUT/mvm_ta" 2>&1 || aarch64-linux-gnu-strip --strip-all "$OUT/mvm_ta"

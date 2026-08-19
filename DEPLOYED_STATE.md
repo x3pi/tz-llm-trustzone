@@ -3,7 +3,100 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-17, lần flash thứ 2): `mvm_ta` giờ có MVM_TZ_CMD_EXECUTE + state-change
+## MỚI NHẤT (2026-08-19/20): round-trip `MVM_TZ_CMD_EXECUTE` ĐẦU TIÊN THÀNH CÔNG — `mvm_launcher.srv` độc lập hoàn toàn khỏi `chanmgr`/`llama-cli`
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `b3060688de...`) là bản
+build **cuối cùng của một chuỗi ~10 vòng lặp fix/revert trong 1 phiên rất dài** — xem plan doc
+`metanode/note/tee_dual_mode_execution_plan.md` §9.22-9.23 cho toàn bộ diễn biến chi tiết. Tóm
+tắt kết quả cuối:
+
+**1. Root-cause thật của bug §9.13-9.15 (SMC bị nuốt / channel không bao giờ ready) đã được
+xác định lại hoàn toàn khác so với suy đoán trước đây**: KHÔNG phải do priming loop chưa đủ —
+mà do **`mvm_ta`'s luồng chờ boot-settle chạy ở priority mặc định (10) trong scheduler `pbrr`
+(ưu tiên tuyệt đối), triệt tiêu hoàn toàn 16 luồng idle priority-1 của `chanmgr`** — cơ chế
+duy nhất nhường CPU cho Normal World boot. Fix: `usys_set_prio(0, 1)` cho luồng chờ (xem
+memory `mvm-ta-normal-world-priority-starvation`) — Linux từ "không bao giờ boot" xuống
+**boot ổn định 13s, nhiều lần liên tiếp**.
+
+**2. Phát hiện kiến trúc thứ 2, quan trọng hơn**: `push_pages()` (SMC do TA tự khởi tạo) **về
+mặt cấu trúc không thể hoàn tất nếu không có một luồng Normal-World đang chủ động lặp gọi
+ioctl `LLM_CLIENT_IOCTL_RUN`** (`mvm_ca_test`'s relay thread, hoặc tương đương). Không phải
+vấn đề chờ đợi/priority — chờ bao lâu cũng vô ích nếu không có ai phục vụ.
+
+**3. Phát hiện + fix crash kernel thật**: `usys_tee_wait_switch_req()` có **đúng 1 chỗ chờ mỗi
+CPU** — `mvm_ta` và `llama-cli` cùng chờ trên cơ chế này (hoặc cả `mvm_ca_test`'s relay và
+`llama-cli`'s CA-side `fake_ca.cpp` relay cùng dùng `LLM_CLIENT_IOCTL_RUN`) → **kernel
+`BUG_ON(percpu->waiting_thread)`, treo cứng board**. Xem memory
+`usys-tee-wait-switch-req-percpu-crash`. **Không bao giờ gọi lại primitive này từ `mvm_ta`.**
+
+**4. Fix kiến trúc triệt để (theo yêu cầu người dùng)**: tạo `mvm_launcher.srv` — binary hoàn
+toàn độc lập, riêng biệt (`tee_os_kernel/user/system-services/system-servers/mvm_launcher/`),
+launch trực tiếp từ `procmgr.c`'s `boot_default_apps()` (KHÔNG qua `chanmgr/main.c` nữa —
+`chanmgr/main.c` đã revert về nguyên trạng, không còn code metanode nào). Cờ `#define
+METANODE_ONLY_BOOT` trong `procmgr.c` chọn launch `mvm_launcher.srv` (metanode-only, không có
+`llama-cli`) THAY VÌ `chanmgr.srv` — 2 deployment loại trừ lẫn nhau, không còn xung đột ioctl.
+**Đổi lại (comment ra `#define`) để build về chế độ `tz-llm` gốc khi cần.**
+
+**Xác nhận cuối cùng trên UART + `mvm_ca_test` qua `hdc`**:
+```
+[procmgr] Launching mvm_launcher...
+main 56: mvm_launcher main entry
+main 74: launched metanode TA, pid=4
+[mvm_ta] push_pages succeeded on attempt #3 (entry_index=0, entry.size verified)
+[mvm_ta] channel ready: cma_index=1 entry_index=0 paddr=0x150000000 vaddr=0x300002aac000 size=0x401000
+```
+```
+[mvm_ca_test] mapped OK. protocol_version=1 (want 1)
+[mvm_ca_test] sending MVM_TZ_CMD_EXECUTE: sender=0x11..11 recipient=0x22..22 amount=100wei
+[mvm_ca_test] reverse call cmd=2 header_len=136 blob_len=136
+[mvm_ca_test] FATAL: unhandled reverse cmd=2 -- aborting cleanly instead of hanging mvm_ta forever
+```
+Reverse-call cmd=2 chưa xử lý là giới hạn của `mvm_ca_test` (công cụ test), KHÔNG phải lỗi
+`mvm_ta` — `mvm_ta` không crash, không treo. Đây là round-trip `MVM_TZ_CMD_EXECUTE` **đầu
+tiên thành công trong toàn bộ lịch sử project**.
+
+**CẬP NHẬT (cùng ngày, ngay sau đó): round-trip EVM execution ĐÚNG kết quả, hoàn chỉnh**
+
+"reverse cmd=2" ở trên hoá ra KHÔNG phải reverse call thật — là bug race condition trong chính
+`mvm_ca_test.cpp`: CA tự set `request_ready`/`response_ready` cho tin nhắn CỦA CHÍNH NÓ rồi vòng
+poll ngay sau đó tự đọc lại và tưởng nhầm là tín hiệu từ TA (thiếu kiểm tra `direction` trước khi
+consume qua CAS) — sửa xong (`metanode/execution/pkg/mvm/ta/ca_test/mvm_ca_test.cpp`, build lại
+bằng `aarch64-linux-gnu-g++ -static`, binary mới `/data/ssd/mvm_ca_test_v2` trên board), kết quả
+round-trip **hoàn chỉnh và ĐÚNG về ngữ nghĩa EVM**:
+```
+=== ExecuteResult ===
+status=1 exception=0 gas_used=0
+add_balance_change: 0x2222...2222 += 100   (recipient)
+sub_balance_change: 0x1111...1111 -= 100   (sender)
+nonce_change:       0x1111...1111 nonce=1  (sender)
+```
+Đúng chuẩn native transfer: trừ sender, cộng recipient, tăng nonce sender. 2 vòng reverse-call
+`GLOBAL_STATE_GET` (cmd=101, cho cả sender/recipient) xử lý sạch, `mvm_ta` không crash/treo.
+
+**Việc tiếp theo**: mở rộng `mvm_ca_test`/CA thật xử lý đủ 6 reverse cmd (mới có 2/6:
+`GLOBAL_STATE_GET`, `GET_STORAGE_VALUE`); sau đó Xapian file-I/O trong TA (chưa bắt đầu, rủi ro
+cao nhất còn lại — xem plan doc Giai đoạn 3).
+
+## 2026-08-18, cuối phiên dài (LỊCH SỬ — đã bị fix ở trên thay thế): `mvm_ta` qua được 2 bug đầu, KẸT ở bug thứ 3 (SMC bị nuốt)
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `e32ff4f5...`) là bản build
+**có cả 2 fix đã xác nhận đúng** (boot-ordering race `g_tzasc_cma_meta_paddr` — §9.10/9.11 plan
+doc; thứ tự `push_pages()`/`usys_map_tzasc_cma_meta()` — §9.12) **cộng với 1 fix CHƯA đủ, đã
+xác nhận BỊ KẸT** (`not_first_smc[cpu]` priming loop 24 lần + chờ 25s thực trước
+`push_pages()` thật — §9.13/9.14 plan doc). Lần test cuối cùng của phiên: UART cho thấy
+`mvm_ta` bị kẹt vĩnh viễn giữa chừng vòng lặp mồi (im lặng hoàn toàn dù log tổng tăng thêm
+2000+ dòng) — một trong các lệnh SMC mồi bị "nuốt" bởi `tzdriver`'s `llm_tee_os_init()` boot-
+probe loop (code driver dùng chung với `llama-cli`, KHÔNG sửa trong phiên này theo đúng
+nguyên tắc tách biệt dự án).
+
+**Trước khi tiếp tục ở phiên sau**: power-cycle board, đọc UART thật để xác nhận trạng thái
+(đừng giả định từ tên file) — bug này không tự khỏi, có xác suất kẹt cao mỗi lần boot (đã kẹt
+ở lần test cuối). `mvm_ca_test` (đã có relay-thread đúng, push tại `/data/ssd/mvm_ca_test`)
+vẫn CHƯA từng hoàn thành round-trip `MVM_TZ_CMD_EXECUTE` nào — channel setup chưa bao giờ
+thành công tới cuối. Xem plan doc `metanode/note/tee_dual_mode_execution_plan.md` §9.9-9.15
+cho toàn bộ diễn biến/nguyên nhân/hướng đi tiếp theo.
+
+## 2026-08-17, lần flash thứ 2 (LỊCH SỬ — đã bị build mới hơn thay thế): `mvm_ta` giờ có MVM_TZ_CMD_EXECUTE + state-change
 
 `checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `811c6690...`) là bản build
 **thứ 2** trong ngày — thêm `MVM_TZ_CMD_EXECUTE` (lệnh xử lý tx THẬT, dùng cho block

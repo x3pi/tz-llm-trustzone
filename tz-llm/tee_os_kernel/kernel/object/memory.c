@@ -19,6 +19,7 @@
 #include <common/lock.h>
 #include <common/util.h>
 #include <arch/mmu.h>
+#include <arch/sync.h>
 #include <object/user_fault.h>
 #include <syscall/syscall_hooks.h>
 #include <arch/mm/cache.h>
@@ -844,8 +845,31 @@ paddr_t g_tzasc_cma_meta_paddr = 0;
 
 void tzasc_cma_meta_init(unsigned long tzasc_cma_meta_paddr)
 {
-    kinfo("%s with paddr %p\n", __func__, (void *)tzasc_cma_meta_paddr);
+    kinfo("[MVMDBG] %s with paddr %p on CPU %d, &g_tzasc_cma_meta_paddr=%p\n",
+        __func__, (void *)tzasc_cma_meta_paddr, smp_get_cpu_id(),
+        (void *)&g_tzasc_cma_meta_paddr);
     g_tzasc_cma_meta_paddr = tzasc_cma_meta_paddr;
+    // RETRACTED 2026-08-18: the comment that used to be here claimed this
+    // was a cross-core cache-coherence bug (CPU 0's write not visible to
+    // CPU 1). That theory was wrong -- confirmed by comparing this
+    // function's own UART timestamp (kernel uptime ~50s, well after
+    // "Booting Linux on physical CPU") against the reader's: mvm_ta is
+    // launched synchronously and unconditionally from chanmgr/main.c
+    // *before* Normal World/REE exists at all (see that file's comments),
+    // so its read in sys_map_tzasc_cma_meta() races tens of *seconds*
+    // ahead of this write, not a handful of cache lines behind it on
+    // another core. Reading 0 was always the honest value of a variable
+    // this function hadn't run yet, on every single boot -- explaining
+    // why neither smp_wmb/smp_rmb nor the arch_flush_cache pair below
+    // ever changed the outcome; there was never a stale-cache value to
+    // fix. The real fix is on the reader side (sys_map_tzasc_cma_meta
+    // now returns -EAGAIN instead of BUG_ON so userspace can retry once
+    // this write has actually happened). The cache maintenance itself is
+    // harmless and left in place (correct practice for genuinely shared
+    // cross-core state), just no longer load-bearing for this bug.
+    arch_flush_cache((vaddr_t)&g_tzasc_cma_meta_paddr, sizeof(g_tzasc_cma_meta_paddr), CACHE_CLEAN);
+    kinfo("[MVMDBG] %s wrote g_tzasc_cma_meta_paddr, read-back=%p\n",
+        __func__, (void *)g_tzasc_cma_meta_paddr);
 
     tzasc_cma_meta = (struct tzasc_cma_meta *)TZASC_CMA_META_VADDR;
     int i, ret;
@@ -889,7 +913,60 @@ int sys_map_tzasc_cma_meta(unsigned long vaddr)
         goto out;
     }
 
-    BUG_ON(g_tzasc_cma_meta_paddr == 0);
+    // Real root cause, confirmed live on hardware 2026-08-18 (not the
+    // cross-core cache-visibility theory this comment used to describe --
+    // that theory was wrong; see tzasc_cma_meta_init()'s comment for the
+    // full retraction). This is a plain BOOT-ORDERING RACE, not a
+    // visibility bug: chanmgr/main.c launches mvm_ta synchronously,
+    // unconditionally, before llama-cli and (per that file's own comments
+    // on the llama-cli launch-order bug it mirrors) before Normal World
+    // /REE exists at all. g_tzasc_cma_meta_paddr is only ever written by
+    // tzasc_cma_meta_init(), itself only reachable from the FIRST
+    // Normal-World-*initiated* yielding SMC (handle_yield_smc()) -- which
+    // structurally cannot happen before Linux has booted far enough to
+    // issue one. Live UART evidence: mvm_ta's own read consistently lands
+    // *before* the "Booting Linux on physical CPU" banner, while the
+    // matching write consistently lands at kernel uptime ~50s, tens of
+    // seconds later. Reading exactly 0 here is therefore not stale/wrong
+    // data racing a concurrent writer -- it is the honest static-init
+    // value of a variable nothing has written yet. No barrier or cache
+    // trick can fix a write that hasn't happened yet, which is exactly
+    // why smp_wmb/smp_rmb and explicit arch_flush_cache both failed to
+    // change the outcome despite being individually correct in isolation.
+    // Fix: don't BUG_ON -- return -EAGAIN so the (already cache-boundary
+    // -aware, that maintenance is harmless to keep) caller can poll/sleep
+    // and retry until the real write has actually landed.
+    arch_flush_cache((vaddr_t)&g_tzasc_cma_meta_paddr, sizeof(g_tzasc_cma_meta_paddr), CACHE_INVALIDATE);
+    // THROTTLED (2026-08-18, same-day regression fix): this print used to
+    // fire unconditionally on every call, harmless when the caller's own
+    // retry loop was nanosleep()-paced (300 calls total, worst case). The
+    // caller was since switched to a plain usys_yield() spin (that
+    // nanosleep()-based version was found to hang/never-return this early
+    // in boot -- see mvm_ta_main.cpp's retry loop comment), which calls
+    // this syscall as fast as the CPU can go -- confirmed live on
+    // hardware: tens of thousands of these lines per second, synchronous
+    // printk over a slow UART console, exactly the "printk flooding ->
+    // soft lockup" hazard tc_client_driver.c's own [TZLLM_TRACE] prints
+    // already had to be rate-limited for (see io_poll_ctr there). Same
+    // fix here: only print every Nth call, still frequent enough to
+    // prove liveness without threatening to starve the very Normal-World
+    // boot progress this call is waiting on.
+    {
+        static int throttle_ctr = 0;
+        if ((++throttle_ctr % 200000) == 1) {
+            kinfo("[MVMDBG] sys_map_tzasc_cma_meta on CPU %d, g_tzasc_cma_meta_paddr=%p, "
+                  "&g_tzasc_cma_meta_paddr=%p, thread=%p, cap_group=%s (call #%d)\n",
+                smp_get_cpu_id(), (void *)g_tzasc_cma_meta_paddr,
+                (void *)&g_tzasc_cma_meta_paddr, current_thread,
+                current_thread ? current_thread->cap_group->cap_group_name : "?",
+                throttle_ctr);
+        }
+    }
+    if (g_tzasc_cma_meta_paddr == 0) {
+        obj_put(vmspace);
+        ret = -EAGAIN;
+        goto out;
+    }
     lock(&vmspace->pgtbl_lock);
     ret = map_range_in_pgtbl(
         vmspace->pgtbl,
