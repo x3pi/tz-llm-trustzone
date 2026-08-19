@@ -73,9 +73,18 @@ nonce_change:       0x1111...1111 nonce=1  (sender)
 Đúng chuẩn native transfer: trừ sender, cộng recipient, tăng nonce sender. 2 vòng reverse-call
 `GLOBAL_STATE_GET` (cmd=101, cho cả sender/recipient) xử lý sạch, `mvm_ta` không crash/treo.
 
-**Việc tiếp theo**: mở rộng `mvm_ca_test`/CA thật xử lý đủ 6 reverse cmd (mới có 2/6:
-`GLOBAL_STATE_GET`, `GET_STORAGE_VALUE`); sau đó Xapian file-I/O trong TA (chưa bắt đầu, rủi ro
-cao nhất còn lại — xem plan doc Giai đoạn 3).
+**CẬP NHẬT (cùng ngày): đủ 6/6 reverse-call, round-trip lặp lại lần 2 KHÔNG cần reboot**
+`mvm_ca_test` giờ xử lý đủ 6 reverse cmd (4 cái mới trả "empty nhưng hợp lệ", không giả dữ
+liệu). Chạy lại `MVM_TZ_CMD_EXECUTE` lần 2 trên board đang chạy sẵn (không reboot) — thành
+công, `seq` tăng đúng, kết quả giống hệt lần đầu — xác nhận `mvm_ta`'s dispatch loop chính bền
+vững qua nhiều lệnh.
+
+**Phát hiện cần làm rõ**: `mvm_tz_protocol.h` có comment nói Xapian-trong-TA đã dùng
+"InMemory-backend, confirmed working end to end 2026-08-16" — mâu thuẫn với đánh giá "chưa
+triển khai" trước đó trong session. Cần điều tra trước khi lập kế hoạch Giai đoạn 3.
+
+**Việc tiếp theo**: làm rõ mâu thuẫn Xapian ở trên; viết test EXECUTE có gọi contract code
+thật để exercise storage/extension reverse-call với dữ liệu thật.
 
 ## 2026-08-18, cuối phiên dài (LỊCH SỬ — đã bị fix ở trên thay thế): `mvm_ta` qua được 2 bug đầu, KẸT ở bug thứ 3 (SMC bị nuốt)
 
