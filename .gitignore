@@ -71,3 +71,5 @@ tz-llm/evm-tee/evm-ta/build_tee/
 tools/uart/log.txt
 scripts/kick-the-tires/evm-ta
 checkpoints/evm-ca
+checkpoints/evm-ca
+checkpoints/evm-ca
