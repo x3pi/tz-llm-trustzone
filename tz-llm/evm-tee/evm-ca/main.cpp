@@ -6,11 +6,16 @@
 #include <sys/ioctl.h>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
+#include <nlohmann/json.hpp>
 
 #include "test_bytecode.h"
+
+using json = nlohmann::json;
 
 #define DEVICE_NAME "/dev/tc_ns_client"
 #define TC_NS_CLIENT_IOC_MAGIC  't'
@@ -30,7 +35,9 @@ std::string extract_address(const std::string& res) {
     return addr;
 }
 
-std::string hex_to_ascii(const std::string& hex) {
+std::string hex_to_ascii(const std::string& hex_raw) {
+    std::string hex = hex_raw;
+    if (hex.rfind("0x", 0) == 0 || hex.rfind("0X", 0) == 0) hex = hex.substr(2);
     std::string text;
     for (size_t i = 0; i + 1 < hex.length(); i += 2) {
         std::string byte_str = hex.substr(i, 2);
@@ -41,11 +48,49 @@ std::string hex_to_ascii(const std::string& hex) {
             text += ' ';
         }
     }
-    // Trim trailing spaces
     while (!text.empty() && text.back() == ' ') {
         text.pop_back();
     }
     return text;
+}
+
+uint64_t hex_to_uint64(const std::string& hex_raw) {
+    std::string hex = hex_raw;
+    if (hex.rfind("0x", 0) == 0 || hex.rfind("0X", 0) == 0) hex = hex.substr(2);
+    if (hex.empty()) return 0;
+    return strtoull(hex.c_str(), NULL, 16);
+}
+
+inline uint64_t get_json_uint64(const json& j, const std::string& key, uint64_t default_val = 0) {
+    if (j.find(key) == j.end() || j[key].is_null()) return default_val;
+    if (j[key].is_number()) return j[key].get<uint64_t>();
+    if (j[key].is_string()) {
+        std::string s = j[key].get<std::string>();
+        if (s.rfind("0x", 0) == 0 || s.rfind("0X", 0) == 0) {
+            return std::strtoull(s.c_str(), nullptr, 16);
+        }
+        return std::strtoull(s.c_str(), nullptr, 10);
+    }
+    return default_val;
+}
+
+inline int get_json_int(const json& j, const std::string& key, int default_val = 0) {
+    if (j.find(key) == j.end() || j[key].is_null()) return default_val;
+    if (j[key].is_number()) return j[key].get<int>();
+    if (j[key].is_string()) {
+        std::string s = j[key].get<std::string>();
+        if (s.rfind("0x", 0) == 0 || s.rfind("0X", 0) == 0) {
+            return (int)std::strtol(s.c_str(), nullptr, 16);
+        }
+        return std::atoi(s.c_str());
+    }
+    return default_val;
+}
+
+inline std::string get_json_str(const json& j, const std::string& key, const std::string& default_val = "") {
+    if (j.find(key) == j.end() || j[key].is_null()) return default_val;
+    if (j[key].is_string()) return j[key].get<std::string>();
+    return j[key].dump();
 }
 
 struct TestResult {
@@ -83,183 +128,366 @@ int main(int argc, char *argv[]) {
         int out_cmd;
         ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
         
-        // Handle TEE double-yield bug
+        // Handle potential TEE double-yield timing
         if (strncmp(mapped_mem, cmd.c_str(), SHM_SIZE) == 0) {
             ioctl(fd, LLM_CLIENT_IOCTL_RUN, fd, &out_cmd);
         }
         return std::string(mapped_mem);
     };
 
+    auto send_tx = [&](const json& req) -> json {
+        std::string cmd = req.dump();
+        std::string res_str = send_command(cmd);
+        try {
+            return json::parse(res_str);
+        } catch (...) {
+            json err_json;
+            err_json["status"] = -1;
+            err_json["status_str"] = "RAW_ERROR";
+            err_json["raw_response"] = res_str;
+            return err_json;
+        }
+    };
+
+    // Check for JSON file execution mode (-f <filename>)
+    if (mode == "-f" || mode == "--file") {
+        if (sub_mode.empty()) {
+            std::cerr << "Usage: " << argv[0] << " -f <tx.json>" << std::endl;
+            close(fd);
+            return 1;
+        }
+        std::ifstream f(sub_mode);
+        if (!f.is_open()) {
+            std::cerr << "Error: Cannot open file " << sub_mode << std::endl;
+            close(fd);
+            return 1;
+        }
+        json tx_req;
+        f >> tx_req;
+        std::cout << "[EVM-CA] Sending transaction from " << sub_mode << "..." << std::endl;
+        json res = send_tx(tx_req);
+        std::cout << res.dump(2) << std::endl;
+        close(fd);
+        return 0;
+    }
+
+    // Check for raw JSON string execution directly from command-line argument
+    if (!mode.empty() && mode[0] == '{') {
+        try {
+            json tx_req = json::parse(mode);
+            std::cout << "[EVM-CA] Executing direct JSON transaction..." << std::endl;
+            json res = send_tx(tx_req);
+            std::cout << res.dump(2) << std::endl;
+            close(fd);
+            return 0;
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid JSON input: " << e.what() << std::endl;
+            close(fd);
+            return 1;
+        }
+    }
+
     if (is_test_mode) {
-        std::cout << "\n=======================================================" << std::endl;
-        std::cout << "🦊 [EVM-CA] TEE EVM TrustZone Test Suite & Pipeline" << std::endl;
-        std::cout << "=======================================================" << std::endl;
+        std::cout << "\n=======================================================================" << std::endl;
+        std::cout << "🦊 [EVM-CA] TEE EVM TrustZone Comprehensive Test Suite & Pipeline" << std::endl;
+        std::cout << "=======================================================================" << std::endl;
         
-        // Query Wallet Information
-        std::string wallet_info = send_command("WALLET");
-        std::cout << "[WALLET] " << wallet_info << "\n" << std::endl;
+        // Query initial wallet status via JSON
+        json wallet_req;
+        wallet_req["action"] = "wallet";
+        wallet_req["from"] = TEST_SENDER;
+        json wallet_res = send_tx(wallet_req);
+        std::cout << "[METANODE DEV WALLET] " << TEST_SENDER << std::endl;
+        if (wallet_res.find("balance") != wallet_res.end()) {
+            std::cout << "  ↳ Balance: " << get_json_str(wallet_res, "balance", "0x0")
+                      << " | Nonce: " << get_json_uint64(wallet_res, "nonce", 0) << "\n" << std::endl;
+        }
 
         std::vector<TestResult> results;
 
-        bool run_basic = (sub_mode.empty() || sub_mode == "all" || sub_mode == "basic" || sub_mode == "full");
-        bool run_xapian_pipeline = (sub_mode.empty() || sub_mode == "all" || sub_mode == "xapian" || sub_mode == "full");
+        bool run_blockchain = (sub_mode.empty() || sub_mode == "all" || sub_mode == "blockchain" || sub_mode == "real");
+        bool run_basic = (sub_mode.empty() || sub_mode == "all" || sub_mode == "basic" || sub_mode == "legacy");
+        bool run_xapian = (sub_mode.empty() || sub_mode == "all" || sub_mode == "xapian");
 
+        // =====================================================================
+        // [SUITE 1] Real Metanode Blockchain Contract Pipeline (Deploy, Write, Read)
+        // =====================================================================
+        if (run_blockchain) {
+            std::cout << "=======================================================================" << std::endl;
+            std::cout << "--- [SUITE 1] Real Blockchain Smart Contract Pipeline (data.json) ---" << std::endl;
+            std::cout << "=======================================================================" << std::endl;
+
+            std::string deployed_normal_contract = "";
+
+            // Task 1: Deploy Normal-Test Contract (1006 bytes bytecode)
+            {
+                std::cout << "\n[TX #1] 🚀 [DEPLOY] Deploying Normal-Test Contract from " << TEST_SENDER << "..." << std::endl;
+                json req;
+                req["action"] = "deploy";
+                req["from"] = TEST_SENDER;
+                req["input"] = BYTECODE_NORMAL_TEST;
+                req["gas_price"] = 100000;
+                req["gas_limit"] = 603164;
+                req["block_number"] = 1;
+                req["block_time"] = 1787106694;
+                req["read_only"] = false;
+                req["is_off_chain"] = false;
+                req["is_cache"] = true;
+
+                json res = send_tx(req);
+                int status = get_json_int(res, "status", -1);
+                uint64_t gas_used = get_json_uint64(res, "gas_used", 0);
+                std::cout << "  ↳ Status: " << get_json_str(res, "status_str", "UNKNOWN")
+                          << " (status=" << status << ")" << std::endl;
+                std::cout << "  ↳ Gas Used: " << gas_used << std::endl;
+
+                deployed_normal_contract = get_json_str(res, "contract_address", "");
+                std::cout << "  ↳ Deployed Contract Address: " << deployed_normal_contract << std::endl;
+
+                if (res.find("mapNonce") != res.end()) {
+                    std::cout << "  ↳ Nonce Updates: " << res["mapNonce"].dump() << std::endl;
+                }
+
+                bool deploy_ok = ((status == 0 || status == 1) && !deployed_normal_contract.empty() && deployed_normal_contract != "0x0000000000000000000000000000000000000000");
+                if (deploy_ok) {
+                    std::cout << "  ↳ Task 1 (DEPLOY) Verification: ✅ PASSED (Gas: " << gas_used << ")" << std::endl;
+                    results.push_back({"[Real Chain] Deploy Normal-Test Contract", true, "Addr: " + deployed_normal_contract + ", Gas: " + std::to_string(gas_used)});
+                } else {
+                    std::cout << "  ↳ ❌ Task 1 (DEPLOY) FAILED: " << get_json_str(res, "exmsg", "Unknown error") << std::endl;
+                    results.push_back({"[Real Chain] Deploy Normal-Test Contract", false, res.dump()});
+                }
+            }
+
+            // Task 2: Write setValue(9999) -> 0x55241077...270f
+            if (!deployed_normal_contract.empty()) {
+                std::cout << "\n[TX #2] ✍️ [WRITE] Calling setValue(9999) on " << deployed_normal_contract << "..." << std::endl;
+                json req;
+                req["action"] = "write";
+                req["from"] = TEST_SENDER;
+                req["to"] = deployed_normal_contract;
+                req["input"] = CALLDATA_SET_VALUE_9999;
+                req["gas_price"] = 100000;
+                req["gas_limit"] = 152952;
+                req["block_number"] = 2;
+                req["block_time"] = 1787106694;
+                req["read_only"] = false;
+                req["is_off_chain"] = false;
+                req["is_cache"] = true;
+
+                json res = send_tx(req);
+                int status = get_json_int(res, "status", -1);
+                uint64_t gas_used = get_json_uint64(res, "gas_used", 0);
+                std::cout << "  ↳ Status: " << get_json_str(res, "status_str", "UNKNOWN")
+                          << " (status=" << status << ")" << std::endl;
+                std::cout << "  ↳ Gas Used: " << gas_used << std::endl;
+
+                // Inspect Storage Changes
+                bool storage_ok = false;
+                if (res.find("mapStorageChange") != res.end()) {
+                    std::cout << "  ↳ Storage Changes: " << res["mapStorageChange"].dump() << std::endl;
+                    std::string st_str = res["mapStorageChange"].dump();
+                    if (st_str.find("270f") != std::string::npos) {
+                        storage_ok = true;
+                    }
+                }
+
+                // Inspect Event Logs
+                bool event_ok = false;
+                if (res.find("event_logs") != res.end() && res["event_logs"].is_array() && !res["event_logs"].empty()) {
+                    std::cout << "  ↳ Event Logs Emitted (" << res["event_logs"].size() << "):" << std::endl;
+                    for (const auto& log : res["event_logs"]) {
+                        std::cout << "     - Address: " << get_json_str(log, "address", "") << std::endl;
+                        if (log.find("topics") != log.end()) {
+                            std::cout << "       Topics: " << log["topics"].dump() << std::endl;
+                            std::string top_str = log["topics"].dump();
+                            if (top_str.find("b485dddf") != std::string::npos) {
+                                event_ok = true;
+                            }
+                        }
+                        std::cout << "       Data: " << get_json_str(log, "data", "") << std::endl;
+                    }
+                }
+
+                bool write_ok = ((status == 0 || status == 1) && storage_ok && event_ok);
+                if (write_ok) {
+                    std::cout << "  ↳ Task 2 (WRITE setValue) Verification: ✅ PASSED (Gas: " << gas_used << ", Slot0: 0x270f, Event: ValueChanged)" << std::endl;
+                    results.push_back({"[Real Chain] Write setValue(9999)", true, "Gas: " + std::to_string(gas_used) + ", Event Emitted"});
+                } else {
+                    std::cout << "  ↳ ❌ Task 2 (WRITE setValue) FAILED: " << get_json_str(res, "exmsg", "Unknown error") << std::endl;
+                    results.push_back({"[Real Chain] Write setValue(9999)", false, res.dump()});
+                }
+            }
+
+            // Task 3: Read getValue() -> 0x20965255 (eth_call simulation: read_only=true, is_off_chain=true)
+            if (!deployed_normal_contract.empty()) {
+                std::cout << "\n[TX #3] 🔍 [READ] Calling getValue() (eth_call simulation) on " << deployed_normal_contract << "..." << std::endl;
+                json req;
+                req["action"] = "read";
+                req["from"] = TEST_SENDER;
+                req["to"] = deployed_normal_contract;
+                req["input"] = CALLDATA_GET_VALUE;
+                req["gas_price"] = 100000;
+                req["gas_limit"] = 10000000;
+                req["block_number"] = 2;
+                req["block_time"] = 1787106694;
+                req["read_only"] = true;
+                req["is_off_chain"] = true;
+                req["is_cache"] = true;
+
+                json res = send_tx(req);
+                int status = get_json_int(res, "status", -1);
+                std::cout << "  ↳ Status: " << get_json_str(res, "status_str", "UNKNOWN")
+                          << " (status=" << status << ")" << std::endl;
+                std::string output_hex = get_json_str(res, "output", "");
+                std::cout << "  ↳ Raw Hex Output: " << output_hex << std::endl;
+
+                uint64_t returned_val = hex_to_uint64(output_hex);
+                std::cout << "  ↳ Decoded Return Value: " << returned_val << " (Expected: 9999)" << std::endl;
+
+                bool read_ok = ((status == 0 || status == 1) && returned_val == 9999);
+                if (read_ok) {
+                    std::cout << "  ↳ Task 3 (READ getValue) Verification: ✅ PASSED (Return: 9999)" << std::endl;
+                    results.push_back({"[Real Chain] Read getValue() (eth_call)", true, "Returned: 9999 (0x270f)"});
+                } else {
+                    std::cout << "  ↳ ❌ Task 3 (READ getValue) FAILED: " << get_json_str(res, "exmsg", "Output mismatch") << std::endl;
+                    results.push_back({"[Real Chain] Read getValue() (eth_call)", false, res.dump()});
+                }
+            }
+        }
+
+        // =====================================================================
+        // [SUITE 2] Basic 42 EVM Contract Test
+        // =====================================================================
         if (run_basic) {
-            std::cout << "--- [SUITE 1] Basic 42 EVM Contract Test ---" << std::endl;
-            
-            // 1. Deploy Basic 42 Contract
-            std::cout << "[TX #1] 🚀 Deploying Basic 42 Contract from Wallet..." << std::endl;
-            std::string deploy_basic_cmd = "DEPLOY:" + BYTECODE_BASIC_42;
-            std::string res1 = send_command(deploy_basic_cmd);
+            std::cout << "\n=======================================================================" << std::endl;
+            std::cout << "--- [SUITE 2] Basic 42 EVM Contract Test ---" << std::endl;
+            std::cout << "=======================================================================" << std::endl;
+
+            // Deploy Basic 42
+            std::cout << "\n[TX #4] 🚀 Deploying Basic 42 Contract from Wallet..." << std::endl;
+            std::string res1 = send_command("DEPLOY:" + BYTECODE_BASIC_42);
             std::cout << "  ↳ Result: " << res1 << std::endl;
             
             if (res1.find("SUCCESS") == std::string::npos) {
                 std::cout << "❌ [TEST] FAILED to deploy Basic contract." << std::endl;
-                results.push_back({"TX #1: Deploy Basic 42", false, res1});
+                results.push_back({"Deploy Basic 42", false, res1});
             } else {
                 std::string basic_addr = extract_address(res1);
                 std::cout << "  ↳ Derived Contract Address: " << basic_addr << std::endl;
-                results.push_back({"TX #1: Deploy Basic 42", true, "Addr: " + basic_addr});
+                results.push_back({"Deploy Basic 42", true, "Addr: " + basic_addr});
 
-                // 2. Call Basic 42 Contract
-                std::cout << "[TX #2] 📞 Calling Basic Contract at " << basic_addr << "..." << std::endl;
-                std::string call_basic_cmd = "CALL:" + basic_addr + ":00";
-                std::string res2 = send_command(call_basic_cmd);
+                // Call Basic 42
+                std::cout << "\n[TX #5] 📞 Calling Basic Contract at " << basic_addr << "..." << std::endl;
+                std::string res2 = send_command("CALL:" + basic_addr + ":00");
                 std::cout << "  ↳ Result: " << res2 << std::endl;
 
                 if (res2.find("SUCCESS") != std::string::npos && res2.find("2a") != std::string::npos) {
                     std::cout << "  ↳ Output Verification: 42 (0x2a) ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #2: Call Basic 42", true, "Output: 0x2a (42)"});
+                    results.push_back({"Call Basic 42", true, "Output: 0x2a (42)"});
                 } else {
                     std::cout << "❌ [TEST] FAILED: Output did not match expected '0x2a'.\n" << std::endl;
-                    results.push_back({"TX #2: Call Basic 42", false, res2});
+                    results.push_back({"Call Basic 42", false, res2});
                 }
             }
+        }
 
-            std::cout << "--- [SUITE 2] Xapian Counter Contract (Precompile 0x107) ---" << std::endl;
+        // =====================================================================
+        // [SUITE 3] Xapian Counter Contract (Precompile 0x107)
+        // =====================================================================
+        if (run_xapian) {
+            std::cout << "\n=======================================================================" << std::endl;
+            std::cout << "--- [SUITE 3] Xapian Counter Contract (Precompile 0x107) ---" << std::endl;
+            std::cout << "=======================================================================" << std::endl;
 
-            // 3. Deploy Xapian SharedUpdate Contract
-            std::cout << "[TX #3] 🚀 Deploying SharedUpdate Contract..." << std::endl;
-            std::string deploy_shared_cmd = "DEPLOY:" + BYTECODE_SHARED_UPDATE;
-            std::string res3 = send_command(deploy_shared_cmd);
+            std::cout << "\n[TX #6] 🚀 Deploying SharedUpdate Contract..." << std::endl;
+            std::string res3 = send_command("DEPLOY:" + BYTECODE_SHARED_UPDATE);
             std::cout << "  ↳ Result: " << res3 << std::endl;
             
             if (res3.find("SUCCESS") == std::string::npos) {
                 std::cout << "❌ [TEST] FAILED to deploy SharedUpdate contract." << std::endl;
-                results.push_back({"TX #3: Deploy SharedUpdate", false, res3});
+                results.push_back({"Deploy SharedUpdate", false, res3});
             } else {
                 std::string shared_addr = extract_address(res3);
                 std::cout << "  ↳ Derived Contract Address: " << shared_addr << std::endl;
-                results.push_back({"TX #3: Deploy SharedUpdate", true, "Addr: " + shared_addr});
+                results.push_back({"Deploy SharedUpdate", true, "Addr: " + shared_addr});
                 
-                // 4. Call initializeDoc()
-                std::cout << "[TX #4] 📝 Calling initializeDoc() on " << shared_addr << "..." << std::endl;
-                std::string call_init = "CALL:" + shared_addr + ":b4340bbe";
-                std::string res_init = send_command(call_init);
+                // Call initializeDoc()
+                std::cout << "\n[TX #7] 📝 Calling initializeDoc() on " << shared_addr << "..." << std::endl;
+                std::string res_init = send_command("CALL:" + shared_addr + ":b4340bbe");
                 std::cout << "  ↳ Result: " << res_init << std::endl;
-                results.push_back({"TX #4: Call initializeDoc()", res_init.find("SUCCESS") != std::string::npos, res_init});
+                results.push_back({"Call initializeDoc()", res_init.find("SUCCESS") != std::string::npos, res_init});
                 
-                // 5. Call incrementShared()
-                std::cout << "[TX #5] ➕ Calling incrementShared() on " << shared_addr << "..." << std::endl;
-                std::string call_inc = "CALL:" + shared_addr + ":d32a9a59";
-                std::string res_inc = send_command(call_inc);
+                // Call incrementShared()
+                std::cout << "\n[TX #8] ➕ Calling incrementShared() on " << shared_addr << "..." << std::endl;
+                std::string res_inc = send_command("CALL:" + shared_addr + ":d32a9a59");
                 std::cout << "  ↳ Result: " << res_inc << std::endl;
-                results.push_back({"TX #5: Call incrementShared()", res_inc.find("SUCCESS") != std::string::npos, res_inc});
+                results.push_back({"Call incrementShared()", res_inc.find("SUCCESS") != std::string::npos, res_inc});
                 
-                // 6. Call getSharedDataFromDB()
-                std::cout << "[TX #6] 🔍 Calling getSharedDataFromDB() on " << shared_addr << "..." << std::endl;
-                std::string call_get = "CALL:" + shared_addr + ":0b6f8f48";
-                std::string res_get = send_command(call_get);
+                // Call getSharedDataFromDB()
+                std::cout << "\n[TX #9] 🔍 Calling getSharedDataFromDB() on " << shared_addr << "..." << std::endl;
+                std::string res_get = send_command("CALL:" + shared_addr + ":0b6f8f48");
                 std::cout << "  ↳ Result: " << res_get << std::endl;
                 
                 bool get_ok = (res_get.find("0000000000000000000000000000000000000000000000000000000000000001") != std::string::npos || res_get.find("SUCCESS") != std::string::npos);
                 if (get_ok) {
                     std::cout << "  ↳ Output Verification: Counter = 1 ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #6: Call getSharedDataFromDB()", true, "Output: 1"});
+                    results.push_back({"Call getSharedDataFromDB()", true, "Output: 1"});
                 } else {
                     std::cout << "❌ [TEST] FAILED: Output did not match expected '1'.\n" << std::endl;
-                    results.push_back({"TX #6: Call getSharedDataFromDB()", false, res_get});
+                    results.push_back({"Call getSharedDataFromDB()", false, res_get});
                 }
             }
-        }
 
-        if (run_xapian_pipeline) {
-            std::cout << "--- [SUITE 3] Full End-to-End Xapian Database & Search Pipeline ---" << std::endl;
-            
-            // Task 1: Deploy TestFullDBV1 Contract
-            std::cout << "[TX #7] 🚀 Deploying TestFullDBV1 Contract (Full Xapian Search)..." << std::endl;
-            std::string deploy_full_cmd = "DEPLOY:" + BYTECODE_FULL_XAPIAN_V1;
-            std::string res_deploy = send_command(deploy_full_cmd);
+            // =====================================================================
+            // [SUITE 4] Full End-to-End Xapian Database & Search Pipeline
+            // =====================================================================
+            std::cout << "\n=======================================================================" << std::endl;
+            std::cout << "--- [SUITE 4] Full End-to-End Xapian Database & Search Pipeline ---" << std::endl;
+            std::cout << "=======================================================================" << std::endl;
+
+            std::cout << "\n[TX #10] 🚀 Deploying TestFullDBV1 Contract (Full Xapian Search)..." << std::endl;
+            std::string res_deploy = send_command("DEPLOY:" + BYTECODE_FULL_XAPIAN_V1);
             std::cout << "  ↳ Result: " << res_deploy << std::endl;
 
             if (res_deploy.find("SUCCESS") == std::string::npos) {
                 std::cout << "❌ [TEST] FAILED to deploy TestFullDBV1 contract." << std::endl;
-                results.push_back({"TX #7: Deploy TestFullDBV1", false, res_deploy});
+                results.push_back({"Deploy TestFullDBV1", false, res_deploy});
             } else {
                 std::string xapian_addr = extract_address(res_deploy);
                 std::cout << "  ↳ Derived Contract Address: " << xapian_addr << "\n" << std::endl;
-                results.push_back({"TX #7: Deploy TestFullDBV1", true, "Addr: " + xapian_addr});
+                results.push_back({"Deploy TestFullDBV1", true, "Addr: " + xapian_addr});
 
-                // Task 2: runStep1_Setup() (0x925ada52)
-                std::cout << "[TX #8] 📂 Executing runStep1_Setup() (Creating DB & Indexing 3 Docs)..." << std::endl;
-                std::string call_setup = "CALL:" + xapian_addr + ":925ada52";
-                std::string res_setup = send_command(call_setup);
+                // runStep1_Setup()
+                std::cout << "\n[TX #11] 📂 Executing runStep1_Setup() (Creating DB & Indexing 3 Docs)..." << std::endl;
+                std::string res_setup = send_command("CALL:" + xapian_addr + ":925ada52");
                 std::cout << "  ↳ Result: " << res_setup << std::endl;
                 bool setup_ok = (res_setup.find("SUCCESS") != std::string::npos);
-                if (setup_ok) {
-                    std::cout << "  ↳ Verification: Database & 3 Docs Initialized ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #8: runStep1_Setup()", true, "DB created & indexed"});
-                } else {
-                    std::cout << "❌ [TEST] FAILED: runStep1_Setup() reverted.\n" << std::endl;
-                    results.push_back({"TX #8: runStep1_Setup()", false, res_setup});
-                }
+                results.push_back({"runStep1_Setup()", setup_ok, "DB created & indexed"});
 
-                // Task 3: runStep2_ReadBack() (0x47cdef16)
-                std::cout << "[TX #9] 📖 Executing runStep2_ReadBack() (Verifying Document Reading)..." << std::endl;
-                std::string call_readback = "CALL:" + xapian_addr + ":47cdef16";
-                std::string res_readback = send_command(call_readback);
+                // runStep2_ReadBack()
+                std::cout << "\n[TX #12] 📖 Executing runStep2_ReadBack() (Verifying Document Reading)..." << std::endl;
+                std::string res_readback = send_command("CALL:" + xapian_addr + ":47cdef16");
                 std::cout << "  ↳ Result: " << res_readback << std::endl;
                 bool readback_ok = (res_readback.find("SUCCESS") != std::string::npos);
-                if (readback_ok) {
-                    std::cout << "  ↳ Verification: Document ReadBack ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #9: runStep2_ReadBack()", true, "Document read verified"});
-                } else {
-                    std::cout << "❌ [TEST] FAILED: runStep2_ReadBack() reverted.\n" << std::endl;
-                    results.push_back({"TX #9: runStep2_ReadBack()", false, res_readback});
-                }
+                results.push_back({"runStep2_ReadBack()", readback_ok, "Document read verified"});
 
-                // Task 4: runStep3_UpdateDoc() (0xef2be83c)
-                std::cout << "[TX #10] 🔄 Executing runStep3_UpdateDoc() (Updating Doc #0 Content)..." << std::endl;
-                std::string call_update = "CALL:" + xapian_addr + ":ef2be83c";
-                std::string res_update = send_command(call_update);
+                // runStep3_UpdateDoc()
+                std::cout << "\n[TX #13] 🔄 Executing runStep3_UpdateDoc() (Updating Doc #0 Content)..." << std::endl;
+                std::string res_update = send_command("CALL:" + xapian_addr + ":ef2be83c");
                 std::cout << "  ↳ Result: " << res_update << std::endl;
                 bool update_ok = (res_update.find("SUCCESS") != std::string::npos);
-                if (update_ok) {
-                    std::cout << "  ↳ Verification: Document Update ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #10: runStep3_UpdateDoc()", true, "Doc updated"});
-                } else {
-                    std::cout << "❌ [TEST] FAILED: runStep3_UpdateDoc() reverted.\n" << std::endl;
-                    results.push_back({"TX #10: runStep3_UpdateDoc()", false, res_update});
-                }
+                results.push_back({"runStep3_UpdateDoc()", update_ok, "Doc updated"});
 
-                // Task 5: runStep5b_QuerySearch("iphone") (0x9236df68...)
-                std::cout << "[TX #11] 🔎 Executing runStep5b_QuerySearch(\"iphone\")..." << std::endl;
-                std::string call_search = "CALL:" + xapian_addr + ":9236df68000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000066970686f6e650000000000000000000000000000000000000000000000000000";
-                std::string res_search = send_command(call_search);
+                // runStep5b_QuerySearch("iphone")
+                std::cout << "\n[TX #14] 🔎 Executing runStep5b_QuerySearch(\"iphone\")..." << std::endl;
+                std::string res_search = send_command("CALL:" + xapian_addr + ":9236df68000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000066970686f6e650000000000000000000000000000000000000000000000000000");
                 std::cout << "  ↳ Result: " << res_search << std::endl;
                 bool search_ok = (res_search.find("SUCCESS") != std::string::npos);
-                if (search_ok) {
-                    std::cout << "  ↳ Verification: Full-text search for 'iphone' ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #11: runStep5b_QuerySearch(\"iphone\")", true, "Match found"});
-                } else {
-                    std::cout << "❌ [TEST] FAILED: runStep5b_QuerySearch reverted.\n" << std::endl;
-                    results.push_back({"TX #11: runStep5b_QuerySearch(\"iphone\")", false, res_search});
-                }
+                results.push_back({"runStep5b_QuerySearch(\"iphone\")", search_ok, "Match found"});
 
-                // Task 6: runStep5c_GetData_View(0) (0xac4e9b5a...)
-                std::cout << "[TX #12] 📦 Executing runStep5c_GetData_View(0) (Read Structured Data)..." << std::endl;
-                std::string call_view = "CALL:" + xapian_addr + ":ac4e9b5a0000000000000000000000000000000000000000000000000000000000000000";
-                std::string res_view = send_command(call_view);
+                // runStep5c_GetData_View(0)
+                std::cout << "\n[TX #15] 📦 Executing runStep5c_GetData_View(0) (Read Structured Data)..." << std::endl;
+                std::string res_view = send_command("CALL:" + xapian_addr + ":ac4e9b5a0000000000000000000000000000000000000000000000000000000000000000");
                 std::cout << "  ↳ Raw Result: " << res_view << std::endl;
                 
                 std::string ascii_data = hex_to_ascii(res_view);
@@ -272,35 +500,31 @@ int main(int argc, char *argv[]) {
 
                 if (res_view.find("SUCCESS") != std::string::npos && contains_updated && contains_brand) {
                     std::cout << "  ↳ Verification: Product data contains 'Iphone 13 Pro UPDATED' & 'apple' ✅ PASSED\n" << std::endl;
-                    results.push_back({"TX #12: runStep5c_GetData_View(0)", true, "Verified 'Iphone 13 Pro UPDATED'"});
+                    results.push_back({"runStep5c_GetData_View(0)", true, "Verified 'Iphone 13 Pro UPDATED'"});
                 } else {
                     std::cout << "❌ [TEST] FAILED: Struct output does not match expected fields.\n" << std::endl;
-                    results.push_back({"TX #12: runStep5c_GetData_View(0)", false, res_view});
+                    results.push_back({"runStep5c_GetData_View(0)", false, res_view});
                 }
             }
         }
 
         // Summary Table
-        std::cout << "=======================================================" << std::endl;
+        std::cout << "\n=======================================================================" << std::endl;
         std::cout << "📊 SUMMARY REPORT OF TEST EXECUTION:" << std::endl;
-        std::cout << "=======================================================" << std::endl;
+        std::cout << "=======================================================================" << std::endl;
         bool all_passed = true;
         for (const auto& r : results) {
             std::cout << (r.passed ? "  ✅ " : "  ❌ ") << r.name << " -> " << (r.passed ? "PASSED" : "FAILED")
                       << " (" << r.details << ")" << std::endl;
             if (!r.passed) all_passed = false;
         }
-        std::cout << "=======================================================" << std::endl;
+        std::cout << "=======================================================================" << std::endl;
         if (all_passed) {
             std::cout << "🎉 ALL " << results.size() << " TESTS PASSED SUCCESSFULLY!" << std::endl;
         } else {
             std::cout << "❌ SOME TESTS FAILED!" << std::endl;
         }
-        std::cout << "=======================================================" << std::endl;
-
-        // Print final wallet state
-        std::string final_wallet = send_command("WALLET");
-        std::cout << "[WALLET FINAL STATE] " << final_wallet << "\n" << std::endl;
+        std::cout << "=======================================================================" << std::endl;
         
         close(fd);
         return all_passed ? 0 : 1;
@@ -308,10 +532,12 @@ int main(int argc, char *argv[]) {
 
     std::cout << "[EVM-CA] Connected to TrustZone EVM-TA!" << std::endl;
     std::cout << "[EVM-CA] Interactive Mode. Type 'exit' to quit." << std::endl;
-    std::cout << "[EVM-CA] Commands:" << std::endl;
-    std::cout << "  WALLET                  - Check default wallet balance & nonce" << std::endl;
-    std::cout << "  DEPLOY:<hex_bytecode>   - Deploy a new contract from default wallet" << std::endl;
-    std::cout << "  CALL:<address>:<data>   - Call an existing contract from default wallet" << std::endl;
+    std::cout << "[EVM-CA] Supports JSON format and legacy commands:" << std::endl;
+    std::cout << "  - {\"action\":\"deploy\",\"from\":\"0x...\",\"input\":\"0x...\"}" << std::endl;
+    std::cout << "  - {\"action\":\"call\",\"to\":\"0x...\",\"input\":\"0x...\"}" << std::endl;
+    std::cout << "  - {\"action\":\"wallet\",\"from\":\"0x...\"}" << std::endl;
+    std::cout << "  - DEPLOY:<hex_bytecode>" << std::endl;
+    std::cout << "  - CALL:<address>:<data>" << std::endl;
     
     std::string user_query;
     while (true) {

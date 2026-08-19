@@ -11,7 +11,7 @@ make -j1
 
 echo "Building EVM CA (for Linux)..."
 cd /home/vectorxj/evm-tee/evm-ca
-aarch64-linux-gnu-g++ -O3 -Wall -Wextra -static main.cpp -o evm-ca
+aarch64-linux-gnu-g++ -std=c++17 -O3 -Wall -Wextra -static -I/home/vectorxj/evm-tee/evm-ta/c_mvm/3rdparty main.cpp -o evm-ca
 
 echo "Copying outputs to checkpoints..."
 mkdir -p /home/vectorxj/evm-tee/checkpoints
