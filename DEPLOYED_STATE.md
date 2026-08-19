@@ -79,12 +79,15 @@ liệu). Chạy lại `MVM_TZ_CMD_EXECUTE` lần 2 trên board đang chạy sẵ
 công, `seq` tăng đúng, kết quả giống hệt lần đầu — xác nhận `mvm_ta`'s dispatch loop chính bền
 vững qua nhiều lệnh.
 
-**Phát hiện cần làm rõ**: `mvm_tz_protocol.h` có comment nói Xapian-trong-TA đã dùng
-"InMemory-backend, confirmed working end to end 2026-08-16" — mâu thuẫn với đánh giá "chưa
-triển khai" trước đó trong session. Cần điều tra trước khi lập kế hoạch Giai đoạn 3.
+**Đính chính**: đánh giá "Xapian-trong-TA chưa triển khai, rủi ro cao nhất" nói ở trên là SAI —
+Xapian dùng backend `InMemory` (không chạm filesystem), đã cross-build+link thành công thật từ
+2026-08-16 (`libxapian.a` sạch cho toolchain chcore/musl). Việc còn thiếu chỉ là 1 lệnh
+reverse-callback mới (`MVM_TZ_RCMD_GET_LATEST_FULL_DB_LOGS`, wire struct đã có sẵn) + tích hợp
+`libxapian.a` vào build thật của `mvm_ta` (hiện chưa link Xapian). Xem plan doc §9.24 cập nhật
+cuối.
 
-**Việc tiếp theo**: làm rõ mâu thuẫn Xapian ở trên; viết test EXECUTE có gọi contract code
-thật để exercise storage/extension reverse-call với dữ liệu thật.
+**Việc tiếp theo**: viết handler `MVM_TZ_RCMD_GET_LATEST_FULL_DB_LOGS`; tích hợp Xapian thật
+vào `mvm_ta`'s build + đo dung lượng heap/index; viết test EXECUTE gọi contract code thật.
 
 ## 2026-08-18, cuối phiên dài (LỊCH SỬ — đã bị fix ở trên thay thế): `mvm_ta` qua được 2 bug đầu, KẸT ở bug thứ 3 (SMC bị nuốt)
 
