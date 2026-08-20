@@ -3,7 +3,26 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-20): NULL ptr crash khi thực thi contract code THẬT (SSTORE/SLOAD) — ĐÃ GIẢI QUYẾT
+## MỚI NHẤT (2026-08-20): Xapian InMemory fix cho TA (3 lớp) + GET_STORAGE_VALUE thật — board ổn định, self-test hardware bị gỡ
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `f386535ca06d...`) là bản
+**ổn định, đã xác nhận trên hardware** — 3 test cũ (native transfer, SSTORE/SLOAD, storage-read
+thật) chạy sạch `[mvm_ca_test] DONE`, không crash. Board này **chứa fix Xapian InMemory backend
+3 lớp** (constructor/pool/revert, xem plan doc §9.29, memory `xapian-inmemory-ta-backend-fix`)
+nhưng **KHÔNG chứa self-test cho fix đó** — self-test tạm thời đã crash `mvm_ta` ngay lúc boot
+trên hardware thật (chưa root-cause), gỡ bỏ để đưa board về ổn định. Đừng coi fix Xapian là "đã
+xác nhận trên hardware" — chỉ mới xác nhận rất kỹ trên x86.
+
+Trong lúc điều tra crash này, một lần capture UART tưởng "board im lặng hoàn toàn/có thể đã hỏng
+flash" hoá ra chỉ là 6 tiến trình `cat /dev/ttyUSB0` cũ chồng chéo tranh nhau đọc byte (xem
+memory `zombie-uart-readers-steal-bytes`) — đã chạy `recover-golden-image.sh` một lần trong lúc
+chưa rõ nguyên nhân (không hại gì, chỉ tốn thời gian) trước khi xác định đúng vấn đề.
+
+Ngoài ra board này cũng chứa: fix `saveDebugInfo()` filesystem crash (§9.27), handler cho
+`MVM_TZ_RCMD_GET_LATEST_FULL_DB_LOGS` (chưa auto-trigger, §9.28), và test `GET_STORAGE_VALUE`
+với dữ liệu thật (§9.28 follow-up) — tất cả từ các mục trước, vẫn giữ nguyên trong bản này.
+
+## 2026-08-20 (LỊCH SỬ, đã fix ở trên): NULL ptr crash khi thực thi contract code THẬT (SSTORE/SLOAD) — ĐÃ GIẢI QUYẾT
 
 `checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `3d289d61d5d9...`) là bản
 build **đã fix xong crash NULL pointer** phát hiện khi test EXECUTE gọi contract code thật lần
