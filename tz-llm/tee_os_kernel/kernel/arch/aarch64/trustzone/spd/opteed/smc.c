@@ -191,11 +191,20 @@ unsigned long sys_tee_switch_req(struct smc_registers *regs_u)
     // per-CPU "entry done" handshake instead of reaching the real
     // SMC_EXIT_SHADOW path?). This prints regardless of which branch is
     // about to be taken, with the inputs that decide it.
-    kinfo("[MVMDBG] sys_tee_switch_req entry: cpu=%d not_first_smc=%d "
-          "x1=%lx x2=%lx x3=%lx cap_group=%s\n",
-        smp_get_cpu_id(), (int)not_first_smc[smp_get_cpu_id()],
-        regs_k.x1, regs_k.x2, regs_k.x3,
-        current_thread ? current_thread->cap_group->cap_group_name : "?");
+    //
+    // SILENCED (2026-08-20, plan §9.26/§9.27 follow-up): that push_pages
+    // investigation concluded long ago (see mvm-ta-* memory files) -- this
+    // print now fires on EVERY sys_tee_switch_req call system-wide (i.e.
+    // constantly, from mvm_launcher.srv's 16 idle threads alone), flooding
+    // the single shared UART line badly enough to garble metanode's own
+    // NULL-ptr-crash diagnostic prints (plan §9.27) beyond readability.
+    // Re-enable (uncomment) only if actually re-investigating the
+    // push_pages/SMC_EXIT_SHADOW handshake specifically.
+    // kinfo("[MVMDBG] sys_tee_switch_req entry: cpu=%d not_first_smc=%d "
+    //       "x1=%lx x2=%lx x3=%lx cap_group=%s\n",
+    //     smp_get_cpu_id(), (int)not_first_smc[smp_get_cpu_id()],
+    //     regs_k.x1, regs_k.x2, regs_k.x3,
+    //     current_thread ? current_thread->cap_group->cap_group_name : "?");
 
     bool enqueue = true;
 

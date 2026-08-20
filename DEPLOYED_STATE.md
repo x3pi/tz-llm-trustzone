@@ -3,7 +3,28 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-19/20): round-trip `MVM_TZ_CMD_EXECUTE` ĐẦU TIÊN THÀNH CÔNG — `mvm_launcher.srv` độc lập hoàn toàn khỏi `chanmgr`/`llama-cli`
+## MỚI NHẤT (2026-08-20): NULL ptr crash khi thực thi contract code THẬT (SSTORE/SLOAD) — ĐÃ GIẢI QUYẾT
+
+`checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `3d289d61d5d9...`) là bản
+build **đã fix xong crash NULL pointer** phát hiện khi test EXECUTE gọi contract code thật lần
+đầu (§9.25 plan doc). Root cause (§9.27 plan doc, memory
+`mvm-ta-evm-interpreter-nullptr-crash`): `_Processor::saveDebugInfo()` (`c_mvm/src/
+processor.cpp`) ghi file thật (`std::filesystem`, `std::ofstream`) mỗi opcode khi tx có
+`is_debug=1` — TA không có filesystem POSIX. Code path này CHƯA TỪNG chạy trước đó vì
+native-transfer-only `EXECUTE` không bao giờ vào tới vòng lặp dispatch. Fix:
+`MVM_SetDebugFileLoggingEnabled(false)` gọi 1 lần lúc `mvm_ta_main.cpp`'s `main()` khởi động
+(không đổi hành vi đường cgo/Go). **Xác nhận trên hardware 2 lần liên tiếp** (có và không có
+print chẩn đoán): `mvm_ca_test`'s contract-call test (SSTORE 42 vào slot 0, SLOAD đọc lại) chạy
+sạch, đúng ngữ nghĩa (`storage_change value=0x2a`), không crash, không treo — mốc GĐ3 cốt lõi
+(thực thi EVM bytecode thật qua toàn bộ pipeline TrustZone TA) đã đạt được.
+
+Trong lúc điều tra cũng đã silence (comment, không xoá) 1 dòng debug print rác của session khác
+trong `tz-llm/tee_os_kernel/kernel/arch/aarch64/trustzone/spd/opteed/smc.c`
+(`[MVMDBG] sys_tee_switch_req entry`, thêm 2026-08-18 cho 1 điều tra đã đóng từ lâu) — in ra ở
+MỌI lần SMC world-switch, đủ nhiều để làm nhiễu UART capture của điều tra này. Không ảnh hưởng
+tới `llama-cli`/hành vi tz-llm gốc, chỉ là bớt nhiễu log.
+
+## 2026-08-19/20: round-trip `MVM_TZ_CMD_EXECUTE` ĐẦU TIÊN THÀNH CÔNG — `mvm_launcher.srv` độc lập hoàn toàn khỏi `chanmgr`/`llama-cli`
 
 `checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `b3060688de...`) là bản
 build **cuối cùng của một chuỗi ~10 vòng lặp fix/revert trong 1 phiên rất dài** — xem plan doc
