@@ -3,7 +3,37 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-20, round 2): root-cause crash Xapian = lệch GCC toolchain (13 vs 11.5) — self-test gỡ lần 2, board ổn định trở lại, fix 3-lớp còn nguyên
+## MỚI NHẤT (2026-08-20, round 3 thất bại → revert): thử rebuild libtbb.a bằng GCC 11.5.0, board bất ổn 3 lần cắm nguồn liên tiếp, REVERT về round 2 — checkpoints hiện tại KHÔNG đổi so với round 2
+
+**Đã thử** (round 3, cùng ngày): rebuild `libtbb.a` (oneTBB 2021.11.0) bằng đúng toolchain GCC
+11.5.0 (`/home/pi/musl-cross-build-scratch-gcc11`) thay vì GCC 13.3.0 cũ — phát hiện qua kiểm tra
+`.comment` section thật (không dựa vào doc cũ) rằng `libxapian.a`/`libz.a` ĐÃ là GCC 11.4.0 từ
+trước (round-1 TEXTREL fix 2026-08-17 dùng đúng musl-gcc), chỉ `libtbb.a` còn lệch GCC13. Build
+sạch, PIC/no-TEXTREL xác nhận, link `mvm_ta` thành công. Thêm self-test round 3 (bracket per-call,
+tái hiện đúng kịch bản x86-proven) để kiểm chứng có sửa được crash Xapian ở §9.30 hay không.
+
+**Kết quả trên hardware: BẤT ỔN, chưa kết luận được, đã REVERT.** Flash round-3 → board im lặng
+hoàn toàn → lộ `[Vendor ERROR]: Boot device type is invalid!` (idbloader/GPT hỏng) →
+`recover-golden-image.sh` sửa xong → power-cycle lần 1 sau recovery: boot thật sự tiến xa (DDR
+init → U-Boot → ATF → OP-TEE → `[ChCore] create initial thread done`) rồi KẸT tại
+`SYS_rt_sigprocmask` → 2 lần cắm nguồn tiếp theo: im lặng hoàn toàn trở lại (tệ hơn, không cả tới
+DDR banner). So sánh FIT sub-image xác nhận U-Boot/ATF/fdt giống hệt bản cũ, chỉ optee khác.
+
+**Đánh giá nguyên nhân (không suy diễn cảm tính)**: điểm kẹt (`SYS_rt_sigprocmask` ngay sau ChCore
+tạo thread đầu tiên) xảy ra RẤT SỚM trong chính kernel ChCore — trước cả khi `chanmgr` kịp launch
+`mvm_ta`. Về cơ chế, `mvm_ta`/`libtbb.a` không thể là nguyên nhân trực tiếp của crash ở giai đoạn
+này. Khớp hơn với rủi ro kênh flash USB flaky đã biết từ trước (CLAUDE.md: ~10-20% lỗi mỗi lần
+ghi, majority-vote-3 chỉ bảo vệ đúng phần uboot/boot_linux, không bảo vệ idbloader/GPT). Revert về
+checkpoints round-2 (bản đã ổn định trước đó, xem mục kế tiếp), flash lại qua đúng kênh đó →
+**boot sạch ngay lần đầu, uptime 7+ phút xác nhận qua `hdc`** — củng cố (không chứng minh tuyệt
+đối) giả thuyết kênh-flash hơn là lỗi nội dung. Theo yêu cầu người dùng: dừng lại, KHÔNG thử lại
+round-3 trong phiên này. `libtbb.a` GCC11.5.0 đã build sẵn, giữ lại làm artifact cho lần thử sau
+(`scripts/kick-the-tires/cpp13-metanode-deps/libtbb.a` hiện là bản GCC11.5.0; bản GCC13.3.0 cũ có
+backup ở `libtbb.a.gcc13-backup` cùng thư mục) — nhưng **checkpoints/{boot.img,uboot_repacked.img}
+hiện tại đã revert về đúng round-2 (không chứa libtbb.a mới/selftest3)**, xem mục MỚI NHẤT thật sự
+ngay dưới đây.
+
+## 2026-08-20 (round 2, ỔN ĐỊNH — đây là bản đang thực sự flash): root-cause crash Xapian = lệch GCC toolchain (13 vs 11.5) — self-test gỡ lần 2
 
 `checkpoints/{boot.img,uboot_repacked.img}` hiện tại (`optee` hash `318f16ec02e2...`) là bản
 **ổn định, đã xác nhận trên hardware ngay sau flash này**: `hdc shell ./mvm_ca_test` chạy cả 3
