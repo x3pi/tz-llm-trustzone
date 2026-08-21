@@ -3,6 +3,94 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## MỚI NHẤT (2026-08-21, tiếp theo nữa): fix throw/catch TOÀN BỘ EVM interpreter (`processor.cpp`/`stack.cpp`/`gas.cpp`) qua setjmp/longjmp — ĐÃ XÁC NHẬN TRÊN HARDWARE, bao gồm cả lệnh REVERT chuẩn EVM
+
+Tiếp nối mục "né throw" ngay bên dưới (fix riêng cho `sendNative()`/`processNativeMintBurn()`).
+Theo yêu cầu người dùng ("rà nốt throw còn lại"), khảo sát thực tế (không đoán) cho thấy phạm vi
+lớn hơn nhiều "2 throw site còn lại" đã ghi trước đó: **97 throw statement thật trên toàn bộ
+`c_mvm`+`linker`**, trong đó riêng EVM interpreter core (`processor.cpp` 21 + `stack.cpp` 8 +
+`gas.cpp` 1 = 30) đều dồn về **đúng 3 điểm `try/catch` duy nhất** trong `processor.cpp` (vòng lặp
+dispatch chính, khối precompile-call bên trong `dispatch()`, và formatter exception ở top-level
+`run()`) — cả 3 đều same-function/same-compilation-unit, đúng y hệt pattern self-test đã chứng
+minh hỏng. **Phát hiện quan trọng nhất về mức độ khẩn cấp**: 1 trong 30 throw đó là `opRevert()`
+— lệnh **REVERT chuẩn của EVM**, thứ BẤT KỲ contract Solidity nào có `require()`/`revert()` thất
+bại sẽ chạm tới — rủi ro cao hơn nhiều so với các case Block-STM hiếm gặp đã fix trước đó.
+
+**Giải pháp**: file mới `execution/pkg/mvm/c_mvm/include/mvm/safe_throw.h` — cơ chế
+`MVM_THROW`/`MVM_TRY`/`MVM_CATCH`/`MVM_END_TRY` dùng `setjmp`/`longjmp` (1 `jmp_buf` stack, hỗ
+trợ nesting đúng như try/catch thật) **chỉ khi macro `MVM_TA_BUILD` được định nghĩa** — macro này
+CHỈ được set trong `mvm_toolchain_chcore_real.cmake` (toolchain TA thật), nên build x86/cgo
+production VÀ build cross-compile arm64-glibc cho board (`aarch64-linux-gnu.cmake`, hoàn toàn
+khác toolchain) đều giữ nguyên `throw`/`catch` C++ thật, không đổi hành vi. Đã convert toàn bộ 30
+throw của interpreter core (bao gồm `opRevert()`) + 2 throw `mvm::Exception` khác reachable qua
+cùng choke point (`my_storage.cpp`'s SLOAD-suspend, `xapian_handlers.cpp`'s fallback path) + toàn
+bộ 10 throw trong `my_global_state.cpp` (6 trong số đó — nhánh `status==2`/`addressNotInRelated`
+— xác nhận là dead code THẬT: `isAddressAllowed()` trả `true` cứng, và Go-side
+`globalStateGetCore()` không bao giờ emit status 2 theo đúng doc comment của chính nó; vẫn convert
+cho sạch/phòng ngừa). **Không convert** ~60 throw còn lại (chủ yếu `std::runtime_error`/
+`invalid_argument`/`out_of_range`/`overflow_error`/`Xapian::Error`, không phải `mvm::Exception`,
+rải rác ở `my_extension.cpp`/`crypto_handlers.cpp`/`cross_chain_precompile.cpp`/toàn bộ lớp
+Xapian DB `linker/src/xapian/*.cpp`) — đây là khoảng trống còn lại thật, ghi rõ ở cuối mục này,
+KHÔNG bị bỏ sót âm thầm.
+
+**Build**: dùng đúng toolchain `musl-gcc` ổn định (không đổi gì khác ngoài code + macro), sạch
+100%, `readelf -d` xác nhận không có tag TEXTREL. Binary mới md5 `139c49d84e1b7c78eb06f171da2d05da`
+copy vào cả 2 chỗ cần (permission root trên `oh_tee/apps/mvm_ta` cần `sudo` để ghi đè — khác các
+lần trước, backup giữ ở `.backup-round7-2026-08-21-pre-safethrow-fix`).
+
+**Pipeline**: `rebuild.sh` sạch (chỉ 122 dòng "error: write on a pipe with no reader" cosmetic +
+1 dòng ERROR benign đã biết ở bracket chcore.sh, không phải lỗi thật) → `repack.sh` (optee hash
+mới `96adfcab8ec27bb8eb248ca2dde954f04e79f93ae88b5a707d91a9fa5cff65a1`) → copy `boot.img` tay →
+MaskROM sạch → `flash.sh` **128 chunk uboot + 83 chunk boot_linux, TẤT CẢ OK (3/3) lần thử đầu
+tiên, KHÔNG retry nào** → board tự boot, wifi lên (lần này chậm hơn thường lệ, ~6 phút thay vì
+~2-4 phút — vẫn trong phạm vi "5+ phút" CLAUDE.md đã ghi, không phải dấu hiệu bug) → `hdcd`/`hdc
+tconn`/mount SSD OK, kernel timestamp mới khớp đúng lần build này.
+
+**Xác nhận trên hardware — 2 lượt độc lập, MỖI LƯỢT sau 1 lần reboot riêng (đúng quy tắc "TA chỉ
+launch 1 lần/boot")**:
+1. `mvm_ca_test_reordered` (binary CŨ, không đổi, md5 khớp 100% source hiện tại — không cần build
+   lại) — **cả 11 test case y hệt kết quả trước khi có fix hôm nay, KHÔNG REGRESSION**: native
+   transfer, SSTORE/SLOAD, storage read, SimpleDb SET/GET, BLST, JSON extract, NONCE_PLUS_ONE,
+   MINT_BURN, DEPLOY, và **`SEND_NATIVE` vẫn `status=2 exception=5` sạch như fix trước** —
+   nhưng lưu ý: case này đi qua fix RIÊNG đã có sẵn trong `mvm_linker.cpp` (từ mục ngay dưới),
+   KHÔNG chạm tới `processor.cpp`'s interpreter, nên KHÔNG tự nó chứng minh fix hôm nay hoạt
+   động — chỉ chứng minh fix hôm nay không phá gì.
+2. **Test case MỚI, thêm riêng để xác nhận đúng phần vừa sửa** (`ta/ca_test/mvm_ca_test.cpp`
+   test 12: "deploy (constructor REVERTs)", ctor bytecode `60 00 60 00 fd` = `PUSH1 0 PUSH1 0
+   REVERT` — thực thi ĐÚNG lệnh REVERT chuẩn EVM ngay trong constructor, đi thẳng qua
+   `opRevert()`/`processor.cpp`'s vòng lặp dispatch chính, khác hẳn `SEND_NATIVE`'s code path) —
+   build lại `mvm_ca_test` (`aarch64-linux-gnu-g++ -static`, xác nhận công thức build đúng bằng
+   cách build lại y hệt source cũ trước và so md5 khớp 100% với binary đã có sẵn trên board trước
+   khi thêm test 12), push `/data/ssd/mvm_ca_test_revert`, chạy sau 1 reboot RIÊNG (để không vi
+   phạm rule "TA launched once per boot" với lượt test 1 ở trên) — **KẾT QUẢ: `status=2
+   exception=5` sạch, `gas_used=6`, `nonce_change_count=1` (tín hiệu state-advancing thật xác
+   nhận constructor đã thực sự chạy tới REVERT, không phải bị chặn sớm hơn), `[mvm_ca_test]
+   DONE`, `EXIT=0` — KHÔNG HANG.** Đây là bằng chứng trực tiếp, cụ thể rằng fix setjmp/longjmp
+   hoạt động đúng cho chính lệnh REVERT — rủi ro cao nhất đã nêu ở đầu mục này.
+
+Không tiến trình `ld-linux` nào sót lại sau cả 2 lượt test, `dmesg` sạch cả 2 lần.
+
+**Kết luận: fix setjmp/longjmp cho EVM interpreter core đã được XÁC NHẬN HOẠT ĐỘNG ĐÚNG trên
+hardware thật, cho đúng trường hợp rủi ro cao nhất (REVERT) — không phải suy đoán từ việc build
+sạch hay từ việc 11 test case cũ không đổi.** Không regression ở bất kỳ command nào đã test.
+
+**Risk còn lại, CHƯA fix, cần nhớ cho phiên sau (không được quên)**:
+- ~60 throw KHÔNG phải `mvm::Exception` (chủ yếu ở `my_extension.cpp`'s hex-parsing helpers,
+  `crypto_handlers.cpp`, `cross_chain_precompile.cpp`, và TOÀN BỘ lớp Xapian DB `linker/src/
+  xapian/{xapian_manager,xapian_search,xapian_log}.cpp`) — vẫn dùng `throw`/`catch` C++ thật,
+  vẫn sẽ hang nếu bị trigger. Rủi ro cụ thể: bất kỳ contract nào gọi 1 trong các precompile mở
+  rộng (`SimpleDatabase`/`FullDatabase`/BLST/crypto helpers khác) với input malformed/edge-case
+  đủ để chạm 1 trong các throw site này. `mvm_ca_test`'s SimpleDb/BLST test case chỉ test
+  đường THÀNH CÔNG, chưa test đường lỗi của các precompile này.
+- Cơ chế `safe_throw.h` dùng `longjmp` — KHÔNG chạy destructor của object C++ giữa điểm
+  `MVM_TRY` và điểm throw (khác C++ exception thật). Đã đánh giá an toàn cho phạm vi đã convert
+  (không có RAII lock/mutex giữa các điểm đó, chỉ có thể leak vector/string cục bộ — chấp nhận
+  được cho 1 request lỗi hiếm, tốt hơn hang vĩnh viễn) nhưng CHƯA kiểm chứng kỹ nếu mở rộng phạm
+  vi convert sang các file khác trong tương lai — cần rà lại RAII pattern trước khi convert thêm.
+
+**Việc đã làm, còn lại**: commit + push cả 2 repo — code hiện tại vẫn UNCOMMITTED tại thời điểm
+ghi mục này.
+
 ## MỚI NHẤT (2026-08-21, tiếp theo): fix "né throw" cho `SEND_NATIVE`/`PROCESS_NATIVE_MINT_BURN` — ĐÃ XÁC NHẬN TRÊN HARDWARE, hang gốc rễ đã hết
 
 Tiếp nối trực tiếp mục "né throw" ở bên dưới (kết luận cuối cùng của phiên điều tra throw/catch).

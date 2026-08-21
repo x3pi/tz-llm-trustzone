@@ -23,6 +23,15 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# 2026-08-21: gates c_mvm/include/mvm/safe_throw.h's setjmp/longjmp-based
+# throw/catch replacement (C++ exceptions confirmed broken in this exact
+# musl/chcore TA build -- see tz-llm-trustzone/DEPLOYED_STATE.md). This is
+# the ONLY toolchain file that defines MVM_TA_BUILD -- the x86/cgo
+# production build and the aarch64-linux-gnu glibc board cross-compile
+# (execution/pkg/mvm/cmake/aarch64-linux-gnu.cmake) both leave it undefined
+# and keep real throw/catch, byte-for-byte unchanged.
+add_definitions(-DMVM_TA_BUILD=1)
+
 if(NOT DEFINED CPP13_ROOT)
   set(CPP13_ROOT /tmp/cpp13/aarch64)
 endif()
