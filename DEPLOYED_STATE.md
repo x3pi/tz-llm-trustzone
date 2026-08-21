@@ -124,6 +124,76 @@ dùng ở bước link cuối không khớp ABI unwind-table/personality-routine
 KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi 1 trong 2 hướng trên được làm và xác nhận lại
 trên hardware.
 
+**CẬP NHẬT (cùng ngày, sau khi THỬ hướng "sửa tận gốc" ở trên): thử toolchain-unification THẤT
+BẠI trên hardware (board mất phản hồi hoàn toàn) — đã REVERT về checkpoint ổn định (commit
+`797da96d0`, mục ngay trên). `checkpoints/{boot.img,uboot_repacked.img}` hiện tại KHÔNG chứa bản
+toolchain-unified — chỉ chứa bản có tracing, y hệt mục ngay trên.**
+
+**Việc đã làm**: xác nhận qua `readelf -p .comment` trực tiếp (không suy đoán) rằng `musl-gcc`
+(biên dịch `c_mvm`/`linker`/`mvm_ta_main.cpp`) là GCC 11.4.0 (Ubuntu-patched, wrap quanh
+`aarch64-linux-gnu-gcc-11`), trong khi `libstdc++.so`/`libgcc_s.so` THẬT SỰ được link vào
+`mvm_ta` (từ `$CPP11/lib/`, dùng ở MỌI bản build từ trước tới giờ) là GCC 11.5.0 — một build
+musl-cross-make thật, riêng biệt, khác dòng hẳn với musl-gcc. `libxapian.a`/`libz.a` khi đó là GCC
+11.4.0 Ubuntu (khớp musl-gcc, lệch với runtime thật); `libtbb.a` tình cờ đã là GCC 11.5.0 (do là
+artifact còn sót lại từ thử nghiệm round-3 đã revert trước đó — phát hiện phụ, không phải cố ý
+chọn cho lần thử này).
+
+**Đã build lại TOÀN BỘ** `c_mvm`+`linker`+`mvm_ta_main.cpp`+`libxapian.a`+`libz.a` bằng ĐÚNG
+GCC 11.5.0 musleabi thật (`/home/pi/musl-cross-build-scratch-gcc11/output/bin/
+aarch64-linux-musleabi-{gcc,g++,ar,ranlib}`, chạy trên HOST — toolchain này không chạy được trong
+container do lệch glibc, xác nhận qua README.md), CHỈ dùng để compile-to-object (không link thực
+thi qua toolchain này — tránh rủi ro sai syscall/struct ABI của chcore, `musl-gcc` vẫn giữ nguyên
+cho bước final-link để đảm bảo đúng crt/libc của chcore). Cũng thêm 1 self-test throw/catch cô lập
+(`mvm_ta_exception_selftest()`, chạy tự động lúc TA start) để có bằng chứng dứt khoát riêng cho
+câu hỏi "throw/catch C++ có hoạt động được không" độc lập với `sendNative()`.
+
+**Kết quả build**: sạch hoàn toàn, `-Wl,-z,text` xác nhận KHÔNG TEXTREL (log rỗng), `readelf -h`
+đúng `DYN`/`AArch64`, NEEDED đúng 3 lib kỳ vọng, `strings` xác nhận cả tracing cũ lẫn self-test
+mới đều có mặt trong binary. `rebuild.sh`+`repack.sh` chạy sạch, optee hash đổi đúng
+(`0d617ef462b97c505127803c3fafd93313a6cca3f47b09a0fa977c68d6beea42`).
+
+**Kết quả trên hardware: BOARD MẤT PHẢN HỒI HOÀN TOÀN sau flash.** `flash.sh` chạy xong sạch (mọi
+chunk `OK 3/3`, "Reset Device OK"), nhưng sau đó board KHÔNG tự boot lại — không kết nối được qua
+`hdc` (thử liên tục >11 phút, kể cả sau 1 lần power-cycle vật lý thật), và UART **hoàn toàn im
+lặng** (không có cả banner boot cơ bản, không phản hồi bất kỳ input nào) — người dùng xác nhận
+trực tiếp "board bị đứng". Đây là bằng chứng bổ sung cho thấy tổ hợp toolchain GCC-11.5.0-thật
+(dù build sạch, TEXTREL-free) có nguy cơ gây board-level instability thật, **giống loại sự cố đã
+gặp ở round-3 (2026-08-20, mục bên dưới)** khi thử đổi toolchain cho `libtbb.a` — lần đó kết luận
+"chưa chứng minh được là do nội dung TA" (crash xảy ra quá sớm, trước cả khi `chanmgr` kịp launch
+`mvm_ta`), nhưng ĐÂY LÀ LẦN THỨ 2 liên tiếp một thay đổi toolchain GCC-11.5.0-thật trùng thời điểm
+với board-level instability — không còn coi là trùng hợp ngẫu nhiên nữa, dù vẫn CHƯA root-cause
+được cơ chế chính xác (có thể là do tổ hợp cross-compile GCC-11.5.0 thật tạo ra 1 điều gì đó ở
+tầng thấp hơn C++ ABI — ví dụ khác biệt trong cách sinh code cho `-fPIC`/relocations/init order —
+mà `-Wl,-z,text` không bắt được, hoặc 1 vấn đề hoàn toàn không liên quan tới nội dung `mvm_ta`
+(kênh flash flaky, như giả thuyết cũ) — KHÔNG đủ bằng chứng để phân biệt 2 khả năng này).
+
+**Khôi phục**: `checkpoints/{boot.img,uboot_repacked.img}` được revert (`git checkout 797da96d0`)
+về đúng bản có tracing nhưng CHƯA đổi toolchain (mục ngay phía trên — vẫn còn bug `SEND_NATIVE`
+hang, nhưng board ỔN ĐỊNH, đã xác nhận 3/4 lệnh chạy đúng). Chạy `flash/recover-golden-image.sh`
+(ghi lại idbloader+GPT+system+vendor từ `checkpoints/golden-image/idbloader_through_vendor.img`,
+không đụng userdata) rồi `flash/flash.sh` (dùng checkpoints đã revert) — **xác nhận board boot lại
+sạch** (kernel timestamp `Fri Aug 21 08:48:54`, khớp đúng bản đã revert, KHÔNG phải bản
+toolchain-unified `10:20:02`), `hdc` kết nối được, SSD mount OK, không tiến trình sót.
+
+**Lưu ý vận hành phụ, không liên quan bug chính**: `SUDO_PW` env var của cả `flash.sh` lẫn
+`recover-golden-image.sh` không lan truyền đúng qua 1 số kiểu gọi tiến trình nền (`nohup ... &`
+qua nhiều lớp) trong phiên debug này — không rõ nguyên nhân chính xác (nghi vấn liên quan tty
+-ticket của sudo hoặc cách quote/export biến qua nohup), nhưng `sudo` tương tác (không dùng
+`SUDO_PW`) vẫn hoạt động khi chạy trực tiếp không qua `nohup`. Không phải bug của 2 script này —
+cả 2 đã có cơ chế `SUDO_PW` đúng đắn, chỉ là cách gọi trong phiên debug chưa ổn định.
+
+**Kết luận: hướng "sửa tận gốc" (toolchain unification) CHƯA được xác nhận an toàn trên hardware —
+KHÔNG dùng lại tổ hợp toolchain này (`aarch64-linux-musleabi-{gcc,g++}` thật từ
+`musl-cross-build-scratch-gcc11`) để build bất cứ phần nào của `mvm_ta` cho tới khi hiểu rõ hơn
+nguyên nhân board-level instability này** — dù mục tiêu ban đầu (thống nhất GCC version cho C++
+exception ABI) vẫn là 1 giả thuyết hợp lý về mặt lý thuyết, chi phí/rủi ro thực nghiệm của nó
+(2/2 lần thử đều trùng thời điểm board instability) hiện cao hơn hướng "né throw" (giải pháp 1 ở
+mục trên) — **khuyến nghị thử hướng 1 (né throw trong `sendNative()`) trước, KHÔNG lặp lại hướng
+2 (toolchain unification) trong phiên tới trừ khi có kế hoạch cách ly rủi ro rõ ràng hơn (ví dụ:
+build+flash+test TRƯỚC một thay đổi tối thiểu/không đổi gì để xác nhận lại board ổn định baseline,
+rồi mới thử lại đúng 1 thay đổi GCC-version duy nhất, tách biệt hoàn toàn khỏi mọi thay đổi khác,
+để cô lập chính xác nguyên nhân).**
+
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
 KHÔNG liên quan `mvm_ta`) chạy hết 300/300 lần retry mà không tìm thấy TA marker — khác với kỳ
