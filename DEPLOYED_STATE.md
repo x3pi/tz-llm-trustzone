@@ -81,13 +81,48 @@ phải sự cố ngẫu nhiên.**
 **Kết luận: 3/4 lệnh forward mới (NONCE_PLUS_ONE, PROCESS_NATIVE_MINT_BURN, DEPLOY) sẵn sàng dùng
 thật.** Chỉ `SEND_NATIVE` còn bug cần fix trước khi coi là "đã wire xong".
 
-**Việc cần làm tiếp (chưa làm trong phiên này)**: điều tra sâu `sendNative()`/`MyGlobalState::get()`
-phía TA — vì bug đã tái lập 2/2 lần với đúng cùng triệu chứng, nên rất có thể là lỗi logic thật
-(không phải race hiếm) trong `mvm_linker.cpp:1117-1179`'s `sendNative()` hoặc phần xử lý ngay sau
-`gs.get(to)` hoàn tất. Cần thêm `[TZLLM_TRACE]`-style tracing bracket từng bước bên trong
-`sendNative()` (theo đúng phương pháp đã dùng để root-cause bug Xapian GCC-ABI trước đây, xem mục
-"2026-08-20 (round 2)" bên dưới) để xác định chính xác dòng nào treo — không đoán thêm khi chưa có
-bằng chứng. KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi bug này được sửa và xác nhận lại.
+**CẬP NHẬT (cùng ngày, sau khi thêm `[TZLLM_TRACE]` bracket từng bước vào `sendNative()`
+(`mvm_linker.cpp:1117-1179`) và `MyGlobalState::get()` (`my_global_state.cpp:40-118`), rebuild +
+reboot + chạy lại qua UART capture): ĐÃ TÌM RA DÒNG BỊ TREO CHÍNH XÁC.**
+
+UART trace (tái lập lần thứ 3, cùng vị trí cả 3 lần) cho thấy dòng cuối cùng in ra trước khi treo
+im lặng hoàn toàn là:
+```
+[TZLLM_TRACE] sendNative: insufficient balance, throwing
+```
+— tức là `sendNative()` vào đúng nhánh `if (fromAc.acc.get_balance() < amount) throw
+std::runtime_error(...)` (dòng ~1144). Sender test (`0x1111...`) luôn nhận balance=0 từ
+`GlobalStateGet` reverse-call (địa chỉ synthetic, `mvm_ca_test.cpp`'s `handle_reverse_call()` luôn
+trả "not found" cho địa chỉ này), nên `0 < 50` đúng, `throw` được gọi thật (dòng tracing NGAY
+TRƯỚC `throw` đã in ra). Sau `throw`, **không có bất kỳ dòng trace nào khác xuất hiện** — không
+vào được `catch (const std::exception &e)`, không gọi tới `handleException()`/`processResult()`
+(dù 2 hàm đó chỉ thuần tính toán, không có lý do tự nhiên nào để chúng treo).
+
+**Giả thuyết mạnh nhất (có bằng chứng gián tiếp, chưa chứng minh tuyệt đối)**: đây là CÙNG LOẠI bug
+với "lệch ABI xử lý exception C++ giữa các thế hệ GCC" đã root-cause cho Xapian ngày 2026-08-20
+(mục "round 2" bên dưới) — cơ chế unwind của C++ exception (`throw`) không bao giờ tới được
+`catch`, dù cùng nằm trong 1 function/1 file. Bằng chứng gián tiếp mạnh: **đã kiểm tra lại toàn bộ
+lịch sử dự án (`DEPLOYED_STATE.md` + plan doc metanode) — chưa từng có 1 lần `exception=1` nào
+xuất hiện trong bất kỳ `ExecuteResult` nào của `mvm_ta`, ở BẤT KỲ command nào, từ đầu dự án tới
+giờ.** Nói cách khác: đây là lần ĐẦU TIÊN cơ chế `throw`/`catch` C++ exception thật sự được thực
+thi trên hardware bên trong `mvm_ta` — mọi command khác (kể cả 3 command mới vừa xác nhận chạy
+đúng) luôn đi đường thành công (`er == returned`), chưa từng chạm nhánh lỗi. Rất có thể throw/catch
+exception nói chung KHÔNG hoạt động được trong build hiện tại của `mvm_ta` (không riêng gì
+`sendNative()`), do 1 trong các thư viện tĩnh (`libmvm.a`/`libmvm_linker.a`, build bằng
+`aarch64-linux-gnu-g++` cross-glibc) và `libstdc++.so` thật (musl/chcore-side, từ `$CPP11/lib/`)
+dùng ở bước link cuối không khớp ABI unwind-table/personality-routine.
+
+**Việc cần làm tiếp**: 2 hướng, chưa quyết định hướng nào trong phiên này —
+1. **Né vấn đề (rủi ro thấp, nhanh)**: sửa `sendNative()` (và rà lại toàn bộ các hàm `mvm_linker.cpp`
+   khác có `throw`/`catch` tương tự) để KHÔNG dùng C++ exception cho các lỗi "kỳ vọng được" (như
+   insufficient balance) — trả thẳng `ExecResult` lỗi mà không unwind qua `throw`, giống cách
+   `createSafeErrorResult()` đã tránh throw có chủ đích (comment "KHÔNG BAO GIỜ THROW").
+2. **Sửa tận gốc (rủi ro cao hơn, tốn thời gian)**: xác định chính xác thư viện nào lệch ABI (theo
+   đúng phương pháp đã dùng cho Xapian: kiểm tra `.comment` section thật của từng `.a`/`.so` liên
+   quan, không dựa vào giả định) rồi rebuild lại đúng toolchain khớp nhau.
+
+KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi 1 trong 2 hướng trên được làm và xác nhận lại
+trên hardware.
 
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
