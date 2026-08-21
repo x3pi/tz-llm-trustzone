@@ -3,6 +3,70 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## MỚI NHẤT (2026-08-22): watchdog/auto-recovery cho `mvm_ta` hang — reboot board tự động, ĐÃ XÁC NHẬN THẬT trên hardware (không chỉ giả định)
+
+Tiếp nối yêu cầu người dùng "rà nốt throw còn lại" — khảo sát thực tế (không đoán) cho thấy phạm
+vi thật LỚN HƠN NHIỀU "~60 throw": riêng `linker/src/xapian/xapian_manager.cpp` có tới **68 dòng
+try/catch**, `crypto_handlers.cpp` 33, `xapian_search.cpp` 27, `xapian_handlers.cpp` 24 — hàng
+chục hàm, MỖI hàm có 1 try/catch RIÊNG của chính nó (ví dụ cụ thể đã xác nhận: `MyExtension::
+Ecrecover()`, precompile ECRECOVER chuẩn EVM address 1, có `catch(std::exception&)` cục bộ bao
+quanh `hexString32ToBytes()` — cũng hỏng theo đúng cơ chế same-function đã chứng minh trước đó).
+Sửa từng chỗ là việc nhiều giờ/nhiều phiên, không phải việc nhỏ để "tiếp tục" ngay — theo lựa chọn
+của người dùng, chuyển hướng sang **watchdog/auto-recovery** thay vì sửa từng throw.
+
+**Điều tra tính khả thi của "kill+relaunch `mvm_ta` không cần reboot" (làm TRƯỚC khi code, tránh
+build 1 thứ dựa trên giả định sai)**: đọc thẳng kernel ChCore (`tee_os_kernel/kernel/object/
+recycle.c`) — `sys_kill_group()` (syscall kill process DUY NHẤT tồn tại) có comment kernel ghi rõ
+**"Only procmgr could call this function"** — `mvm_launcher` (binary launch/supervise `mvm_ta`
+riêng, tách khỏi `chanmgr`/`procmgr` có chủ đích, xem file đó tự comment) KHÔNG có quyền gọi syscall
+này lên cap group của `mvm_ta`. Thêm nữa: cơ chế này là **cooperative** — chỉ đặt cờ
+`thread_exit_state = TE_EXITING`, dựa vào chính thread đó tự kiểm tra cờ ở 1 điểm scheduling nào
+đó — 1 thread đang spin thật sự trong vòng lặp chặt (chính xác kiểu hang gây ra bởi throw/catch
+hỏng) có thể KHÔNG BAO GIỜ chạm điểm đó. **Kết luận: kill+relaunch riêng `mvm_ta` không reboot
+KHÔNG khả thi chắc chắn với kernel hiện tại** — không cố làm, tránh xây 1 cơ chế tưởng chừng hoạt
+động nhưng thực ra vô dụng đúng lúc cần nó nhất.
+
+**Giải pháp đã chọn (theo quyết định người dùng)**: reboot toàn bộ board tự động khi phát hiện
+`mvm_ta` hang — thô hơn live-restart nhưng CHẮC CHẮN khả thi, biến "board treo im lặng vô thời
+hạn, cần người phát hiện thủ công" thành "tự hồi phục trong ~1 boot cycle không cần người can
+thiệp".
+
+**Code** (`metanode` repo): file mới `execution/pkg/mvm/tz_hardware_watchdog.go` — gắn vào ĐÚNG 1
+điểm chốt duy nhất `tzHardwareRoundTrip`'s timeout branch (`tz_hardware_engine.go`) — điểm mà
+CẢ 6 lệnh forward (`Call`/`Execute`/`Deploy`/`SendNative`/`ProcessNativeMintBurn`/`NoncePlusOne`)
+đều đi qua khi timeout (60s, đã có sẵn từ trước). 1 lần timeout là đủ bằng chứng để reboot — không
+retry trước, vì lịch sử dự án (toàn bộ `DEPLOYED_STATE.md`) chưa từng ghi nhận 1 hang thật nào tự
+hết trong cùng phiên boot. Cơ chế: `syscall.Reboot(LINUX_REBOOT_CMD_RESTART)` (không phụ thuộc
+binary `reboot` bên ngoài), qua 1 biến `tzHardwareRebootFunc` có thể override (test/deployment
+khác) + `tzHardwareWatchdogEnabled` (tắt được) + `sync.Once` (an toàn thừa, dù `tzSessionMu` đã
+serialize nên chỉ có thể có 1 timeout tại 1 thời điểm). Đổi `tzHardwareRoundTripTimeout` từ
+`const` sang `var` để test nhanh được (không cần chờ 60s thật).
+
+**Test đơn vị** (`tz_hardware_watchdog_test.go`, package `mvm` nội bộ để override được biến
+unexported): 4 test — trigger đúng 1 lần khi timeout, KHÔNG reboot khi `enabled=false`, không
+panic khi reboot thất bại (giả lập lỗi), `sync.Once` đảm bảo chỉ 1 lần dù gọi đồng thời. Cả 4
+PASS trên x86. Chạy lại toàn bộ bộ test cũ (`TestTABoundary_TrustzoneLoopback_*`,
+`TestTABoundary_*_SurvivesSerialization`) — không regression.
+
+**Xác nhận THẬT trên hardware (không chỉ code sạch)**: giả định load-bearing duy nhất mà unit
+test trên x86 KHÔNG kiểm chứng được là "`syscall.Reboot()` có thực sự hoạt động với quyền của
+tiến trình chạy trên board hay không" (cần `CAP_SYS_BOOT`/root). Viết 1 binary Go độc lập tối
+giản (`reboot_probe`, không cgo, static, không đụng `mvm_ta`/TA state nên an toàn chạy bất kỳ
+lúc nào trong boot), build arm64, chạy qua `hdc shell` (in ra `uid=0 euid=0` trước khi gọi) —
+**gọi `syscall.Reboot(LINUX_REBOOT_CMD_RESTART)` xong, output dừng đột ngột ngay lập tức (không
+in được dòng cuối) — xác nhận qua UART: board ĐÃ THẬT SỰ REBOOT** (uptime reset về 0, chuỗi boot
+mới bắt đầu lại từ đầu). Đây là bằng chứng thật, không phải suy đoán từ "root nên chắc sẽ chạy
+được" — đã kiểm tra bằng cách thực sự làm nó xảy ra.
+
+**Kết luận: watchdog/auto-recovery đã được xác nhận khả thi và đúng đắn trên hardware thật** —
+logic trigger (unit test) + cơ chế reboot thực tế (reboot_probe) đều đã kiểm chứng độc lập.
+Chưa test kịch bản end-to-end đầy đủ (1 timeout THẬT từ 1 TA hang THẬT tự động kích hoạt reboot
+— cần gây hang thật, rủi ro/tốn thời gian hơn, để dành phiên sau nếu cần xác nhận sâu hơn nữa) —
+nhưng 2 nửa của cơ chế (trigger logic + reboot thật) đã CHẮC CHẮN hoạt động độc lập.
+
+**Việc chưa làm, còn lại**: commit + push cả 2 repo. Phạm vi throw thật (không phải "~60") vẫn
+CHƯA fix, ghi lại rõ cho phiên sau nếu muốn quay lại hướng sửa từng chỗ thay vì/thêm vào watchdog.
+
 ## MỚI NHẤT (2026-08-21/22, cột mốc lớn): Go CA THẬT đã nối thành công với `mvm_ta` THẬT trên board — replay dữ liệu blockchain thật, state root khớp byte-for-byte với path cgo/x86 production
 
 Đây là mắt xích cuối cùng còn thiếu cho mục tiêu "private chain chạy trong TrustZone cho
