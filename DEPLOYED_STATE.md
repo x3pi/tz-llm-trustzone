@@ -58,12 +58,36 @@ TREO `mvm_ta` THẬT (bug xác nhận, không phải nghi ngờ), 2/4 chưa tớ
   test đặt `SEND_NATIVE` trước, bị treo tại đó nên 2 lệnh còn lại chưa có cơ hội chạy trên hardware
   lần này.
 
-**Việc cần làm tiếp (chưa làm trong phiên này)**: reboot board (bắt buộc để giải phóng `mvm_ta`
-đang kẹt), sau đó test riêng lẻ `PROCESS_NATIVE_MINT_BURN`/`DEPLOY` TRƯỚC `SEND_NATIVE` (đổi thứ
-tự để không bị chặn bởi bug này), và điều tra sâu `sendNative()`/`MyGlobalState::get()` phía TA
-(có thể cần thêm `[TZLLM_TRACE]`-style tracing bracket từng bước bên trong `sendNative()`, theo
-đúng phương pháp đã dùng để root-cause bug Xapian GCC-ABI trước đây, xem mục "2026-08-20 (round 2)"
-bên dưới) — KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi bug này được sửa và xác nhận lại.
+**CẬP NHẬT (cùng ngày, sau reboot + đổi thứ tự test để né bug — xem
+`metanode/execution/pkg/mvm/ta/ca_test/mvm_ca_test.cpp` commit tiếp theo): 3/4 lệnh mới ĐÃ XÁC
+NHẬN CHẠY ĐÚNG THẬT trên hardware, chỉ còn `SEND_NATIVE` là bug tái lập được (reproducible), không
+phải sự cố ngẫu nhiên.**
+
+- `MVM_TZ_CMD_PROCESS_NATIVE_MINT_BURN`: **XÁC NHẬN CHẠY ĐÚNG** — mint 77 (0x4d) vào địa chỉ test
+  `0x9999...9999`, `add_balance_change` khớp chính xác giá trị yêu cầu, `status=0 exception=0
+  gas_used=200000`.
+- `MVM_TZ_CMD_DEPLOY`: **XÁC NHẬN CHẠY ĐÚNG** — deploy contract tối giản (init code CODECOPY+RETURN
+  1-byte STOP runtime), `code_change_count=1` (đúng tín hiệu state-advancing kỳ vọng), output 20
+  byte là địa chỉ contract mới thật (`8f7a45ebde059392e46a46dcc14ab24681a961ea`), `status=0
+  exception=0 gas_used=27`.
+- `MVM_TZ_CMD_SEND_NATIVE`: **TREO LẠI, LẦN 2 — xác nhận bug tái lập được (deterministic), không
+  phải flaky.** Đúng y hệt triệu chứng lần trước: 2 reverse-call `GLOBAL_STATE_GET` (sender rồi
+  recipient) trả lời thành công, rồi kẹt vĩnh viễn tại "waiting (round=2)". `timeout 45` (SIGTERM)
+  lại không kill được process con — cùng mẫu uninterruptible-sleep. `mvm_ta` coi như đã kẹt cho hết
+  phiên boot này (lần thứ 2 liên tiếp bug này tự làm hỏng phiên boot của chính nó).
+- `MVM_TZ_CMD_NONCE_PLUS_ONE`: tái xác nhận chạy đúng (đã xác nhận lần trước, lần này chạy lại vẫn
+  đúng — không phải may mắn 1 lần).
+
+**Kết luận: 3/4 lệnh forward mới (NONCE_PLUS_ONE, PROCESS_NATIVE_MINT_BURN, DEPLOY) sẵn sàng dùng
+thật.** Chỉ `SEND_NATIVE` còn bug cần fix trước khi coi là "đã wire xong".
+
+**Việc cần làm tiếp (chưa làm trong phiên này)**: điều tra sâu `sendNative()`/`MyGlobalState::get()`
+phía TA — vì bug đã tái lập 2/2 lần với đúng cùng triệu chứng, nên rất có thể là lỗi logic thật
+(không phải race hiếm) trong `mvm_linker.cpp:1117-1179`'s `sendNative()` hoặc phần xử lý ngay sau
+`gs.get(to)` hoàn tất. Cần thêm `[TZLLM_TRACE]`-style tracing bracket từng bước bên trong
+`sendNative()` (theo đúng phương pháp đã dùng để root-cause bug Xapian GCC-ABI trước đây, xem mục
+"2026-08-20 (round 2)" bên dưới) để xác định chính xác dòng nào treo — không đoán thêm khi chưa có
+bằng chứng. KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi bug này được sửa và xác nhận lại.
 
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
