@@ -64,6 +64,39 @@ chạy trong TrustZone cho production" — dù vẫn còn nhiều việc trướ
 thật (xem risk còn lại ở mục dưới: ~60 throw chưa fix, protocol v1 thiếu CHAINID/blob context,
 chưa có watchdog/auto-recovery, chưa benchmark throughput/scale).
 
+**CẬP NHẬT (cùng ngày, ngay sau đó): 3 lệnh forward còn lại (`SendNative`/`ProcessNativeMintBurn`/
+`NoncePlusOne`) cũng đã xác nhận qua Go engine thật trên hardware — đủ 6/6 lệnh.**
+
+Mục trên chỉ xác nhận `Deploy`/`Execute`/`Call` (qua dữ liệu block thật có sẵn). 3 lệnh còn lại
+được wire cùng lúc nhưng chưa từng chạy qua chính Go engine (`tzHardwareEngine`) trên hardware —
+chỉ mới qua harness C++ thô. Tận dụng bộ test có sẵn `execution/pkg/mvm/ta_boundary_harness_test.go`
+(vốn đã so sánh `ModeCgo` vs `ModeTrustzone`-loopback cho đúng 3 lệnh này qua các hàm
+`runNativeTransferViaMode`/`runMintBurnViaMode`/`runNoncePlusOneViaMode` — mode đã là tham số string
+sẵn, không cần helper mới) — thêm file mới `execution/pkg/mvm/tz_hardware_boundary_test.go` với 3
+test tương tự nhưng dùng `mvm.ModeTrustzoneHardware` thay vì `mvm.ModeTrustzone`.
+
+Build: `go test -c` cho x86 sạch trước (xác nhận cú pháp), rồi cross-compile arm64 dùng đúng
+recipe swap-tạm-.a-x86 đã dùng cho `tz_replay_check` ở mục trên (không cần script mới). Push
+`/data/ssd/mvm_test_arm64` (48.5MB), chạy qua cùng glibc runtime `/data/ssd/metanode_test/lib64/`
+sau 1 lượt reboot riêng (TA đã dùng 1 lần cho `tz_replay_check` ở mục trên, đúng rule
+"TA launches once per boot" — 3 test này chạy trong CÙNG 1 process/1 lần mở kênh nên không vi
+phạm rule, miễn là không chạy lại binary lần 2 trong cùng boot).
+
+**Kết quả: CẢ 3 TEST PASS**, so sánh trực tiếp với `ModeCgo` trên cùng logic transaction:
+- `TestTABoundary_TrustzoneHardware_MatchesCgo_SendNative` — PASS (1.19s) — `MapAddBalance` khớp
+  100% giữa hardware và cgo.
+- `TestTABoundary_TrustzoneHardware_MatchesCgo_ProcessNativeMintBurn` — PASS (0.22s) — mint
+  777,777 khớp.
+- `TestTABoundary_TrustzoneHardware_MatchesCgo_NoncePlusOne` — PASS (0.16s) — nonce 41→42 khớp.
+
+Không tiến trình `ld-linux` sót, `dmesg` sạch.
+
+**Kết luận: đủ 6/6 lệnh forward (`Call`/`Execute`/`Deploy`/`SendNative`/`ProcessNativeMintBurn`/
+`NoncePlusOne`) đã được xác nhận hoạt động đúng qua chính Go CA thật, kết nối tới `mvm_ta` thật
+trên board, kết quả khớp path cgo/x86 production trong mọi trường hợp đã test.** Đây là xác nhận
+đầy đủ nhất có thể có cho toàn bộ bề mặt API `ExecutionEngine` (trừ `ExecuteBatch`, dead code
+không có wire codec, không cần fix).
+
 **Việc chưa làm, còn lại**: commit + push cả 2 repo.
 
 ## MỚI NHẤT (2026-08-21, tiếp theo nữa): fix throw/catch TOÀN BỘ EVM interpreter (`processor.cpp`/`stack.cpp`/`gas.cpp`) qua setjmp/longjmp — ĐÃ XÁC NHẬN TRÊN HARDWARE, bao gồm cả lệnh REVERT chuẩn EVM
