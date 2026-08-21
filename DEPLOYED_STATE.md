@@ -94,6 +94,24 @@ trên hardware thật, không phải suy đoán.** Không có regression ở b�
 **Việc chưa làm, còn lại**: commit + push cả 2 repo (`metanode`, `tz-llm-trustzone`) — code hiện
 tại vẫn UNCOMMITTED tại thời điểm ghi mục này.
 
+**CẬP NHẬT (cùng ngày, sau khi commit+push, theo yêu cầu người dùng "reboot lại board test thêm
+1-2 lần cho chắc"): đã reboot 2 lần nữa (tổng 3 lượt boot độc lập), kết quả GIỐNG HỆT cả 3 lần —
+không còn là "1 lần thành công", đúng thông lệ dự án cần nhiều lượt liên tiếp mới kết luận chắc.**
+
+- Lượt 2: `hdc shell reboot` → UART xác nhận boot thật (`"All boot events are fired, boot complete
+  now"`) → `hdcd` bật lại qua UART, `hdc tconn` OK ngay (wifi vẫn còn từ trước) → mount SSD OK,
+  không tiến trình sót → `mvm_ca_test_reordered`: **cả 9 case sạch, `SEND_NATIVE` trả đúng
+  `status=2 exception=5` (reverted, không hang)**, `[mvm_ca_test] DONE`, `EXIT=0`.
+- Lượt 3: `hdc shell reboot` lần nữa → boot sạch (UART xác nhận `"boot start complete"`) → lần này
+  wifi mất ~4 phút để associate lại (đúng ghi chú CLAUDE.md "WiFi does not auto-connect ... can
+  take 5+ minutes", không phải vấn đề) → sau khi `hdc tconn` connect được, mount SSD OK, không
+  tiến trình sót → `mvm_ca_test_reordered`: **kết quả giống hệt 2 lượt trước** — `SEND_NATIVE`
+  `status=2 exception=5`, `DONE`, `EXIT=0`. `dmesg` sau test sạch, không có gì bất thường.
+
+**Kết luận: fix đã được xác nhận ổn định qua 3/3 lượt boot độc lập (1 lượt ngay sau flash + 2 lượt
+reboot riêng biệt), không phải may mắn 1 lần.** Không tiến trình `ld-linux` nào sót lại sau bất kỳ
+lượt test nào trong cả 3 lần.
+
 ## MỚI NHẤT (2026-08-21): mvm_ta wire thêm DEPLOY/SEND_NATIVE/PROCESS_NATIVE_MINT_BURN/NONCE_PLUS_ONE (nguồn từ metanode repo) — build+flash+boot xác nhận trên hardware, nhưng 4 command mới CHƯA được test runtime thật
 
 **Việc đã làm**: `metanode/execution/pkg/mvm/ta/mvm_ta_main.cpp` (commit `c4b7bf51` bên repo
