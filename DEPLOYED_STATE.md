@@ -3,6 +3,53 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## 🔖 PHIÊN NÀY DỪNG Ở ĐÂY (2026-08-22) — tóm tắt cho phiên làm việc sau
+
+Người dùng yêu cầu tạm dừng, ghi chép lại để phiên khác tiếp tục. Trạng thái board/code hiện tại
+**ổn định, đã commit + push đầy đủ cả 2 repo** (`metanode` nhánh `dev` @ `fa4edfa5`,
+`tz-llm-trustzone` nhánh `metanode-mvm-launcher-round-trip` @ `7d0c0454a`) — an toàn để bắt đầu
+lại bất cứ lúc nào, không có gì dang dở trên board.
+
+**Đã xong và xác nhận THẬT trên hardware trong phiên này (không phải suy đoán)**:
+1. Fix throw/catch cho toàn bộ EVM interpreter core (`processor.cpp`/`stack.cpp`/`gas.cpp`, gồm cả
+   lệnh REVERT chuẩn EVM) qua cơ chế `setjmp`/`longjmp` (`mvm/safe_throw.h`, chỉ áp dụng khi build
+   TA thật, x86/arm64-glibc không đổi hành vi).
+2. Go CA thật nối được với `mvm_ta` thật trên board — đủ 6/6 lệnh forward (`Call`/`Execute`/
+   `Deploy`/`SendNative`/`ProcessNativeMintBurn`/`NoncePlusOne`) xác nhận đúng, kể cả replay dữ
+   liệu blockchain thật với state root khớp byte-for-byte với path cgo/x86 production.
+3. Watchdog/auto-recovery: `mvm_ta` hang → tự động `reboot` toàn board — đã xác nhận CẢ 2 nửa cơ
+   chế hoạt động thật trên hardware (logic trigger qua unit test, `syscall.Reboot()` qua binary
+   probe thật sự làm board reboot).
+
+**Việc CHƯA làm, ưu tiên theo thứ tự đề xuất cho phiên sau** (đã trình bày cho người dùng, chưa
+chọn hướng nào — để phiên sau tự quyết hoặc hỏi lại):
+
+1. **Protocol v1 thiếu CHAINID/blob context (EIP-4844)/cross-chain sender** — đã XÁC NHẬN cụ thể
+   (không suy đoán): `grep chain_id execution/pkg/mvm/tz_codec.go` ra **0 kết quả** — trường
+   `chain_id` không hề tồn tại trong wire protocol. `tz_hardware_engine.go`'s
+   `SetBlobContext`/`SetCrossChainContext` chỉ set lên `*MVMApi` cục bộ (comment chính file đó:
+   "none of these cross the wire in protocol v1") — KHÔNG BAO GIỜ truyền tới `mvm_ta` thật. Hệ
+   quả thật: bất kỳ contract nào dùng opcode `CHAINID` (cực kỳ phổ biến — EIP-155 replay
+   protection) hoặc `BLOBHASH`/cross-chain precompile sẽ nhận sai giá trị khi chạy qua
+   `ModeTrustzoneHardware`/`ModeTrustzone`. Phạm vi sửa: thêm field vào
+   `mvm_tz_protocol.h`'s request struct(s) + `tz_codec.go`'s `encode*Req`/`decode*Req` tương ứng +
+   phía TA (`mvm_ta_main.cpp`) đọc field mới vào `BlockContext` trước khi gọi interpreter — có
+   phạm vi rõ ràng, không mơ hồ như việc sửa throw Xapian.
+2. **Benchmark throughput/scale thật trên hardware** — mới xác nhận ĐÚNG ĐẮN (1 tx tại 1 thời
+   điểm), chưa đo hiệu năng dưới tải thật (nhiều tx/block, tx đồng thời qua Block-STM) — cần biết
+   để đánh giá đây là "dùng được cho production" hay chỉ "proof-of-concept đúng nhưng chậm".
+3. **Phạm vi throw thật của lớp Xapian/crypto helpers** (đã khảo sát, KHÔNG phải "~60" như ước
+   tính ban đầu — xem mục "watchdog/auto-recovery" bên dưới để có số liệu thật: riêng
+   `xapian_manager.cpp` có 68 dòng try/catch) — watchdog giờ che chắn (tự reboot thay vì treo vô
+   thời hạn) nhưng CHƯA fix thật — mỗi lần trigger vẫn mất cả boot cycle thay vì trả lỗi sạch.
+   Không khẩn cấp bằng 2 mục trên (đã có lưới an toàn), nhưng vẫn là nợ kỹ thuật thật.
+4. **Security model / attestation documentation** — chưa làm, đề cập từ đầu phiên nhưng chưa quay
+   lại — cần thiết trước khi gọi hệ thống là "production-ready an toàn" thật sự (không chỉ đúng
+   đắn về mặt tính toán).
+
+**Đọc thêm**: mục "MỚI NHẤT" ngay bên dưới (watchdog) và các mục phía sau nó có đầy đủ chi tiết kỹ
+thuật, bằng chứng hardware, và số liệu cho từng việc đã làm trong phiên này.
+
 ## MỚI NHẤT (2026-08-22): watchdog/auto-recovery cho `mvm_ta` hang — reboot board tự động, ĐÃ XÁC NHẬN THẬT trên hardware (không chỉ giả định)
 
 Tiếp nối yêu cầu người dùng "rà nốt throw còn lại" — khảo sát thực tế (không đoán) cho thấy phạm
