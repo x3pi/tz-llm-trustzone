@@ -3,6 +3,69 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## MỚI NHẤT (2026-08-21/22, cột mốc lớn): Go CA THẬT đã nối thành công với `mvm_ta` THẬT trên board — replay dữ liệu blockchain thật, state root khớp byte-for-byte với path cgo/x86 production
+
+Đây là mắt xích cuối cùng còn thiếu cho mục tiêu "private chain chạy trong TrustZone cho
+production" — trước mục này, "node chạy được" (§9.41, qua normal-world CPU/cgo) và "`mvm_ta` chạy
+được" (harness C++ thô `mvm_ca_test`) đã xác nhận RIÊNG LẺ, nhưng **Go CA thật chưa từng thực sự
+gọi vào `mvm_ta` thật trên board** — `tzHardwareEngine.Deploy/SendNative/ProcessNativeMintBurn/
+NoncePlusOne` (Go, `execution/pkg/mvm/tz_hardware_engine.go`) vẫn `panic("not implemented on the
+real TA yet")`, dù phía TA đã hỗ trợ đủ 4 lệnh này từ trước.
+
+**Đã làm**: wire 4 hàm còn thiếu, mirror chính xác pattern `Call`/`Execute` đã có sẵn (cũng chính
+là pattern `tzLoopbackEngine`'s tương ứng đã dùng, chỉ khác transport) — `encode*Req` (đã có sẵn
+trong `tz_codec.go` từ trước) → `tzHardwareRoundTrip` (tự phục vụ mọi reverse-call TA phát sinh
+trong lúc chờ) → `decodeExecuteResult`. Không có "process callback" như loopback vì việc tính toán
+thật xảy ra trên `mvm_ta` thật, không phải in-process. `go build`/`go vet` sạch cả x86 lẫn
+cross-compile arm64 (`CC=aarch64-linux-gnu-gcc CXX=aarch64-linux-gnu-g++`).
+
+**Công cụ dùng để xác nhận**: `execution/cmd/tool/tz_replay_check` (đã có sẵn từ trước, hỗ trợ
+`--mode=trustzone-hardware`) — replay lại đúng dữ liệu block đã COMMIT THẬT từ phiên chạy node
+thật trước đó (§9.41: deploy SimpleStorage + `store(2222)`, board vẫn còn nguyên trong
+`/data/ssd/metanode_test/node-0/`, block height=3) qua `pkg/block_validator.ProcessBlock` — path
+sản xuất thật, không phải harness giả lập.
+
+**Build cho board**: dùng đúng script có sẵn `scripts/build-aarch64.sh`'s cơ chế (swap tạm 4 file
+`.a` arm64 vào đúng path x86 mà cgo LDFLAGS hardcode, build, rồi restore lại — không có nhánh
+GOARCH-aware path nào khác) — áp dụng thủ công cho `cmd/tool/tz_replay_check` (script gốc chỉ target
+`cmd/simple_chain`). `.a` arm64 dùng lại nguyên bản build từ phiên trước (không cần rebuild dù
+`processor.cpp` vừa đổi hôm nay — vì hardware-mode không gọi C++ interpreter cục bộ chút nào,
+`globalStateGetCore`/`getStorageValueCore` là pure-Go, tính toán thật chạy trên `mvm_ta` đã build
+lại/flash lại đúng bản mới). Binary Go arm64 **dynamically linked glibc** (không phải static) —
+OpenHarmony không có `/lib/ld-linux-aarch64.so.1` sẵn, phải chạy qua interpreter tường minh trỏ
+vào bộ glibc runtime đã push sẵn từ phiên trước (`/data/ssd/metanode_test/lib64/`):
+`./lib64/ld-linux-aarch64.so.1 --library-path ./lib64 ./tz_replay_check_arm64 ...`.
+
+**Kết quả trên hardware — bằng chứng cụ thể, không suy đoán**:
+- `[TZ_HW] reverse-call relay goroutine started` — xác nhận mở kênh `/dev/tc_ns_client` thật.
+- Block 2 (tx `0x719bf272...`, DEPLOY SimpleStorage thật) chạy qua `Deploy()` mới wire — thành công
+  `status=0 exception=0`, mất 2.23s (world-switch + EVM thật).
+- Block 3 (tx `0xe94a1d25...`, `store(2222)` thật) chạy qua `Execute()`/`Call()` — thành công
+  `status=0 exception=0`, mất 389ms.
+- **State root block 3 tính lại qua `mvm_ta` thật: `0xdf2b8685fe1466fc62430cbd6d96a19e548e8e813bf3e35c3f56e412536aefad`
+  — KHỚP TUYỆT ĐỐI, byte-for-byte, với root gốc đã commit thật lúc chạy node (`last_block_backup.json`,
+  §9.41, ghi TỪ TRƯỚC lần chạy này, không phải suy ra ngược).** Đây là bằng chứng mạnh nhất có thể
+  có: EVM chạy trong secure world (TrustZone) cho kết quả xác định (deterministic) giống hệt path
+  cgo/x86 production, với dữ liệu blockchain thật, không phải input tổng hợp.
+- Chạy thêm `--mode=cgo` lên CÙNG dữ liệu rồi dùng chính `tz_replay_check --compare-a --compare-b`
+  (tool có sẵn) để so sánh chính thức: **`Status`/`GasUsed`/`ReturnHash` khớp 100% cho cả 2 tx**;
+  công cụ báo "MISMATCH" duy nhất ở trường `Exception` (`-1` cgo path vs `0` hardware path) — xác
+  nhận đây là quirk encoding CÓ SẴN TỪ TRƯỚC (path cgo dùng sentinel `-1` cho "không có exception"
+  để tránh nhầm với `EXCEPTION_ERR_OUT_OF_GAS=0` — giá trị `0` đầu tiên thật của enum proto
+  `pb.EXCEPTION`; path wire-decode trả thẳng giá trị `0` từ struct C, không qua sentinel này) —
+  KHÔNG phải bug do việc wire hôm nay gây ra, KHÔNG ảnh hưởng đúng đắn (`Status` đã đủ phân biệt
+  thành công/thất bại ở cả 2 path). Ghi nhận là known quirk, chưa sửa (out of scope hôm nay).
+- Không tiến trình `ld-linux` nào sót lại, `dmesg` sạch, sau cả 2 lượt chạy (hardware + cgo).
+
+**Kết luận: đây là xác nhận end-to-end đầu tiên trong lịch sử dự án rằng Go blockchain node thật
+có thể thực thi EVM transaction thật bên trong TrustZone secure world, cho kết quả đúng đắn xác
+định.** Kết hợp với throw/catch fix (mục ngay dưới), đây là nền tảng thực sự cho "private chain
+chạy trong TrustZone cho production" — dù vẫn còn nhiều việc trước khi gọi là "production-ready"
+thật (xem risk còn lại ở mục dưới: ~60 throw chưa fix, protocol v1 thiếu CHAINID/blob context,
+chưa có watchdog/auto-recovery, chưa benchmark throughput/scale).
+
+**Việc chưa làm, còn lại**: commit + push cả 2 repo.
+
 ## MỚI NHẤT (2026-08-21, tiếp theo nữa): fix throw/catch TOÀN BỘ EVM interpreter (`processor.cpp`/`stack.cpp`/`gas.cpp`) qua setjmp/longjmp — ĐÃ XÁC NHẬN TRÊN HARDWARE, bao gồm cả lệnh REVERT chuẩn EVM
 
 Tiếp nối mục "né throw" ngay bên dưới (fix riêng cho `sendNative()`/`processNativeMintBurn()`).
