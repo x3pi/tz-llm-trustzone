@@ -194,6 +194,45 @@ build+flash+test TRƯỚC một thay đổi tối thiểu/không đổi gì đ�
 rồi mới thử lại đúng 1 thay đổi GCC-version duy nhất, tách biệt hoàn toàn khỏi mọi thay đổi khác,
 để cô lập chính xác nguyên nhân).**
 
+**CẬP NHẬT (cùng ngày, sau khi thử build lại đúng toolchain GỐC — `musl-gcc`, KHÔNG đổi gì — chỉ
+thêm 1 self-test throw/catch cô lập để trả lời câu hỏi "throw có hoạt động thật không" trước khi
+quyết định hướng sửa `SEND_NATIVE`): flash CŨNG bị treo, nhưng lần này bằng chứng UART cho thấy
+đây gần như chắc chắn là **flash-channel flaky, KHÔNG phải do nội dung/toolchain** — quan trọng để
+không hiểu nhầm thành thêm 1 bằng chứng chống lại toolchain gốc.**
+
+Build: sạch (TEXTREL-free), dùng ĐÚNG `musl-gcc` như mọi lần build thành công trước đó hôm nay
+(build 4-commands, build tracing-only) — không đổi gì so với 2 lần đó ngoài thêm
+`mvm_ta_exception_selftest()`. `rebuild.sh`/`repack.sh` sạch, optee hash đổi đúng
+(`47e5ece55c3a5061edc31b73e5153144ce90c8695c4cba99799ca17ae0d7cb1a`). `flash.sh` báo mọi chunk
+`OK 3/3`, "Reset Device OK" — y hệt 2 lần thành công trước.
+
+**Nhưng board không lên**: UART (bắt TRƯỚC lúc board boot, không phải suy đoán) dừng lại ở đúng
+33 byte — `^@^@^@DDR cb12b99cc23 hcy 25/10/17-1` — tức là kẹt **NGAY TẠI banner DDR ban đầu, còn
+sớm hơn cả điểm treo của bản toolchain-unified trước đó** (bản đó ít nhất còn qua được DDR banner
+trước khi im lặng hoàn toàn). Không nhích thêm byte nào sau hơn 8 phút theo dõi trực tiếp.
+
+**Vì sao kết luận đây là flash-channel flaky, không phải regression từ self-test/toolchain**: bản
+build này dùng đúng 100% cùng toolchain (`musl-gcc`) đã 2 lần build+flash+boot THÀNH CÔNG trong
+cùng phiên hôm nay (build 4-commands lúc đầu, build tracing-only lúc root-cause `SEND_NATIVE`).
+Không có lý do kỹ thuật nào để riêng lần thứ 3 (chỉ thêm 1 hàm self-test nhỏ, không đụng gì tới
+U-Boot/ATF/DDR-init) lại làm hỏng DDR banner — DDR/U-Boot/ATF hoàn toàn không phụ thuộc nội dung
+OP-TEE/TA. Khớp với ghi chú CLAUDE.md về kênh flash flaky ~10-20%/lần.
+
+**Khôi phục**: revert `checkpoints/{boot.img,uboot_repacked.img}` về đúng commit `797da96d0` (như
+lần trước) → `recover-golden-image.sh` (ghi lại idbloader+GPT+vendor) → gặp lại bug đã biết
+(`SUDO_PW` không lan truyền qua `recover-golden-image.sh`'s internal `flash.sh` call, cần kill +
+chạy `flash.sh` trực tiếp với `SUDO_PW`) → gặp thêm 1 lần "Downloading bootloader failed" do
+MaskROM stale sau nhiều lần kill/retry (đã biết từ trước, cần vào lại MaskROM sạch) → sau khi vào
+MaskROM sạch lại, `flash.sh` chạy trót lọt, board boot sạch (kernel timestamp
+`Fri Aug 21 08:48:54`, khớp đúng bản đã revert), `hdc`/SSD/không tiến trình sót — xác nhận đầy đủ.
+
+**Câu hỏi ban đầu ("throw/catch có hoạt động thật trong `mvm_ta` với toolchain gốc hay không?")
+VẪN CHƯA có câu trả lời bằng chứng thật** — self-test chưa từng chạy được trên hardware (2/2 lần
+thử mang self-test lên board đều bị chặn bởi vấn đề flash/board, không liên quan tới chính
+self-test). Cần thử lại — khi thử, nên tách hẳn 1 phiên/1 lần thử riêng, không dồn chung với các
+thay đổi khác, và không nản nếu cần 2-3 lần flash mới qua được kênh flaky (đúng như lịch sử dự án
+đã ghi nhận nhiều lần).
+
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
 KHÔNG liên quan `mvm_ta`) chạy hết 300/300 lần retry mà không tìm thấy TA marker — khác với kỳ
