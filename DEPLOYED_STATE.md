@@ -226,12 +226,49 @@ MaskROM stale sau nhiều lần kill/retry (đã biết từ trước, cần và
 MaskROM sạch lại, `flash.sh` chạy trót lọt, board boot sạch (kernel timestamp
 `Fri Aug 21 08:48:54`, khớp đúng bản đã revert), `hdc`/SSD/không tiến trình sót — xác nhận đầy đủ.
 
-**Câu hỏi ban đầu ("throw/catch có hoạt động thật trong `mvm_ta` với toolchain gốc hay không?")
-VẪN CHƯA có câu trả lời bằng chứng thật** — self-test chưa từng chạy được trên hardware (2/2 lần
-thử mang self-test lên board đều bị chặn bởi vấn đề flash/board, không liên quan tới chính
-self-test). Cần thử lại — khi thử, nên tách hẳn 1 phiên/1 lần thử riêng, không dồn chung với các
-thay đổi khác, và không nản nếu cần 2-3 lần flash mới qua được kênh flaky (đúng như lịch sử dự án
-đã ghi nhận nhiều lần).
+**CẬP NHẬT/SỬA LẠI (cùng ngày, ngay sau đó): kết luận "flash-channel flaky" ở trên là SAI — đã tìm
+ra bằng chứng dứt khoát, không phải flaky.** Thử lại chính xác cùng self-test (dùng đúng binary đã
+build, không đổi gì), lần này bắt UART **từ trước lúc reset board** — kết quả: UART thu được
+230845 byte (rất nhiều, khác hẳn lần trước chỉ 33 byte), và dòng cuối cùng là:
+```
+[mvm_ta] starting
+[TZLLM_TRACE] exception_selftest: before throw
+terminate called after throwing an instance of 'std::runtime_error'
+  what():  mvm_ta_exception_selftest probe
+```
+rồi im lặng hoàn toàn — không có gì thêm.
+
+**Đây là bằng chứng dứt khoát, trả lời thẳng câu hỏi ban đầu ("throw có hoạt động không?"): KHÔNG
+— throw/catch cơ bản BỊ HỎNG THẬT trong build hiện tại của `mvm_ta`, ngay cả khi `throw` và
+`catch` nằm CÙNG 1 hàm, CÙNG 1 compilation unit** (`mvm_ta_exception_selftest()` — không có biên
+giới thư viện/toolchain nào ở giữa). Dòng `terminate called after throwing an instance of...` +
+`what():` là output CHUẨN của libstdc++ khi không tìm được handler khớp — nghĩa là `catch (const
+std::exception &e)` đã KHÔNG bắt được exception, dù về mặt code là đúng cú pháp/đúng kiểu. Sau
+`std::terminate()`, luồng thực thi không bao giờ tiến thêm được (có thể do `abort()`'s tín hiệu
+xử lý không tương thích với môi trường chcore/musl ở đây, khớp với các bug "busy-spin sau lỗi" đã
+biết trong dự án).
+
+**Vì sao lần trước tưởng nhầm là "flash flaky"**: self-test được đặt chạy TỰ ĐỘNG ngay lúc
+`mvm_ta` khởi động (trước `mvm_channel_init()`), và `mvm_ta` tự khởi động RẤT SỚM trong quá trình
+boot (đã ghi nhận từ trước: `[mvm_ta] starting` luôn xuất hiện TRƯỚC banner Linux kernel) — nên hễ
+binary này còn được flash, **MỌI LẦN boot đều tự động crash lại đúng chỗ này**, treo cứng toàn bộ
+quá trình boot (không phải ngẫu nhiên/kênh flash — 100% tái lập được). Lần đầu tôi chỉ thấy 33 byte
+UART và kết luận vội "chưa qua được DDR banner" — thực ra 33 byte đó CHÍNH LÀ dấu hiệu boot đang
+diễn ra bình thường, chỉ là tôi chưa đợi đủ lâu để thấy nó tiến xa hơn rồi crash ở `mvm_ta`.
+
+**Kết luận cuối cùng — có bằng chứng thật, không còn là giả thuyết**: hướng "né throw" (không
+dùng C++ exception cho lỗi kỳ vọng được như insufficient balance, revert, out-of-gas, v.v. trong
+TOÀN BỘ `mvm_linker.cpp`/interpreter, không chỉ `sendNative()`) là hướng sửa BẮT BUỘC, không phải
+tuỳ chọn — vì throw/catch cơ bản không hoạt động được trong môi trường TA này. Đây có thể là 1 vấn
+đề ABI/runtime sâu (C++ exception personality routine không tương thích với chcore/musl ở tầng
+thấp hơn những gì đã điều tra), nhưng KHÔNG CẦN root-cause tiếp mới sửa được — biết "throw không
+dùng được" là đủ để quyết định hướng đi. Nếu muốn root-cause sâu hơn sau này (không bắt buộc cho
+production), cần môi trường debug tốt hơn (gdb/addr2line qua bản unstripped, xem STATUS.md/README
+về việc dự án từng giữ lại bản chưa strip cho mục đích này).
+
+**Đã revert `checkpoints/{boot.img,uboot_repacked.img}` về đúng commit `797da96d0` lần nữa, flash
+lại, board XÁC NHẬN boot sạch trở lại** (kernel timestamp `Fri Aug 21 08:48:54`, hdc/SSD/không tiến
+trình sót — như mọi lần revert trước).
 
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
