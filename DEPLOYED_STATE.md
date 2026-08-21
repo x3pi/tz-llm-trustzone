@@ -3,6 +3,97 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
+## MỚI NHẤT (2026-08-21, tiếp theo): fix "né throw" cho `SEND_NATIVE`/`PROCESS_NATIVE_MINT_BURN` — ĐÃ XÁC NHẬN TRÊN HARDWARE, hang gốc rễ đã hết
+
+Tiếp nối trực tiếp mục "né throw" ở bên dưới (kết luận cuối cùng của phiên điều tra throw/catch).
+Đã implement, build, flash, và **xác nhận trên hardware thật** — không còn là kế hoạch.
+
+**Code đã sửa** (`metanode` repo, chưa commit tại thời điểm ghi mục này):
+- `execution/pkg/mvm/linker/src/mvm_linker.cpp`: `sendNative()` và `processNativeMintBurn()` —
+  bỏ `throw std::runtime_error(...)` cho case "insufficient balance", thay bằng dựng thẳng
+  `mvm::ExecResult` (`er = ExitReason::threw`, `ex = Exception::Type::ErrExecutionReverted`,
+  `exmsg = "insufficient balance for ..."`) rồi gọi `processResult()` trực tiếp — đúng y hệt
+  shape mà `handleException()` sẽ dựng, nhưng KHÔNG đi qua cơ chế C++ exception nào. Khối
+  `try/catch` bao ngoài 2 hàm này được GIỮ NGUYÊN (phòng vệ vô hại cho các throw khác chưa dọn,
+  ví dụ từ `MyGlobalState::get()` — xem mục risk còn lại bên dưới).
+- `execution/pkg/mvm/ta/mvm_ta_main.cpp`: bỏ lời gọi `mvm_ta_exception_selftest()` khỏi `main()`
+  (self-test này tự crash TA có chủ đích — nếu để lại sẽ treo MỌI lần boot vì `mvm_ta` khởi động
+  rất sớm). Hàm vẫn giữ định nghĩa (đánh dấu `__attribute__((unused))`) làm tài liệu tham khảo,
+  đã xác nhận qua `strings` bị dead-code-eliminate hoàn toàn khỏi binary khi không có caller.
+- `execution/pkg/mvm/linker/src/my_global_state.cpp`: dọn tracing, KHÔNG sửa 2 throw còn lại
+  (status==2 `addressNotInRelated`, status==3 Block-STM Estimate Hit) — xem "risk còn lại" cuối
+  mục này.
+
+**Build**: dùng ĐÚNG toolchain gốc, ổn định (`musl-gcc`, KHÔNG phải GCC-11.5.0-musleabi đã 2/2 lần
+gây board-instability — xem mục "toolchain-unification THẤT BẠI" bên dưới, artifact toolchain đó
+giữ lại không xoá nhưng KHÔNG dùng). Build sạch qua `build_mvm_ta.sh`, `-Wl,-z,text` xác nhận
+KHÔNG TEXTREL. Binary mới md5 `24d44727cfdf8a9dece9c4948086e19d`, copy vào cả 2 chỗ cần
+(`tee_os_kernel/oh_tee/apps/mvm_ta` + `cpp13-metanode-deps/mvm_ta_output/mvm_ta`), backup bản cũ
+ở `.backup-round6-2026-08-21-pre-nothrow-fix`. `strings` xác nhận: 0 hit `exception_selftest`
+(dead-code-eliminated), 0 hit dòng trace throw cũ, có mặt 2 message lỗi mới ("insufficient
+balance for burn"/"insufficient balance for sendNative").
+
+**Pipeline**: `rebuild.sh` (sạch) → `flash/repack.sh` (optee hash mới
+`41abc63c8dacb331e6a469e6495429b06a1d825d4d0ffed5562c6b1b7d681477`) → copy `boot.img` thủ công
+vào `checkpoints/` (md5 `61d262b346b24040af699e14c773f0c1`) → MaskROM sạch (xác nhận qua `lsusb`,
+không hậu tố `USB-MSC`) → `flash/flash.sh` (uboot 128/128 chunk `OK 3/3`, boot_linux 83/83 chunk
+`OK 3/3`, không có lần retry nào — kênh flash sạch lần này) → board **tự boot lại không cần
+power-cycle vật lý** (khác với caveat CLAUDE.md, nhưng khớp hành vi đã quan sát nhiều lần trong
+phiên này) → wifi lên, `hdcd` bật lại qua UART (`param set persist.hdc.port 8710` +
+`param set ohos.ctl.stop hdcd` + `/system/bin/hdcd -t &`), `hdc tconn` OK, kernel timestamp
+`Fri Aug 21 15:36:06 CST 2026` (mới, khớp đúng lần flash này) → mount SSD OK, không tiến trình
+`ld-linux` sót lại trước khi test.
+
+**Kết quả trên hardware (bằng chứng cụ thể)**: chạy `hdc shell ./mvm_ca_test_reordered` (binary
+đã tồn tại sẵn trên `/data/ssd/`, md5 khớp 100% với `metanode/execution/pkg/mvm/ta/ca_test/
+mvm_ca_test` local — không cần rebuild vì source test không đổi trong bước này) — **cả 9 test case
+chạy sạch tới cuối, kết thúc `[mvm_ca_test] DONE`, `EXIT=0`, KHÔNG có tiến trình `ld-linux` nào sót
+lại sau đó**:
+1. native transfer (qua `EXECUTE`) — `status=1` (đây là 1 test case cố ý set up state trước, không
+   phải lỗi), balance/nonce change đúng thật.
+2. contract call SSTORE/SLOAD — `status=0`, storage_change đúng `0x2a`.
+3. storage read (giá trị có sẵn `0x1337`) — `status=0`, đọc đúng.
+4. SimpleDb SET — `status=0`, round-trip đúng.
+5. SimpleDb GET — `status=0`, trả đúng `"hello_ta"`.
+6. BLST verifySign — `status=0`, `VALID`.
+7. extract json field — `status=0`, trả đúng `"123"`.
+8. `NONCE_PLUS_ONE` — `status=0`, `nonce_change_count=1` thật.
+9. `PROCESS_NATIVE_MINT_BURN` (mint) — `status=0`, `add_balance_change` đúng `0x4d`.
+10. `DEPLOY` (minimal STOP contract) — `status=0`, `code_change_count=1`, địa chỉ contract mới
+    thật `8f7a45ebde059392e46a46dcc14ab24681a961ea`.
+11. **`SEND_NATIVE` (send native, insufficient balance vì sender test luôn balance=0) — ĐÂY LÀ CASE
+    ĐÃ TREO VĨNH VIỄN 2 LẦN LIÊN TIẾP TRƯỚC KHI CÓ FIX (xem mục "TREO LẠI, LẦN 2" bên dưới).
+    BÂY GIỜ: trả lời sạch ngay tại "waiting (round=2)" → "got final response (round=2)" →
+    `status=2 exception=5` ("reverted/exception") — ĐÚNG hành vi kỳ vọng của 1 lỗi EVM bình
+    thường (insufficient balance), KHÔNG còn hang.**
+
+`dmesg` sau test không có gì bất thường (chỉ có `[TZLLM_TRACE]` không liên quan từ cơ chế
+llm_tee_os_init/relay khác, không phải lỗi).
+
+**Kết luận: fix "né throw" đã được XÁC NHẬN GIẢI QUYẾT ĐÚNG bug hang gốc rễ của `SEND_NATIVE`,
+trên hardware thật, không phải suy đoán.** Không có regression ở bất kỳ command nào trong 11 case
+đã test (bao gồm cả 3 command mới đã xác nhận đúng từ trước: NONCE_PLUS_ONE/MINT_BURN/DEPLOY).
+
+**Risk còn lại, CHƯA fix, cần nhớ cho phiên sau (không được quên)**:
+- `my_global_state.cpp`'s `MyGlobalState::get()` còn 2 throw site (status==2
+  `addressNotInRelated`, status==3 Block-STM "Estimate Hit") — sửa cần đổi signature trả-về-value
+  của hàm này (hiện không có kênh báo lỗi) và cập nhật mọi caller (`sendNative`/
+  `processNativeMintBurn`/`noncePlusOne`/`deploy`, cả path CALL/EXECUTE của interpreter) — lớn
+  hơn, rủi ro hơn việc đã làm hôm nay. Chưa từng quan sát status 2/3 được trigger trong bất kỳ
+  test nào tới giờ (`mvm_ca_test.cpp`'s `handle_reverse_call()` chỉ từng trả status 0 hoặc 1) —
+  nhưng đó là do THIẾU coverage test, không phải bằng chứng an toàn.
+- `execution/pkg/mvm/c_mvm/src/processor.cpp` (EVM interpreter lõi, DÙNG CHUNG với path cgo/x86
+  production đã chạy ổn định) có **21+ throw site**, cộng thêm `gas.cpp` (out-of-gas) và
+  `stack.cpp` (stack over/underflow) — phạm vi RẤT LỚN, KHÔNG động tới trong phiên này (rủi ro
+  regression path x86 đang chạy tốt + khối lượng rewrite quá lớn cho 1 phiên). Đây là món nợ kỹ
+  thuật lớn nhất còn lại của toàn bộ hướng "né throw" — mọi command nào của `mvm_ta` chạm tới 1
+  trong các throw site này (ví dụ: out-of-gas thật, stack underflow thật trong 1 contract call
+  qua secure-world) nhiều khả năng sẽ tái hiện đúng loại hang đã thấy ở `SEND_NATIVE`, cho tới khi
+  được rà và sửa theo đúng pattern hôm nay.
+
+**Việc chưa làm, còn lại**: commit + push cả 2 repo (`metanode`, `tz-llm-trustzone`) — code hiện
+tại vẫn UNCOMMITTED tại thời điểm ghi mục này.
+
 ## MỚI NHẤT (2026-08-21): mvm_ta wire thêm DEPLOY/SEND_NATIVE/PROCESS_NATIVE_MINT_BURN/NONCE_PLUS_ONE (nguồn từ metanode repo) — build+flash+boot xác nhận trên hardware, nhưng 4 command mới CHƯA được test runtime thật
 
 **Việc đã làm**: `metanode/execution/pkg/mvm/ta/mvm_ta_main.cpp` (commit `c4b7bf51` bên repo
