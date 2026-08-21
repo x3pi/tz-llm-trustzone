@@ -3,7 +3,55 @@
 **Đây là nguồn sự thật duy nhất cho câu hỏi "cái gì đang chạy trên board ngay bây giờ".**
 Đọc file này trước khi flash bất cứ thứ gì — đừng suy đoán từ timestamp/tên file.
 
-## MỚI NHẤT (2026-08-20, round 3 thất bại → revert): thử rebuild libtbb.a bằng GCC 11.5.0, board bất ổn 3 lần cắm nguồn liên tiếp, REVERT về round 2 — checkpoints hiện tại KHÔNG đổi so với round 2
+## MỚI NHẤT (2026-08-21): mvm_ta wire thêm DEPLOY/SEND_NATIVE/PROCESS_NATIVE_MINT_BURN/NONCE_PLUS_ONE (nguồn từ metanode repo) — build+flash+boot xác nhận trên hardware, nhưng 4 command mới CHƯA được test runtime thật
+
+**Việc đã làm**: `metanode/execution/pkg/mvm/ta/mvm_ta_main.cpp` (commit `c4b7bf51` bên repo
+metanode) được thêm 4 hàm dispatch mới (`mvm_dispatch_deploy`/`send_native`/
+`process_native_mint_burn`/`nonce_plus_one`), cơ chế y hệt `mvm_dispatch_call`/`execute` đã có
+(đọc header cố định + `BlobReader` cho blob field, gọi thẳng `mvm_linker.hpp`, encode qua
+`mvm_encode_execute_result`). `EXECUTE_BATCH` vẫn KHÔNG wire (không đổi, dead code, không caller
+thật). Build thật qua `scripts/kick-the-tires/cpp13-metanode-deps/build_mvm_ta.sh` bên trong
+container `vectorxj0553/tz-llm-llama-builder:latest` — script này thiếu sẵn vài `-I` flag ở bước 3
+(compile trực tiếp `mvm_ta_main.cpp`: thiếu `xapian_include`/`tbb_include`/`$C_MVM_BUILD/include`
++ `/3rdparty`), đã sửa và commit. `-Wl,-z,text` xác nhận KHÔNG có TEXTREL. Binary mới (md5
+`ad0b08727b4518b459d256a302cbf000`) đã copy vào CẢ HAI chỗ cần (`tee_os_kernel/oh_tee/apps/mvm_ta`
+VÀ `cpp13-metanode-deps/mvm_ta_output/mvm_ta` — chỗ thứ 2 là chỗ `oh-builder-hdf.sh` thật sự mount
+vào container rebuild, dễ bị bỏ sót). Backup bản cũ giữ ở `mvm_ta.backup-round2-2026-08-20`
+(md5 `1271dbc0b542c63534a93dd56c8a1340`) ở cả 2 nơi.
+
+Pipeline đầy đủ: `rebuild.sh` → `flash/repack.sh` (optee hash mới:
+`2769573d3f9007a363afeb997264208748d942b8b2a8370646e8a7f04db6d71b`) → copy `boot.img` thủ công
+vào `checkpoints/` → `flash/flash.sh` (128 chunk uboot + 83 chunk boot_linux, tất cả "OK (3/3)")
+→ power-cycle thật → `hdc` kết nối lại, board boot sạch (kernel build timestamp
+`Fri Aug 21 08:48:54 CST 2026`, khớp đúng bản vừa flash).
+
+**Đã xác nhận trên hardware (bằng chứng cụ thể, không chỉ "không crash")**: `hdc shell
+./mvm_ca_test` (path `MVM_TZ_CMD_EXECUTE` cũ, KHÔNG phải 4 lệnh mới) chạy hết 7 test case sạch
+trong <5s — `native transfer` (real balance/nonce change), `SSTORE/SLOAD` (real storage_change),
+`storage read` (giá trị `0x1337` có sẵn), `SimpleDb SET`+`GET` (round-trip `"hello_ta"` đúng),
+`BLST verifySign` (`VALID`), `extract json field` (`"123"` đúng) — kết thúc bằng
+`[mvm_ca_test] DONE`, `EXIT=0`. Đây là bằng chứng `mvm_ta` mới (đã chứa code 4 dispatch mới) boot
+và hoạt động đúng cho các lệnh CŨ.
+
+**CHƯA xác nhận**: 4 forward command mới (DEPLOY/SEND_NATIVE/PROCESS_NATIVE_MINT_BURN/
+NONCE_PLUS_ONE) chưa từng được gọi thật trên hardware — `mvm_ca_test` hiện tại (binary trên board,
+`/data/ssd/mvm_ca_test`) không có test case nào gửi các lệnh này (`strings` xác nhận không có
+chuỗi liên quan). Cần 1 trong 2: mở rộng `mvm_ca_test` để tự gửi `MVM_TZ_CMD_DEPLOY`/v.v. trực
+tiếp, hoặc chạy full Go CA thật (`ModeTrustzoneHardware`, `cmd/simple_chain-aarch64` đã build+test
+riêng trên board ở phiên metanode cùng ngày — xem `metanode/note/tee_dual_mode_execution_plan.md`
+§9.39-§9.42) và trỏ nó gọi các lệnh này qua node thật.
+
+**Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
+`llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
+KHÔNG liên quan `mvm_ta`) chạy hết 300/300 lần retry mà không tìm thấy TA marker — khác với kỳ
+vọng "confirm sau 1 lần thử" ghi ở mục "ĐÃ GIẢI QUYẾT (2026-08-08)" bên dưới. `smc.c` (file mà fix
+đó yêu cầu giữ nguyên bản gốc) xác nhận sạch, không có diff — không phải nguyên nhân. Vì
+`mvm_ca_test` chạy hoàn hảo ngay sau đó (chứng minh `chanmgr`/`mvm_ta` launch bình thường), sự cố
+này có vẻ CHỈ ảnh hưởng nhánh auto-launch riêng của llama-cli, không phải toàn bộ secure world —
+nhưng đây là quan sát 1 lần duy nhất trên 1 boot, KHÔNG kết luận "đã hết bug xác suất cũ", cần theo
+dõi thêm nếu có phiên llama-cli tới.
+
+## 2026-08-20 (round 3 thất bại → revert): thử rebuild libtbb.a bằng GCC 11.5.0, board bất ổn 3 lần cắm nguồn liên tiếp, REVERT về round 2 — checkpoints hiện tại KHÔNG đổi so với round 2
 
 **Đã thử** (round 3, cùng ngày): rebuild `libtbb.a` (oneTBB 2021.11.0) bằng đúng toolchain GCC
 11.5.0 (`/home/pi/musl-cross-build-scratch-gcc11`) thay vì GCC 13.3.0 cũ — phát hiện qua kiểm tra

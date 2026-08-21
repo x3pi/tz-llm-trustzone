@@ -50,7 +50,11 @@ echo "=== [3/4] compiling mvm_ta_main.cpp ==="
 "$MUSL_GCC" -std=c++20 -O2 -c \
     -I"$PKG/mvm/tzproto" \
     -I"$PKG/mvm/linker/include" \
+    -I"$C_MVM_BUILD/include" \
+    -I"$C_MVM_BUILD/include/3rdparty" \
     -I/home/vectorxj/chcore_include \
+    -I/home/vectorxj/xapian_include \
+    -I/home/vectorxj/tbb_include \
     -I"$CPP11/include/aarch64-linux-musleabi" \
     -I"$CPP11/include" \
     "$PKG/mvm/ta/mvm_ta_main.cpp" \
