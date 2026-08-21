@@ -33,13 +33,37 @@ trong <5s — `native transfer` (real balance/nonce change), `SSTORE/SLOAD` (rea
 `[mvm_ca_test] DONE`, `EXIT=0`. Đây là bằng chứng `mvm_ta` mới (đã chứa code 4 dispatch mới) boot
 và hoạt động đúng cho các lệnh CŨ.
 
-**CHƯA xác nhận**: 4 forward command mới (DEPLOY/SEND_NATIVE/PROCESS_NATIVE_MINT_BURN/
-NONCE_PLUS_ONE) chưa từng được gọi thật trên hardware — `mvm_ca_test` hiện tại (binary trên board,
-`/data/ssd/mvm_ca_test`) không có test case nào gửi các lệnh này (`strings` xác nhận không có
-chuỗi liên quan). Cần 1 trong 2: mở rộng `mvm_ca_test` để tự gửi `MVM_TZ_CMD_DEPLOY`/v.v. trực
-tiếp, hoặc chạy full Go CA thật (`ModeTrustzoneHardware`, `cmd/simple_chain-aarch64` đã build+test
-riêng trên board ở phiên metanode cùng ngày — xem `metanode/note/tee_dual_mode_execution_plan.md`
-§9.39-§9.42) và trỏ nó gọi các lệnh này qua node thật.
+**CẬP NHẬT (cùng ngày, sau khi mở rộng `mvm_ca_test.cpp` với 4 test case mới — xem
+`metanode/execution/pkg/mvm/ta/ca_test/mvm_ca_test.cpp`): 1/4 lệnh xác nhận chạy đúng, 1/4 LÀM
+TREO `mvm_ta` THẬT (bug xác nhận, không phải nghi ngờ), 2/4 chưa tới lượt test.**
+
+- `MVM_TZ_CMD_NONCE_PLUS_ONE`: **XÁC NHẬN CHẠY ĐÚNG** trên hardware — `status=0 exception=0
+  gas_used=50000`, `nonce_change_count=1` thật, hoàn thành trong <1s.
+- `MVM_TZ_CMD_SEND_NATIVE`: **TREO THẬT, xác nhận không phải nghi ngờ.** Sau khi gửi request,
+  `mvm_ta` trả lời đúng 2 reverse-call `GLOBAL_STATE_GET` (cho sender rồi recipient — giống hệt
+  pattern test 1 EXECUTE-based native transfer đã chạy thành công 2 lần trước đó trong cùng phiên
+  boot này), rồi treo im tại "waiting (round=2)" — log KHÔNG nhích thêm dòng nào suốt hơn 4 phút.
+  `timeout 60` (SIGTERM) **không kill được** process con `mvm_ca_test_4cmds` dù đã kill sạch
+  `sh`/`timeout` cha của nó — process con vẫn sống, đúng mẫu CLAUDE.md mô tả "process blocked
+  inside a secure-world SMC ioctl ... uninterruptible sleep, may not respond to any signal".
+  Đã đọc `mvm_linker.cpp`'s `sendNative()` (dòng 1117-1179) và `MyGlobalState::get()`
+  (`my_global_state.cpp:40-118`) — không thấy vòng lặp vô hạn rõ ràng trong phần đọc được; nguyên
+  nhân gốc rễ CHƯA xác định (nghi vấn: cộng dồn trạng thái balance/nonce thật của địa chỉ
+  `0x1111...1111` từ 9 lệnh trước đó trong cùng phiên có thể góp phần, nhưng chưa chứng minh được
+  — không suy đoán thêm khi chưa có bằng chứng). **Hệ quả: `mvm_ta` coi như đã KẸT cho hết phiên
+  boot này** — theo đúng quy tắc CLAUDE.md ("TA launched once per boot ... mọi lần gọi sau lần đầu
+  busy-spin mãi mãi"), không có gì đảm bảo request tiếp theo (kể cả reboot rồi thử lại các lệnh
+  KHÁC) sẽ không kẹt tương tự nếu chạm lại đúng code path này.
+- `MVM_TZ_CMD_PROCESS_NATIVE_MINT_BURN` / `MVM_TZ_CMD_DEPLOY`: **chưa từng chạy tới** — thứ tự
+  test đặt `SEND_NATIVE` trước, bị treo tại đó nên 2 lệnh còn lại chưa có cơ hội chạy trên hardware
+  lần này.
+
+**Việc cần làm tiếp (chưa làm trong phiên này)**: reboot board (bắt buộc để giải phóng `mvm_ta`
+đang kẹt), sau đó test riêng lẻ `PROCESS_NATIVE_MINT_BURN`/`DEPLOY` TRƯỚC `SEND_NATIVE` (đổi thứ
+tự để không bị chặn bởi bug này), và điều tra sâu `sendNative()`/`MyGlobalState::get()` phía TA
+(có thể cần thêm `[TZLLM_TRACE]`-style tracing bracket từng bước bên trong `sendNative()`, theo
+đúng phương pháp đã dùng để root-cause bug Xapian GCC-ABI trước đây, xem mục "2026-08-20 (round 2)"
+bên dưới) — KHÔNG coi `SEND_NATIVE` là "đã wire xong" cho tới khi bug này được sửa và xác nhận lại.
 
 **Lưu ý phụ, không phải regression từ thay đổi trên**: dmesg boot này cho thấy
 `llm_tee_os_init` (tz-llm's OWN llama-cli TA auto-launch handshake trong `tc_client_driver.c`,
