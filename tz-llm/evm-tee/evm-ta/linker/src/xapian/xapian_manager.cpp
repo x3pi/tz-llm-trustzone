@@ -1,5 +1,6 @@
 #include <atomic>
 #include "xapian/xapian_manager.h"
+#include "xapian/xapian_crypto.h"
 #include "my_extension/utils.h"
 #include "xapian/xapian_log.h" // Giả định chứa định nghĩa XapianLog::LogEntry
 #include "xapian/xapian_registry.h"
@@ -618,6 +619,11 @@ bool XapianManager::commit_changes() {
   }
   try {
     db.commit(); // Thực hiện commit Xapian
+    // Lưu lại delta log cho persistent storage trước khi xóa
+    unpersisted_wal_logs.insert(unpersisted_wal_logs.end(),
+                                comprehensive_log.xapian_doc_logs.begin(),
+                                comprehensive_log.xapian_doc_logs.end());
+    storage_version++;
     comprehensive_log.xapian_doc_logs
         .clear(); // Xóa các log đã staged sau khi commit thành công
   } catch (const Xapian::Error &) {
@@ -656,6 +662,68 @@ void XapianManager::commitAllInstances() {
       manager->commit_changes();
     }
   }
+}
+
+std::vector<XapianManager::DirtyDeltaInfo> XapianManager::collectAllDirtyDeltas() {
+  std::vector<DirtyDeltaInfo> result;
+  std::shared_lock<std::shared_mutex> lock(instances_mutex);
+  for (auto &pair : instances) {
+    auto manager = pair.second;
+    if (!manager) continue;
+    std::lock_guard<std::shared_mutex> ch_lock(manager->changes_mutex);
+    if (!manager->unpersisted_wal_logs.empty()) {
+      XapianLog::ComprehensiveLog delta_log;
+      delta_log.db_name = manager->db_name;
+      delta_log.xapian_doc_logs = manager->unpersisted_wal_logs;
+
+      std::vector<uint8_t> serialized = delta_log.serialize();
+      std::vector<uint8_t> encrypted = XapianCrypto::encrypt(serialized, manager->storage_version);
+
+      DirtyDeltaInfo info;
+      info.address = manager->address;
+      info.db_name = manager->db_name;
+      info.version = manager->storage_version;
+      info.encrypted_hex = XapianCrypto::bytesToHex(encrypted);
+      result.push_back(info);
+
+      manager->unpersisted_wal_logs.clear();
+    }
+  }
+  return result;
+}
+
+bool XapianManager::loadDatabaseData(const mvm::Address &contract, const std::string &db_name, uint64_t version, const std::string &encrypted_hex) {
+  std::vector<uint8_t> enc_bytes = XapianCrypto::hexToBytes(encrypted_hex);
+  auto decrypted = XapianCrypto::decrypt(enc_bytes, 0);
+  if (!decrypted) {
+    std::cerr << "[XapianManager] Decrypt failed or integrity violation for DB: " << db_name << std::endl;
+    return false;
+  }
+
+  auto comp_log = XapianLog::ComprehensiveLog::deserialize(*decrypted);
+  if (!comp_log) {
+    std::cerr << "[XapianManager] Deserialize failed for DB: " << db_name << std::endl;
+    return false;
+  }
+
+  auto manager = getInstance(db_name, contract, false);
+  if (!manager) return false;
+
+  bool ok = manager->replay_log(comp_log->xapian_doc_logs);
+  if (ok) {
+    std::lock_guard<std::shared_mutex> lock(manager->changes_mutex);
+    try {
+      manager->db.commit();
+    } catch (...) {}
+    manager->db_generation.fetch_add(1, std::memory_order_acq_rel);
+    if (version > manager->storage_version) {
+      manager->storage_version = version;
+    }
+    std::cout << "[XapianManager] Successfully restored " << comp_log->xapian_doc_logs.size()
+              << " WAL entries into DB: " << db_name
+              << " (Contract: " << mvm::address_to_hex_string(contract) << ")" << std::endl;
+  }
+  return ok;
 }
 
 

@@ -58,6 +58,7 @@ set(LINKER_SRCS
     ${LINKER_ROOT}/src/xapian/xapian_registry.cpp
     ${LINKER_ROOT}/src/xapian/xapian_log.cpp
     ${LINKER_ROOT}/src/xapian/xapian_manager_resolve.cpp
+    ${LINKER_ROOT}/src/xapian/xapian_crypto.cpp
     ${LINKER_ROOT}/src/my_logger.cpp
     ${LINKER_ROOT}/src/abi/encoding_utils.cpp
     ${LINKER_ROOT}/src/my_extension/utils.cpp

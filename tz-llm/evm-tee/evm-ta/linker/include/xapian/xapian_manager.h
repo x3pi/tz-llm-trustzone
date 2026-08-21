@@ -41,6 +41,18 @@ public:
   static constexpr const char *LOGICAL_ID_GENERATED_PREFIX = "uuid:";
   static std::string generateUuidLogicalId();
   static void commitAllInstances();
+
+  // --- Persistent TEE Storage Support ---
+  struct DirtyDeltaInfo {
+    mvm::Address address;
+    std::string db_name;
+    uint64_t version;
+    std::string encrypted_hex;
+  };
+  static std::vector<DirtyDeltaInfo> collectAllDirtyDeltas();
+  static bool loadDatabaseData(const mvm::Address &contract, const std::string &db_name, uint64_t version, const std::string &encrypted_hex);
+  std::vector<XapianLog::LogEntry> unpersisted_wal_logs;
+  uint64_t storage_version{0};
   // --- Member Variables ---
   Xapian::WritableDatabase db;
   mutable std::shared_mutex changes_mutex; // shared_mutex: cho phép nhiều reader song song, exclusive khi write/commit

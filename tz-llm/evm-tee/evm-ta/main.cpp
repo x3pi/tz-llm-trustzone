@@ -239,7 +239,12 @@ int main() {
                             std::string b_str = acc_obj.value("balance", "1000000000000000000000000");
                             uint64_t n_val = acc_obj.value("nonce", (uint64_t)0);
                             if (!a_str.empty()) {
-                                init_account(parse_address(a_str), parse_uint256(b_str), n_val);
+                                mvm::Address a_addr = parse_address(a_str);
+                                init_account(a_addr, parse_uint256(b_str), n_val);
+                                if (acc_obj.find("code") != acc_obj.end()) {
+                                    std::string code_hex = acc_obj["code"].get<std::string>();
+                                    State::getInstance(a_addr)->setCode(hex_to_bytes(code_hex));
+                                }
                             }
                         }
                     }
@@ -260,6 +265,43 @@ int main() {
                             j_wallet["nonce"] = (uint64_t)0;
                         }
                         std::string out_str = j_wallet.dump();
+                        strncpy(shm_buf, out_str.c_str(), SHM_SIZE - 1);
+                    } else if (action == "load_storage" || action == "restore_xapian") {
+                        int restored_count = 0;
+                        if (j_req.find("contracts") != j_req.end() && j_req["contracts"].is_array()) {
+                            for (const auto& c_obj : j_req["contracts"]) {
+                                std::string a_str = c_obj.value("address", "");
+                                if (!a_str.empty()) {
+                                    mvm::Address a_addr = parse_address(a_str);
+                                    if (!State::instanceExists(a_addr)) {
+                                        init_account(a_addr, initial_dev_balance, 0);
+                                    }
+                                    if (c_obj.find("code") != c_obj.end()) {
+                                        std::string code_hex = c_obj["code"].get<std::string>();
+                                        State::getInstance(a_addr)->setCode(hex_to_bytes(code_hex));
+                                    }
+                                }
+                            }
+                        }
+                        if (j_req.find("items") != j_req.end() && j_req["items"].is_array()) {
+                            for (const auto& itm : j_req["items"]) {
+                                std::string c_str = itm.value("contract", "");
+                                std::string d_str = itm.value("dbname", "default");
+                                uint64_t v_num = itm.value("version", (uint64_t)1);
+                                std::string enc_hex = itm.value("data", "");
+                                if (!c_str.empty() && !enc_hex.empty()) {
+                                    mvm::Address c_addr = parse_address(c_str);
+                                    if (XapianManager::loadDatabaseData(c_addr, d_str, v_num, enc_hex)) {
+                                        restored_count++;
+                                    }
+                                }
+                            }
+                        }
+                        nlohmann::json j_rest;
+                        j_rest["status"] = 0;
+                        j_rest["status_str"] = "RETURNED";
+                        j_rest["restored_count"] = restored_count;
+                        std::string out_str = j_rest.dump();
                         strncpy(shm_buf, out_str.c_str(), SHM_SIZE - 1);
                     } else {
                         // Execute transaction (deploy or call)
@@ -484,6 +526,22 @@ int main() {
                             j_event_logs.push_back(j_log);
                         }
                         j_res["event_logs"] = j_event_logs;
+
+                        // Attach dirty WAL deltas for persistent storage sync on SSD
+                        auto dirty_deltas = XapianManager::collectAllDirtyDeltas();
+                        if (!dirty_deltas.empty()) {
+                            nlohmann::json j_sync = nlohmann::json::array();
+                            for (const auto& d : dirty_deltas) {
+                                nlohmann::json item;
+                                item["contract"] = mvm::address_to_hex_string(d.address);
+                                item["dbname"] = d.db_name;
+                                item["version"] = d.version;
+                                item["type"] = "WAL_APPEND";
+                                item["data"] = d.encrypted_hex;
+                                j_sync.push_back(item);
+                            }
+                            j_res["storage_sync"] = j_sync;
+                        }
 
                         std::string out_str = j_res.dump();
                         strncpy(shm_buf, out_str.c_str(), SHM_SIZE - 1);

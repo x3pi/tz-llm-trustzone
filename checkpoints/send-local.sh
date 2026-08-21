@@ -13,7 +13,7 @@ mkdir -p /home/nhat/Workspace/tz-llm-trustzone/checkpoints
 echo "Đang kéo file TEE-OS và Kernel từ Server về Laptop..."
 sshpass -p '1234@abcd' scp abc@192.168.1.234:/home/abc/nhat/tz-llm-trustzone/checkpoints/uboot_repacked.img /home/nhat/Workspace/tz-llm-trustzone/checkpoints/
 sshpass -p '1234@abcd' scp abc@192.168.1.234:/home/abc/nhat/tz-llm-trustzone/checkpoints/boot.img /home/nhat/Workspace/tz-llm-trustzone/checkpoints/
-echo "Đang kéo file xapian-ca từ Server về Laptop..."
-sshpass -p '1234@abcd' scp abc@192.168.1.234:/home/abc/nhat/tz-llm-trustzone/tz-llm/xapian-tee/checkpoints/xapian-ca /home/nhat/Workspace/tz-llm-trustzone/checkpoints/
+echo "Đang kéo file evm-ca từ Server về Laptop..."
+sshpass -p '1234@abcd' scp abc@192.168.1.234:/home/abc/nhat/tz-llm-trustzone/checkpoints/evm-ca /home/nhat/Workspace/tz-llm-trustzone/checkpoints/
 
 echo "Hoàn tất! Bây giờ bạn có thể flash board được rồi."
